@@ -2,3 +2,4 @@ beautifulsoup4
 pytest-playwright
 typing
 flask
+flask_sqlalchemy

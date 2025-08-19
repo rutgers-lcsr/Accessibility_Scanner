@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+
+dist/**/*
+package.lock.json
+node_modules/
+
+
+.venv

@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 from accessibility.ace import AxeResult, get_accessibility_report
 from browser.parse import get_base_url, get_imgs, get_links, get_videos
 from playwright.async_api import Browser
-
+import time 
 from browser.tabbable import is_page_tabbable
 
 class Report(TypedDict, total=False):
@@ -15,6 +15,7 @@ class Report(TypedDict, total=False):
     videos: List[str]
     imgs: List[str]
     tabable: bool
+    timestamp: float
 
 
 async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu")-> Report:
@@ -48,8 +49,8 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     tabable = await is_page_tabbable(page)
     has_video = await page.evaluate("() => { return !!document.querySelector('video'); }")
     has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
-    
-    
+
+    timestamp = time.time()
 
     await page.close()
 
@@ -71,5 +72,6 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         'num_of_imgs': num_of_imgs,
         'tabable': tabable,
         'has_video': has_video,
-        'has_img': has_img
+        'has_img': has_img,
+        'timestamp': timestamp
     }

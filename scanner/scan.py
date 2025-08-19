@@ -38,7 +38,7 @@ async def process_website(name: int, browser, queue: asyncio.Queue, results: Lis
             queue.task_done()
 
 
-async def main():
+async def generate_reports(website: str = "https://resources.cs.rutgers.edu") -> List[Report]:
     results: List[Report] = []
     sites_done: set[str] = set()
     currently_processing: set[str] = set()
@@ -63,7 +63,7 @@ async def main():
             await q.put(None)
         await asyncio.gather(*workers)
 
-        print(results)
+    return results
 
 
-asyncio.run(main())
+asyncio.run(generate_reports())
