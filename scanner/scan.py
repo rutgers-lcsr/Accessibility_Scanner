@@ -1,11 +1,11 @@
 import asyncio
 from typing import List
 from playwright.async_api import async_playwright
-from browser.report import Report, Report, generate_report
+from browser.report import AccessibilityReport, generate_report
 from log import log_message
 
 
-async def process_website(name: int, browser, queue: asyncio.Queue, results: List[Report], sites_done: set[str], currently_processing: set[str]) -> Report:
+async def process_website(name: int, browser, queue: asyncio.Queue, results: List[AccessibilityReport], sites_done: set[str], currently_processing: set[str]) -> AccessibilityReport:
     while True:
         website = await queue.get()
         if website is None:  # sentinel to shut down
@@ -38,8 +38,8 @@ async def process_website(name: int, browser, queue: asyncio.Queue, results: Lis
             queue.task_done()
 
 
-async def generate_reports(website: str = "https://resources.cs.rutgers.edu") -> List[Report]:
-    results: List[Report] = []
+async def generate_reports(website: str = "https://resources.cs.rutgers.edu") -> List[AccessibilityReport]:
+    results: List[AccessibilityReport] = []
     sites_done: set[str] = set()
     currently_processing: set[str] = set()
 
@@ -47,7 +47,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False,args=['--no-sandbox', '--disable-setuid-sandbox'])
         q = asyncio.Queue()
-        await q.put("https://resources.cs.rutgers.edu")
+        await q.put(website)
         # Launch N workers
         num_workers = 10
         workers = [

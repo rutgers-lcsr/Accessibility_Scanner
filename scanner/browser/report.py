@@ -1,16 +1,16 @@
 
 from typing import List, TypedDict
 from urllib.parse import urlparse
-from accessibility.ace import AxeResult, get_accessibility_report
+from accessibility.ace import AxeReport, get_accessibility_report
 from browser.parse import get_base_url, get_imgs, get_links, get_videos
 from playwright.async_api import Browser
 import time 
 from browser.tabbable import is_page_tabbable
 
-class Report(TypedDict, total=False):
+class AccessibilityReport(TypedDict, total=False):
     url: str
     base_url: str
-    violations: List[AxeResult]
+    report: AxeReport
     links: List[str]
     videos: List[str]
     imgs: List[str]
@@ -18,7 +18,7 @@ class Report(TypedDict, total=False):
     timestamp: float
 
 
-async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu")-> Report:
+async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu")-> AccessibilityReport:
 
 
     try:
@@ -30,21 +30,12 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     base_url = get_base_url(page)
     report = await get_accessibility_report(page)
     # print(report)
-    violations = report.get('violations', [])
-    num_critical_violations = sum(1 for v in violations if v.get('impact') == 'critical')
-    num_serious_violations = sum(1 for v in violations if v.get('impact') == 'serious')
-    num_moderate_violations = sum(1 for v in violations if v.get('impact') == 'moderate')
-    num_minor_violations = sum(1 for v in violations if v.get('impact') == 'minor')
-    num_violations = len(violations)
 
     links = await get_links(page)
-    num_of_links = len(links)
 
     videos = await get_videos(page)
-    num_of_videos = len(videos)
     
     imgs = await get_imgs(page)
-    num_of_imgs = len(imgs)
 
     tabable = await is_page_tabbable(page)
     has_video = await page.evaluate("() => { return !!document.querySelector('video'); }")
@@ -58,18 +49,10 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     return {
         'url': website,
         'base_url': base_url,
-        'violations': violations,
-        'num_violations': num_violations,
-        'num_critical_violations': num_critical_violations,
-        'num_serious_violations': num_serious_violations,
-        'num_moderate_violations': num_moderate_violations,
-        'num_minor_violations': num_minor_violations,
+        'report': report,
         'links': links,
-        'num_of_links': num_of_links,
         'videos': videos,
-        'num_of_videos': num_of_videos,
         'imgs': imgs,
-        'num_of_imgs': num_of_imgs,
         'tabable': tabable,
         'has_video': has_video,
         'has_img': has_img,
