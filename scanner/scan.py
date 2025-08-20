@@ -1,52 +1,62 @@
 import asyncio
 from typing import List
+from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 from browser.report import AccessibilityReport, generate_report
 from log import log_message
+from app import create_app
+from models import db
+from models.website import Site, Website
+from models.report import Report
+from scanner.utils.queue import ListQueue
+
+sites_done: set[str] = set()
+currently_processing: set[str] = set()
 
 
-async def process_website(name: int, browser, queue: asyncio.Queue, results: List[AccessibilityReport], sites_done: set[str], currently_processing: set[str]) -> AccessibilityReport:
+async def process_website(name: int, browser, queue: ListQueue, results: List[AccessibilityReport], sites_done: set[str], currently_processing: set[str]) -> AccessibilityReport:
     while True:
-        website = await queue.get()
-        if website is None:  # sentinel to shut down
+        site = await queue.get()
+        if site is None:  # sentinel to shut down
             queue.task_done()
             break
 
-        if website in currently_processing:
+        if site in currently_processing:
             queue.task_done()
             continue
-
-        currently_processing.add(website)
+        currently_processing.add(site)
         try:
-            res = await generate_report(browser, website=website)
+            res = await generate_report(browser, website=site)
             
 
             if 'error' in res:
-                log_message(f"[Worker {name}] Error for {website}: {res['error']}", 'error')
+                log_message(f"[Worker {name}] Error for {site}: {res['error']}", 'error')
             else:
-                for link in res.get('links', []):
-                   if link not in sites_done and link not in currently_processing:
-                       await queue.put(link)
-            results.append(res)
-            
-            
-            log_message(f"[Worker {name}] Processed {website}, websites left: {queue.qsize()}", 'info')
-        
+                # add links to queue if not already processing
+                for site_link in res.get('links', []):
+                    if not site_link in sites_done and not site_link in currently_processing and not queue.exists(site_link):
+                        await queue.put(site_link)
+                results.append(res)
         finally:
-            sites_done.add(website)
-            currently_processing.remove(website)
+            sites_done.add(site)
+            currently_processing.remove(site)
             queue.task_done()
+            log_message(f"[Worker {name}] Processed {site}, websites left: {queue.qsize()} currently processing: {len(currently_processing)} sites_done: {len(sites_done)}", 'info')
 
 
 async def generate_reports(website: str = "https://resources.cs.rutgers.edu") -> List[AccessibilityReport]:
+    
+    global sites_done, currently_processing
+    
     results: List[AccessibilityReport] = []
-    sites_done: set[str] = set()
-    currently_processing: set[str] = set()
-
-
+    sites_done = set()
+    currently_processing = set()
+    app = create_app()
+    parsed_url = urlparse(website)
+    base_url = f"{parsed_url.netloc}"
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False,args=['--no-sandbox', '--disable-setuid-sandbox'])
-        q = asyncio.Queue()
+        browser = await p.chromium.launch(headless=False,args=['--no-sandbox', '--disable-setuid-sandbox'],)
+        q = ListQueue()
         await q.put(website)
         # Launch N workers
         num_workers = 10
@@ -62,7 +72,41 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         for _ in range(num_workers):
             await q.put(None)
         await asyncio.gather(*workers)
+    with app.app_context():
+        # check if website exists
+        
+        web = Website.query.filter_by(base_url=base_url).first()
+        if web is None:
+            web = Website(url=website)
+            db.session.add(web)
+    
+        log_message(f"Storing {len(results)} reports for {website}", 'info')
+        if not web.domain_id:
+            log_message(f"Warning website doesnt have an associated domain", 'warning')
 
+        sites = []
+
+        for site_reports in results:
+            # check if site exists if not create one
+            site = Site.query.filter_by(url=site_reports['url']).first()
+            if site is None:
+                site = Site(url=site_reports['url'], website_id=web.id)
+                sites.append(site)
+            report = Report(site_reports, site_id=site.id)
+        
+            site.reports.append(report)
+            site.last_scanned = db.func.current_timestamp()
+
+            db.session.add(site)
+
+        
+        web.last_scanned = db.func.current_timestamp()
+        # add sites to website if site didnt exist
+        web.sites.extend(sites)
+
+        db.session.add(web)
+        db.session.commit()
+        db.session.flush()
     return results
 
 

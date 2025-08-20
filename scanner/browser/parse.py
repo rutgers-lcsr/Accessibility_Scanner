@@ -1,7 +1,7 @@
 from typing import List
 from urllib.parse import urlparse
 
-from accessibility.ace import get_accessibility_report
+from scanner.accessibility.ace import get_accessibility_report
 from playwright.async_api import Page
 
 
@@ -18,7 +18,7 @@ def get_link_js(website):
                 return '{website}' + l;
             }}
             return l;
-        }})
+        }}).filter(l => !/(.png|.jpg|.jpeg|.gif|.svg|.zip|.mp4|.webm|.pdf|.doc|.docx|.xls|.xlsx)$/.test(l))
         return links;
 }}"""
 
@@ -41,7 +41,7 @@ def get_imgs_js():
 
 def get_base_url(page:Page) -> str:
     parsed_url = urlparse(page.url)
-    return f"{parsed_url.scheme}://{parsed_url.hostname}"
+    return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
 async def get_links(page:  Page) -> List[str]:
     current_page = get_base_url(page)

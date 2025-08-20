@@ -1,11 +1,10 @@
 
 from typing import List, TypedDict
-from urllib.parse import urlparse
-from accessibility.ace import AxeReport, get_accessibility_report
-from browser.parse import get_base_url, get_imgs, get_links, get_videos
+from scanner.accessibility.ace import AxeReport, get_accessibility_report
+from scanner.browser.parse import get_base_url, get_imgs, get_links, get_videos
 from playwright.async_api import Browser
 import time 
-from browser.tabbable import is_page_tabbable
+from scanner.browser.tabbable import is_page_tabbable
 
 class AccessibilityReport(TypedDict, total=False):
     url: str
@@ -18,11 +17,14 @@ class AccessibilityReport(TypedDict, total=False):
     timestamp: float
 
 
+
+# Generates a AccessibilityReport for a given site
 async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu")-> AccessibilityReport:
 
 
     try:
-        page = await browser.new_page()
+        context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0")
+        page = await context.new_page()
         await page.goto(website)
     except Exception as e:
         return {"error": str(e)}
