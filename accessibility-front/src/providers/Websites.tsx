@@ -1,5 +1,5 @@
 "use client"
-import { APIError, handleRequest } from '@/lib/api';
+import { APIError, fetcherApi, handleRequest } from '@/lib/api';
 import { Website } from '@/lib/types/website';
 import { Paged } from '@/lib/types/Paged';
 import { useRouter } from 'next/navigation';
@@ -8,6 +8,7 @@ import useSWR from 'swr';
 
 type WebsitesContextType = {
     websites: Website[] | null;
+    websitesTotal: number;
     error: APIError | null;
     isLoading: boolean;
     WebsitePage: number;
@@ -20,13 +21,13 @@ type WebsitesContextType = {
 
 const WebsitesContext = createContext<WebsitesContextType | undefined>(undefined);
 
-export const WebsitesProvider = ({ children }: { children: ReactNode }) => {
+export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
-    const fetcher = (url: string) => handleRequest<Paged<Website>>(url);
-    const { data, error, isLoading } = useSWR(`/api/websites?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcher);
+
+    const { data, error, isLoading } = useSWR(`/api/websites?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi<Paged<Website>>);
 
     const openWebsite = (id: number) => {
         // Logic to open the website
@@ -36,7 +37,7 @@ export const WebsitesProvider = ({ children }: { children: ReactNode }) => {
 
 
     return (
-        <WebsitesContext.Provider value={{ websites: data?.items ?? null, error, isLoading, openWebsite, WebsitePage: page, WebsiteLimit: limit, setWebsitePage: setPage, setWebsiteLimit: setLimit, setWebsiteSearch: setSearchUrl }}>
+        <WebsitesContext.Provider value={{ websites: data?.items ?? null, websitesTotal: data?.count ?? 0, error, isLoading, openWebsite, WebsitePage: page, WebsiteLimit: limit, setWebsitePage: setPage, setWebsiteLimit: setLimit, setWebsiteSearch: setSearchUrl }}>
             {children}
         </WebsitesContext.Provider>
     );

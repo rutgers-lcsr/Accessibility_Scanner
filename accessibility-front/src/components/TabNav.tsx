@@ -50,9 +50,10 @@ export default function TabNav() {
                     tabPosition="left"
                     items={items}
                     style={{ height: "100%" }}
-                    onChange={(key) => router.push(tabRoutes[key], {
-                        'scroll': true,
-                    })}
+                    onChange={(key) => {
+
+                        router.replace(tabRoutes[key])
+                    }}
                     className="h-lvh w-full"
 
                 >

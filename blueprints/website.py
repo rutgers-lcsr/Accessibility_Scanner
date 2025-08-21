@@ -121,7 +121,7 @@ def get_websites():
         .distinct()
     )
     if search:
-        w_query = w_query.filter(Website.base_url.like(f"%{search}%"))
+        w_query = w_query.filter(Website.base_url.icontains(f"%{search}%"))
     w = w_query.paginate(page=page, per_page=limit)
 
     return jsonify({

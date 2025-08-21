@@ -6,9 +6,59 @@ import { useSearchParams } from 'next/navigation';
 import Website from '@/components/Website';
 import type { Website as WebsiteType } from '@/lib/types/website';
 import { Table } from 'antd';
+
+const columns = [
+    {
+        title: 'URL',
+        dataIndex: 'base_url',
+        key: 'base_url',
+        render: (text: string, record: WebsiteType) => (
+            <a href={`/websites?id=${record.id}`}>{text}</a>
+        ),
+    },
+    {
+        title: 'Last Scanned',
+        dataIndex: 'last_scanned',
+        key: 'last_scanned',
+        render: (date: string) => new Date(date).toLocaleDateString(),
+    },
+    {
+        title: 'Passes',
+        dataIndex: 'passes',
+        key: 'passes',
+        render: (text: string, record: WebsiteType) => (
+            <span>{record.report_counts.passes.total}</span>
+        ),
+    },
+    {
+        title: 'Violations',
+        dataIndex: 'violations',
+        key: 'violations',
+        render: (text: string, record: WebsiteType) => (
+            <span>{record.report_counts.violations.total}</span>
+        ),
+        sorter: (a: WebsiteType, b: WebsiteType) => a.report_counts.violations.total - b.report_counts.violations.total,
+    },
+    {
+        title: 'Active',
+        dataIndex: 'active',
+        key: 'active',
+        render: (active: boolean) => (active ? 'Yes' : 'No'),
+    },
+];
+
+
 export default function Page() {
     const searchParams = useSearchParams();
-    const { websites, setWebsitePage, setWebsiteLimit, WebsitePage, isLoading, setWebsiteSearch } = useWebsites();
+    const {
+        websites,
+        websitesTotal,
+        setWebsitePage,
+        setWebsiteLimit,
+        WebsitePage,
+        isLoading,
+        setWebsiteSearch
+    } = useWebsites();
     const id = searchParams.get('id');
 
     if (id) {
@@ -18,37 +68,6 @@ export default function Page() {
 
 
 
-    const columns = [
-        {
-            title: 'URL',
-            dataIndex: 'base_url',
-            key: 'base_url',
-            render: (text: string, record: WebsiteType) => (
-                <a href={`/websites?id=${record.id}`}>{text}</a>
-            ),
-        },
-        {
-            title: 'Last Scanned',
-            dataIndex: 'last_scanned',
-            key: 'last_scanned',
-            render: (date: string) => new Date(date).toLocaleDateString(),
-        },
-        {
-            title: 'Violations',
-            dataIndex: 'violations',
-            key: 'violations',
-            render: (text: string, record: WebsiteType) => (
-                <span>{record.report_counts.violations.total}</span>
-            ),
-            sorter: (a: WebsiteType, b: WebsiteType) => a.report_counts.violations.total - b.report_counts.violations.total,
-        },
-        {
-            title: 'Active',
-            dataIndex: 'active',
-            key: 'active',
-            render: (active: boolean) => (active ? 'Yes' : 'No'),
-        },
-    ];
 
 
 
@@ -73,10 +92,9 @@ export default function Page() {
             />
         </main>
         <footer className="mt-4 justify-center flex">
-            <Pagination showSizeChanger defaultCurrent={WebsitePage} total={websites?.length || 0} onShowSizeChange={(current, pageSize) => {
-                setWebsitePage(current);
+            <Pagination showSizeChanger defaultCurrent={WebsitePage} total={websitesTotal || 0} onShowSizeChange={(current, pageSize) => {
                 setWebsiteLimit(pageSize);
-            }} />
+            }} onChange={(current) => setWebsitePage(current)} />
         </footer>
     </div>;
 }

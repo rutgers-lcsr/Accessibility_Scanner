@@ -1,5 +1,6 @@
 from flask import Blueprint
-from flask import request, jsonify 
+from flask import request, jsonify
+from sqlalchemy import func 
 from models.report import Report
 from urllib.parse import urlparse
 
@@ -11,9 +12,14 @@ def get_reports():
     params = request.args
     limit = params.get('limit', default=100, type=int)
     page = params.get('page', default=1, type=int)
-    sort_by = params.get('sort_by', default='timestamp', type=str)
+    search = params.get('search', type=str)
 
-    reports = Report.query.order_by(getattr(Report, sort_by)).paginate(page=page, per_page=limit)
+    reports_q = Report.query.order_by(Report.timestamp.desc(), func.json_extract(Report.report_counts, '$.violations.total').desc())
+
+    if search:
+        reports_q = reports_q.filter(Report.url.icontains(f"%{search}%"))
+
+    reports = reports_q.paginate(page=page, per_page=limit)
 
     return jsonify({
         'count': reports.total,

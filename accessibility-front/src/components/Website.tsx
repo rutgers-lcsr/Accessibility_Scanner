@@ -28,7 +28,7 @@ const Website = ({ websiteId }: Props) => {
         setPageSize(pageSize);
     }, [pageSize]);
 
-    const { data: sites, error: siteError, isLoading: siteLoading } = useSWR(
+    const { data: sites, error: siteError } = useSWR(
         `/api/websites/${websiteId}/sites?page=${currentPage}&limit=${pageSize}`,
         fetcherApi<Paged<Site>>
     );

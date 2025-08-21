@@ -145,7 +145,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     return results
 
 
-def run_scan(website:str = "https://services.cs.rutgers.edu"):
+def run_scan(website:str = "https://resources.cs.rutgers.edu"):
     asyncio.run(generate_reports(website))
     
 if __name__ == "__main__":
