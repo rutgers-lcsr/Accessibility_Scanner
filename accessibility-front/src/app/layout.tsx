@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConfigProvider } from "antd";
-import TabNav from "./components/TabNav";
+import TabNav from "../components/TabNav";
+import { UserProvider } from "../providers/User";
+import { rutgersTheme } from "@/lib/theme";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -29,11 +31,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex`}
       >
-        <ConfigProvider>
-          <div role="navigation">
+        <ConfigProvider theme={rutgersTheme}>
+          <UserProvider>
             <TabNav />
-          </div>
-          {children}
+            {children}
+          </UserProvider>
         </ConfigProvider>
       </body>
     </html>

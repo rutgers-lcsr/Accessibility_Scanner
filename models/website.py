@@ -3,6 +3,8 @@ from urllib.parse import urlparse
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method
 
+from models.report import Report
+
 class Site(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     url = db.Column(db.String(200), nullable=False)
@@ -13,6 +15,18 @@ class Site(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'url': self.url,
+            'last_scanned': self.last_scanned,
+            'website_id': self.website_id,
+            'reports': [report.to_dict() for report in self.reports.with_entities(Report.id, Report.url, Report.timestamp).all()],
+            'active': self.active,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+
     def __init__(self, url, website_id):
         parsed = urlparse(url)
         if not all([parsed.scheme, parsed.netloc]):
@@ -31,6 +45,18 @@ class Website(db.Model):
     active = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'base_url': self.base_url,
+            'sites': [site.id for site in self.sites.all()],
+            'domain_id': self.domain_id,
+            'last_scanned': self.last_scanned,
+            'active': self.active,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
 
     def __init__(self, url):
         base_url = urlparse(url).netloc

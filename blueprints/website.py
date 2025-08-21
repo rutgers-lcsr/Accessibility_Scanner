@@ -5,6 +5,7 @@ from models.website import Domains, Site, Website
 from models.report import Report
 from models import db
 from urllib.parse import urlparse
+from datetime import datetime
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
@@ -92,9 +93,27 @@ def get_websites():
     params = request.args
     limit = params.get('limit', default=100, type=int)
     page = params.get('page', default=1, type=int)
-    w = Website.query.with_entities(Website.id, Website.base_url).paginate(page=page, per_page=limit)
+    search = params.get('search', default=None, type=str)
+    w = Website.query
+    if search:
+      
+        # Try to parse search as a date (DD-MM-YYYY)
+        try:
+            search_date = datetime.strptime(search, "%d-%m-%Y").date()
+            w = w.filter(Website.last_scanned == search_date)
+        except ValueError:
+            # Not a date, search base_url as usual
+            w = w.filter(Website.base_url.like(f"%{search}%"))
+    w = w.paginate(page=page, per_page=limit)
 
-    return jsonify(w), 200
+
+
+    websites = w.items
+    
+    return jsonify({
+        'count': w.total,
+        'items': [website.to_dict() for website in websites]
+    }), 200
 
 
 @website_bp.route('/<int:website_id>', methods=['GET'])
@@ -106,4 +125,4 @@ def get_website(website_id):
 
     website.sites = website.sites.with_entities(Site.id).all()
 
-    return jsonify(website), 200
+    return jsonify(website.to_dict()), 200

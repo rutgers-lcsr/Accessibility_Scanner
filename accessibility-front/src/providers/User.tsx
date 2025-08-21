@@ -1,5 +1,6 @@
+"use client"
 import { APIError, handleRequest } from '@/lib/api';
-import { User } from '@/lib/user';
+import { User } from '@/lib/types/user';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 

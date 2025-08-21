@@ -12,6 +12,4 @@ def get_site(site_id):
     if not site:
         return jsonify({'error': 'Site not found'}), 404
 
-    site.reports.with_entities(Report.id, Report.url).all()
-
     return jsonify(site.to_dict()), 200

@@ -3,3 +3,5 @@ pytest-playwright
 typing
 flask
 flask_sqlalchemy
+flask_login
+flask_cors

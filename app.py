@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from models import db
 from authentication.login import login_manager
 from models.user import Profile, User
@@ -6,8 +7,11 @@ from werkzeug.security import generate_password_hash
 import os 
 def create_app():
     app = Flask(__name__)
+    CORS(app, origins=["*"], supports_credentials=True)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///audit.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+
     db.init_app(app)
     login_manager.init_app(app)
 

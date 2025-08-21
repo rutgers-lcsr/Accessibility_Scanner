@@ -44,6 +44,35 @@ async def process_website(name: int, browser, queue: ListQueue, results: List[Ac
             log_message(f"[Worker {name}] Processed {site}, websites left: {queue.qsize()} currently processing: {len(currently_processing)} sites_done: {len(sites_done)}", 'info')
 
 
+        
+
+async def generate_single_site_report(site_url:str) -> AccessibilityReport:
+    app = create_app()
+    base_url = f"{urlparse(site_url).netloc}"
+    website_url = f"{urlparse(site_url).scheme}://{base_url}"
+    with app.app_context():        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=False, args=['--no-sandbox', '--disable-setuid-sandbox'])
+            report = await generate_report(browser, website=site_url)
+            await browser.close()
+
+            web = Website.query.filter_by(base_url=base_url).first()
+            if web is None:
+                web = Website(url=website_url)
+                db.session.add(web)
+
+            site = Site.query.filter_by(url=report['url']).first()
+            if site is None:
+                site = Site(url=report['url'], website_id=web.id)
+            report = Report(report, site_id=site.id)
+
+            site.reports.append(report)
+            site.last_scanned = db.func.current_timestamp()
+            db.session.add(report)
+            db.session.add(site)
+
+        return report
+
 async def generate_reports(website: str = "https://resources.cs.rutgers.edu") -> List[AccessibilityReport]:
     
     global sites_done, currently_processing
@@ -72,6 +101,8 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         for _ in range(num_workers):
             await q.put(None)
         await asyncio.gather(*workers)
+        
+    # save reports to database
     with app.app_context():
         # check if website exists
         
@@ -93,10 +124,11 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
                 site = Site(url=site_reports['url'], website_id=web.id)
                 sites.append(site)
             report = Report(site_reports, site_id=site.id)
-        
+
+            
             site.reports.append(report)
             site.last_scanned = db.func.current_timestamp()
-
+            db.session.add(report)
             db.session.add(site)
 
         
@@ -110,4 +142,8 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     return results
 
 
-asyncio.run(generate_reports())
+def run_scan(website:str = "https://resources.cs.rutgers.edu"):
+    asyncio.run(generate_reports(website))
+    
+if __name__ == "__main__":
+    run_scan()
