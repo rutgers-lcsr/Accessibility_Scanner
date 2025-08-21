@@ -26,6 +26,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0")
         page = await context.new_page()
         await page.goto(website)
+        await page.wait_for_load_state('networkidle')
     except Exception as e:
         return {"error": str(e)}
 

@@ -1,3 +1,5 @@
+export const fetcherApi = <T>(url: string) => handleRequest<T>(url);
+
 export const handleRequest = async <T>(url: string, options?: RequestInit): Promise<T> => {
     let requested_url = process.env.NEXT_PUBLIC_FLASK_API_URL + url;
 

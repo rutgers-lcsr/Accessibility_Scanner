@@ -4,10 +4,11 @@ import Pagination from 'antd/es/pagination/Pagination';
 import { Input } from 'antd';
 import { useSearchParams } from 'next/navigation';
 import Website from '@/components/Website';
+import type { Website as WebsiteType } from '@/lib/types/website';
+import { Table } from 'antd';
 export default function Page() {
     const searchParams = useSearchParams();
     const { websites, setWebsitePage, setWebsiteLimit, WebsitePage, isLoading, setWebsiteSearch } = useWebsites();
-
     const id = searchParams.get('id');
 
     if (id) {
@@ -15,6 +16,39 @@ export default function Page() {
     }
 
 
+
+
+    const columns = [
+        {
+            title: 'URL',
+            dataIndex: 'base_url',
+            key: 'base_url',
+            render: (text: string, record: WebsiteType) => (
+                <a href={`/websites?id=${record.id}`}>{text}</a>
+            ),
+        },
+        {
+            title: 'Last Scanned',
+            dataIndex: 'last_scanned',
+            key: 'last_scanned',
+            render: (date: string) => new Date(date).toLocaleDateString(),
+        },
+        {
+            title: 'Violations',
+            dataIndex: 'violations',
+            key: 'violations',
+            render: (text: string, record: WebsiteType) => (
+                <span>{record.report_counts.violations.total}</span>
+            ),
+            sorter: (a: WebsiteType, b: WebsiteType) => a.report_counts.violations.total - b.report_counts.violations.total,
+        },
+        {
+            title: 'Active',
+            dataIndex: 'active',
+            key: 'active',
+            render: (active: boolean) => (active ? 'Yes' : 'No'),
+        },
+    ];
 
 
 
@@ -27,38 +61,16 @@ export default function Page() {
             </div>
         </header>
         <main className='h-[calc(100vh-8rem)] overflow-y-auto'>
-            <table className="w-full border-collapse">
-                <thead>
-                    <tr className="bg-gray-100 text-xs">
-                        <th className="text-left p-1 border-b">URL</th>
-                        <th className="text-left p-1 border-b">Last Scanned</th>
-                        <th className="text-left p-1 border-b">Active</th>
-                    </tr>
-                </thead>
-                <tbody className='text-l'>
-                    {websites && websites.length > 0 ? (
-                        websites.map((website) => (
-                            <tr key={website.id} className="even:bg-gray-50">
-                                <td className="p-2">
-                                    <a href={`/websites?id=${website.id}`}>{website.base_url}</a>
-                                </td>
-                                <td className="p-2  text-sm text-gray-500">
-                                    {new Date(website.last_scanned).toLocaleDateString()}
-                                </td>
-                                <td className="p-2 text-sm text-gray-500">
-                                    {website.active ? 'Yes' : 'No'}
-                                </td>
-                            </tr>
-                        ))
-                    ) : (
-                        <tr>
-                            <td colSpan={3} className="p-2 text-center text-gray-500">
-                                No websites found.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+
+
+            <Table<WebsiteType>
+                rowKey="id"
+                columns={columns}
+                dataSource={websites || []}
+                loading={isLoading}
+                pagination={false}
+                locale={{ emptyText: 'No websites found.' }}
+            />
         </main>
         <footer className="mt-4 justify-center flex">
             <Pagination showSizeChanger defaultCurrent={WebsitePage} total={websites?.length || 0} onShowSizeChange={(current, pageSize) => {

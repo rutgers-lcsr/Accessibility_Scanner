@@ -36,6 +36,8 @@ async def process_website(name: int, browser, queue: ListQueue, results: List[Ac
                 for site_link in res.get('links', []):
                     if not site_link in sites_done and not site_link in currently_processing and not queue.exists(site_link):
                         await queue.put(site_link)
+                        
+                                    
                 results.append(res)
         finally:
             sites_done.add(site)
@@ -109,6 +111,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         web = Website.query.filter_by(base_url=base_url).first()
         if web is None:
             web = Website(url=website)
+            web.active = True
             db.session.add(web)
     
         log_message(f"Storing {len(results)} reports for {website}", 'info')
@@ -142,7 +145,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     return results
 
 
-def run_scan(website:str = "https://resources.cs.rutgers.edu"):
+def run_scan(website:str = "https://services.cs.rutgers.edu"):
     asyncio.run(generate_reports(website))
     
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ def get_reports():
 
     return jsonify({
         'count': reports.total,
-        'items': [r.to_dict() for r in reports.items]
+        'items': [r.to_dict_without_report() for r in reports.items]
     }), 200
 
 @report_bp.route('/<int:report_id>', methods=['GET'])

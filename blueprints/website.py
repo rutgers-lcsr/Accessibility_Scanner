@@ -1,11 +1,13 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required
 from authentication.login import user_is_admin
+from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
-from models.report import Report
 from models import db
 from urllib.parse import urlparse
-from datetime import datetime
+
+from scanner.accessibility.ace import AxeReportKeys
+from sqlalchemy import Integer, cast, func
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
@@ -45,7 +47,7 @@ def create_website():
 def update_website():
     data = request.get_json()
     website_id = data.get('id')
-    website = Website.query.get(website_id)
+    website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
 
@@ -74,7 +76,7 @@ def activate_website():
     data = request.get_json()
     
     website_id = data.get('id')
-    website = Website.query.get(website_id)
+    website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
 
@@ -94,35 +96,83 @@ def get_websites():
     limit = params.get('limit', default=100, type=int)
     page = params.get('page', default=1, type=int)
     search = params.get('search', default=None, type=str)
-    w = Website.query
-    if search:
-      
-        # Try to parse search as a date (DD-MM-YYYY)
-        try:
-            search_date = datetime.strptime(search, "%d-%m-%Y").date()
-            w = w.filter(Website.last_scanned == search_date)
-        except ValueError:
-            # Not a date, search base_url as usual
-            w = w.filter(Website.base_url.like(f"%{search}%"))
-    w = w.paginate(page=page, per_page=limit)
-
-
-
-    websites = w.items
     
+    
+    latest_report_subq = (
+        db.session.query(
+            Report.site_id,
+            func.max(Report.timestamp).label('max_timestamp')
+        )
+        .group_by(Report.site_id)
+        .subquery()
+    )
+
+    # Join websites to sites, sites to their most recent report, and order by violations
+    w_query = (
+        db.session.query(Website)
+        .join(Site, Site.website_id == Website.id)
+        .join(Report, Report.site_id == Site.id)
+        .join(
+            latest_report_subq,
+            (latest_report_subq.c.site_id == Report.site_id) &
+            (latest_report_subq.c.max_timestamp == Report.timestamp)
+        )
+        .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc())
+        .distinct()
+    )
+    if search:
+        w_query = w_query.filter(Website.base_url.like(f"%{search}%"))
+    w = w_query.paginate(page=page, per_page=limit)
+
     return jsonify({
         'count': w.total,
-        'items': [website.to_dict() for website in websites]
+        'items': [website.to_dict() for website in w.items]
     }), 200
 
+@website_bp.route('/<int:website_id>/sites', methods=['GET'])
+def get_website_sites(website_id):
+    params = request.args
+    limit = params.get('limit', default=10, type=int)
+    page = params.get('page', default=1, type=int)
 
-@website_bp.route('/<int:website_id>', methods=['GET'])
-def get_website(website_id):
-    website = Website.query.get(website_id)
+    website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
 
+    latest_report_subq = (
+        db.session.query(
+            Report.site_id,
+            func.max(Report.timestamp).label('max_timestamp')
+        )
+        .group_by(Report.site_id)
+        .subquery()
+    )
 
-    website.sites = website.sites.with_entities(Site.id).all()
+    # Join sites to their most recent report and order by violations
+    sites_query = (
+        db.session.query(Site)
+        .join(Report, (Report.site_id == Site.id))
+        .join(
+            latest_report_subq,
+            (latest_report_subq.c.site_id == Report.site_id) &
+            (latest_report_subq.c.max_timestamp == Report.timestamp)
+        )
+        .filter(Site.website_id == website_id)
+        .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc())
+    )
+
+    sites = sites_query.paginate(page=page, per_page=limit)
+
+
+    return jsonify({
+        'count': sites.total,
+        'items': [site.to_dict() for site in sites.items]
+    }), 200
+
+@website_bp.route('/<int:website_id>', methods=['GET'])
+def get_overall_website(website_id):
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
 
     return jsonify(website.to_dict()), 200

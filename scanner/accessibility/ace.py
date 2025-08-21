@@ -28,13 +28,19 @@ class AxeResult(TypedDict, total=False):
     tags: List[str]
     nodes: List[AxeNode]
 
-
+# https://www.deque.com/axe/core-documentation/api-documentation/#results-object
 class AxeReport(TypedDict, total=False):
+    url: str
+    timestamp: str
+    testEngine: str
+    testEnvironment: str
+    
     violations: List[AxeResult]
     passes: List[AxeResult]
     incomplete: List[AxeResult]
     inapplicable: List[AxeResult]
 
+AxeReportKeys = Literal["violations", "passes", "incomplete", "inapplicable"]
 
 _ace_js = """async () => {
             return await axe.run({
@@ -49,6 +55,7 @@ _ace_js = """async () => {
 async def get_accessibility_report(page: Page) -> AxeReport:
     await page.add_script_tag(url="https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.9.1/axe.min.js")
     result = await page.evaluate(_ace_js)
+
     return result
 
 
