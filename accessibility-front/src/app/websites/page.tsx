@@ -29,13 +29,13 @@ export default function Page() {
         <main className='h-[calc(100vh-8rem)] overflow-y-auto'>
             <table className="w-full border-collapse">
                 <thead>
-                    <tr className="bg-gray-100">
+                    <tr className="bg-gray-100 text-xs">
                         <th className="text-left p-1 border-b">URL</th>
                         <th className="text-left p-1 border-b">Last Scanned</th>
                         <th className="text-left p-1 border-b">Active</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody className='text-l'>
                     {websites && websites.length > 0 ? (
                         websites.map((website) => (
                             <tr key={website.id} className="even:bg-gray-50">
