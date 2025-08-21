@@ -14,7 +14,7 @@ export default function TabNav() {
         "2": "/websites",
         "3": "/reports",
         "4": "/settings",
-        "5": "/profile",
+        "5": user ? "/dashboard" : "/login",
     };
     const activeKey = () => {
 
@@ -33,7 +33,7 @@ export default function TabNav() {
         { label: "Websites", key: "2" },
         { label: "Reports", key: "3" },
         { label: "Settings", key: "4" },
-        { label: "Profile", key: "5" },
+        { label: "Dashboard", key: "5" },
     ] : [
         { label: "Home", key: "1" },
         { label: "Websites", key: "2" },
@@ -43,8 +43,9 @@ export default function TabNav() {
     ];
 
     return (
-        <Space direction="vertical" style={{}}>
-            <div className="h-svh" role="navigation" aria-label="Navigation">
+        <Space direction="vertical">
+            <div className="h-screen" role="navigation" aria-label="Navigation">
+
                 <Tabs
                     activeKey={activeKey()}
                     tabPosition="left"

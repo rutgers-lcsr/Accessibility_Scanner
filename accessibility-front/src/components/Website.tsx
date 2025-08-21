@@ -76,7 +76,7 @@ const Website = ({ websiteId }: Props) => {
     ];
 
     return (
-        <div className="max-w-4xl mx-auto ">
+        <div className="max-w-4xl mx-auto">
             <header className="mb-8">
                 <h1 className="text-3xl font-extrabold mb-2">
                     Website Report for <span onClick={() => window.open(websiteReport.base_url,)} className="underline text-blue-700">{websiteReport.base_url}</span>
@@ -128,6 +128,7 @@ const Website = ({ websiteId }: Props) => {
                     dataSource={sites?.items}
                     loading={!sites}
                     rowKey="id"
+
                 />
 
                 <div className='justify-center flex pt-4 pb-4'>
