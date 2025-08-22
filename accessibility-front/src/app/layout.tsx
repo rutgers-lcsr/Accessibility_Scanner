@@ -40,9 +40,7 @@ export default function RootLayout({
                 <TabNav />
                 <Layout>
                   {children}
-                  <Footer style={{ textAlign: 'center' }}>
-                    Ant Design ©{new Date().getFullYear()} Created by Ant UED
-                  </Footer>
+
                 </Layout>
               </UserProvider>
             </ConfigProvider>

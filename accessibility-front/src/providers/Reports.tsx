@@ -31,7 +31,7 @@ export const ReportsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
 
-    const { data, error, isLoading, mutate } = useSWR<Paged<Report>>(`/api/reports?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi);
+    const { data, error, isLoading, mutate } = useSWR<Paged<Report>>(`/api/reports/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi);
 
     const openReport = (id: string) => {
         router.push(`/reports?id=${id}`);

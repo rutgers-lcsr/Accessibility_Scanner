@@ -1,36 +1,38 @@
 from flask import Blueprint, app, redirect, request, jsonify
-from flask_login import login_required, login_user, logout_user
-
+from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, jwt_required, unset_jwt_cookies
 from models.user import User
-from authentication.login import login_manager
-from werkzeug.security import generate_password_hash, check_password_hash
+from models import db
+from werkzeug.security import check_password_hash
 
 auth_bp = Blueprint('auth', __name__)
 
 
-@auth_bp.route('/login', methods=['POST'])
-def login():
+@auth_bp.route('/token', methods=['POST'])
+def token():
     data = request.get_json()
-    username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
 
-    user = User.query.filter_by(username=username).first()
+    user = db.session.query(User).filter_by(email=email).first()
     if user and check_password_hash(user.password, password):
-        login_user(user)
-        return jsonify(user.to_dict()), 200
-    
-    if not username or not password:
-        return jsonify({'error': 'Username and password are required'}), 400
+        access_token = create_access_token(identity=user)
+        refresh_token = create_refresh_token(identity=user)
+        return jsonify({**user.to_dict(), 'access_token': access_token, 'refresh_token': refresh_token}), 200
 
-    return jsonify({'error': 'Invalid username or password'}), 401
+    if not email or not password:
+        return jsonify({'error': 'Email and password are required'}), 400
+
+    return jsonify({'error': 'Invalid email or password'}), 401
+
+@auth_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    current_user = get_jwt_identity()
+    access_token = create_access_token(identity=current_user)
+    return jsonify(access_token=access_token), 200
 
 @auth_bp.route("/logout")
-@login_required
+@jwt_required()
 def logout():
-    logout_user()
+    unset_jwt_cookies()
     return jsonify({'message': 'Logged out successfully'}), 200
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))

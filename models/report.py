@@ -47,6 +47,7 @@ class Report(db.Model):
     videos: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     imgs: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     tabable: Mapped[bool] = db.Column(db.Boolean, nullable=False)
+    photo: Mapped[bytes] = db.Column(db.LargeBinary, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -112,6 +113,7 @@ class Report(db.Model):
         self.videos = data['videos']
         self.imgs = data['imgs']
         self.tabable = data['tabable']
+        self.photo = data['photo']
 
     def to_dict_without_report(self):
            return {

@@ -27,7 +27,7 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
 
-    const { data, error, isLoading } = useSWR(`/api/websites?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi<Paged<Website>>);
+    const { data, error, isLoading } = useSWR(`/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi<Paged<Website>>);
 
     const openWebsite = (id: number) => {
         // Logic to open the website

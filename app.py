@@ -1,20 +1,19 @@
 from flask import Flask
 from flask_cors import CORS
+import jwt
 from models import db
-from authentication.login import login_manager
+from authentication.login import jwt
 from models.user import Profile, User
 from werkzeug.security import generate_password_hash
 import os 
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
-    CORS(app, origins=["*"], supports_credentials=True)
-
-
-
+    CORS(app, supports_credentials=True)
+    
+    
     db.init_app(app)
-    login_manager.init_app(app)
-
+    jwt.init_app(app)
     app.static_folder = 'static'
 
     from blueprints.auth import auth_bp
@@ -23,6 +22,8 @@ def create_app():
     from blueprints.sites import sites_bp
     from blueprints.user import user_bp
     from blueprints.website import website_bp
+    from blueprints.scan import scan_bp
+    
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(domain_bp, url_prefix='/api/domains')
@@ -30,6 +31,7 @@ def create_app():
     app.register_blueprint(sites_bp, url_prefix='/api/sites')
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(website_bp, url_prefix='/api/websites')
+    app.register_blueprint(scan_bp, url_prefix='/api/scans')
 
     with app.app_context():
         db.create_all()

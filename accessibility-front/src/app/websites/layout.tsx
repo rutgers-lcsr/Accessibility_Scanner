@@ -4,14 +4,10 @@ import { ReactNode } from "react";
 
 export default function Layout({ children }: { children: ReactNode }) {
     return (
-        <>
-            <WebsitesProvider>
-                <Header>
-                    <h1>Websites</h1>
-                </Header>
-                <div className="p-4" role="main">{children}</div>
-            </WebsitesProvider>
-        </>
-
+        <WebsitesProvider>
+            <Header>
+            </Header>
+            <div className="p-4" role="main">{children}</div>
+        </WebsitesProvider>
     );
 }

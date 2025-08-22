@@ -1,11 +1,9 @@
 export const fetcherApi = <T>(url: string) => handleRequest<T>(url);
 
-export const handleRequest = async <T>(url: string, options?: RequestInit): Promise<T> => {
-    let requested_url = process.env.NEXT_PUBLIC_FLASK_API_URL + url;
+export const APIURL = process.env.NODE_ENV == "development" ? "http://localhost:5000" : process.env.NEXT_PUBLIC_FLASK_API_URL;
 
-    if (process.env.NODE_ENV == "development") {
-        requested_url = "http://localhost:5000" + url;
-    }
+export const handleRequest = async <T>(url: string, options?: RequestInit): Promise<T> => {
+    const requested_url = APIURL + url;
 
     const response = await fetch(requested_url, options);
     if (!response.ok) {

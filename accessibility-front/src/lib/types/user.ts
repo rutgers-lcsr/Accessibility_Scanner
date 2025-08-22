@@ -3,4 +3,6 @@ export type User = {
     email: string;
     is_admin: boolean;
     is_active: boolean;
+    access_token: string;
+    refresh_token: string;
 };

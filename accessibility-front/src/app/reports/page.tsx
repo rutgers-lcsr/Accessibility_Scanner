@@ -83,7 +83,7 @@ export default function ReportPage() {
                 dataSource={reports || []}
                 loading={isLoading}
                 pagination={false}
-                locale={{ emptyText: 'No websites found.' }}
+                locale={{ emptyText: 'No reports found.' }}
             />
         </main>
         <footer className="mt-4 justify-center flex">

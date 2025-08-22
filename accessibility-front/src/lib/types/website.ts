@@ -9,6 +9,7 @@ export type Website = {
     report_counts: Record<AxeReportKeys, AxeReportCounts>;
     domain_id: string;
     sites: number[];
+    rate_limit: number;
     active: boolean;
 };
 

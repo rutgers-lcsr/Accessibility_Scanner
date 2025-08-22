@@ -5,6 +5,7 @@ from scanner.browser.parse import get_base_url, get_imgs, get_links, get_videos
 from playwright.async_api import Browser
 import time 
 from scanner.browser.tabbable import is_page_tabbable
+from utils.style_generator import report_to_js
 
 class AccessibilityReport(TypedDict, total=False):
     url: str
@@ -15,6 +16,7 @@ class AccessibilityReport(TypedDict, total=False):
     imgs: List[str]
     tabable: bool
     timestamp: float
+    photo: bytes
 
 
 
@@ -32,7 +34,6 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
 
     base_url = get_base_url(page)
     report = await get_accessibility_report(page)
-    # print(report)
 
     links = await get_links(page)
 
@@ -45,6 +46,13 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
 
     timestamp = time.time()
+    
+    
+    js_report = report_to_js(report['violations'])
+
+    await page.evaluate(f"{js_report}")
+
+    photo = await page.screenshot(full_page=True)
 
     await page.close()
 
@@ -59,5 +67,6 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         'tabable': tabable,
         'has_video': has_video,
         'has_img': has_img,
-        'timestamp': timestamp
+        'timestamp': timestamp,
+        'photo': photo
     }

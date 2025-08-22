@@ -73,7 +73,9 @@ export default function Page() {
 
 
     return <Content className=''>
-        <header className='flex mb-4 w-full justify-end'>
+        <header className='flex mb-4 w-full justify-between'>
+            <h1 className='text-2xl font-bold'>Websites</h1>
+
             <div>
                 <Input.Search className='w-64' placeholder="Search websites" onSearch={(value) => setWebsiteSearch(value)} loading={isLoading} />
             </div>
@@ -87,7 +89,7 @@ export default function Page() {
                 dataSource={websites || []}
                 loading={isLoading}
                 pagination={false}
-                locale={{ emptyText: 'No websites found.' }}
+                locale={{ emptyText: 'No websites Found.' }}
             />
         </Content>
         <footer className="mt-4 justify-center flex">

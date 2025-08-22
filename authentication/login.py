@@ -1,17 +1,27 @@
+from functools import wraps
 from flask import jsonify
-from flask_login import LoginManager
+from flask_jwt_extended import current_user, jwt_required, decode_token,get_jwt,JWTManager
 
 from models.user import User
-
-login_manager = LoginManager()
-
-
+from models import db
 # Helper functions for authentication
 
-def user_is_admin(func):
+jwt = JWTManager()
+
+@jwt.user_identity_loader
+def user_identity_lookup(user):
+    return user.id
+
+@jwt.user_lookup_loader
+def user_lookup_callback(_jwt_header, jwt_data):
+    identity = jwt_data["sub"]
+    return db.session.get(User, identity)
+
+def admin_required(fn):
+    @wraps(fn)
+    @jwt_required()
     def wrapper(*args, **kwargs):
-        user = kwargs.get('user')
-        if user and user.is_authenticated and user.profile.is_admin:
-            return func(*args, **kwargs)
-        return jsonify({'error': 'Unauthorized'}), 403
+        if not current_user.is_admin:
+            return jsonify({"msg": "Admins only"}), 403
+        return fn(*args, **kwargs)
     return wrapper

@@ -3,7 +3,7 @@ import { Paged } from '@/lib/types/Paged';
 import { Site, Website as WebsiteType } from '@/lib/types/website';
 import React from 'react'
 import useSWR from 'swr'
-import { Pagination, Table } from 'antd';
+import { Button, Pagination, Table } from 'antd';
 import PageLoading from './PageLoading';
 import {
     ExclamationCircleOutlined,
@@ -11,6 +11,7 @@ import {
     InfoCircleOutlined,
     AlertOutlined,
 } from '@ant-design/icons';
+import { useUser } from '@/providers/User';
 
 type Props = {
     websiteId: number;
@@ -18,7 +19,7 @@ type Props = {
 
 const Website = ({ websiteId }: Props) => {
 
-
+    const { is_admin, handlerUserApiRequest } = useUser();
 
     const { data: websiteReport, error: reportError } = useSWR(`/api/websites/${websiteId}`, fetcherApi<WebsiteType>);
     // Use a ref to avoid resetting pageSize on re-render
@@ -43,6 +44,7 @@ const Website = ({ websiteId }: Props) => {
     const sites_columns = [
         {
             title: 'URL',
+            width: 300,
             dataIndex: 'url',
             key: 'url',
             render: (text: string, record: Site) => (
@@ -81,6 +83,11 @@ const Website = ({ websiteId }: Props) => {
                 <h1 className="text-3xl font-extrabold mb-2">
                     Website Report for <span onClick={() => window.open(websiteReport.base_url,)} className="underline text-blue-700">{websiteReport.base_url}</span>
                 </h1>
+                {is_admin && (
+                    <Button onClick={() => handlerUserApiRequest(`/api/scans/scan?website=${websiteReport.id}`, {
+                        method: 'POST'
+                    })}>Scan Now</Button>
+                )}
                 <h2 className="text-gray-500 text-lg mb-4">
                     Last Scanned: {websiteReport?.last_scanned}
                 </h2>
@@ -123,6 +130,7 @@ const Website = ({ websiteId }: Props) => {
                 className='bg-gray-50 rounded-lg mt-8'
             >
                 <Table<Site>
+                    scroll={{ y: 'calc(100vh - 40rem)' }}
                     pagination={false}
                     columns={sites_columns}
                     dataSource={sites?.items}
@@ -130,6 +138,7 @@ const Website = ({ websiteId }: Props) => {
                     rowKey="id"
 
                 />
+
 
                 <div className='justify-center flex pt-4 pb-4'>
                     <Pagination

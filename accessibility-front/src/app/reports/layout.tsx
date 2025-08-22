@@ -7,7 +7,6 @@ export default function Layout({ children }: { children: ReactNode }) {
         <>
             <ReportsProvider>
                 <Header>
-                    <h1>Reports</h1>
                 </Header>
                 <div className="p-4" role="main">{children}</div>
             </ReportsProvider>

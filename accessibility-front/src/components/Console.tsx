@@ -1,45 +1,38 @@
 import React from "react";
-import { Button, Tooltip, Typography } from "antd";
+import { Button, Tooltip, Typography, message } from "antd";
 import { CopyOutlined } from "@ant-design/icons";
 
 
 type Props = {
+    label: string;
     command: string;
 };
 
-const Console: React.FC<Props> = ({ command }) => {
-
+const Console: React.FC<Props> = ({ label, command }) => {
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(command);
-        } catch (err) {
+            message.success('Copied to clipboard!');
+        } catch (err: unknown) {
+            message.error('Failed to copy command');
+            console.error("Failed to copy command:", err);
         }
     };
 
     return (
         <div
-            className="bg-[#222] text-[#0f0] font-mono p-4 rounded-lg h-[250px] overflow-y-auto shadow-md"
-            aria-label="Fake console output"
+            className="bg-gray-100 p-4 rounded-md flex items-center"
+            aria-label={label}
         >
-            <div className="mb-4 flex items-center">
-                <Tooltip title="Click to copy command">
-                    <Typography.Text
-                        code
-                        className="bg-[#333] px-4 py-2 rounded mr-2 select-all text-[#0f0]"
-                    >
-                        {command}
-                    </Typography.Text>
+            <span style={{ flex: 1 }}>{command}</span>
+            <div className="ml-2">
+                <Tooltip title="Copy">
+                    <Button
+                        icon={<CopyOutlined />}
+                        onClick={handleCopy}
+                        aria-label={`Copy ${label}`}
+                    />
                 </Tooltip>
-                <Button
-                    icon={<CopyOutlined />}
-                    onClick={handleCopy}
-                    type="primary"
-                    size="small"
-                    className="!bg-[#444] !border-none !text-[#0f0] font-mono"
-                    aria-label="Copy command"
-                >
-                    Copy
-                </Button>
             </div>
         </div>
     );

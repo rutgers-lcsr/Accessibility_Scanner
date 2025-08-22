@@ -1,8 +1,10 @@
-from flask import Blueprint
+from flask import Blueprint, Response
 from flask import request, jsonify
 from sqlalchemy import func 
 from models.report import Report
 from models import db
+from PIL import Image
+import io
 from urllib.parse import urlparse
 
 from utils.style_generator import report_to_js
@@ -50,6 +52,20 @@ def get_report_script(report_id):
 
 
     return js_code, 200 
+
+@report_bp.route('/<int:report_id>/photo', methods=['GET'])
+def get_report_photo(report_id):
+    report = db.session.get(Report, report_id)
+    if not report:
+        return jsonify({'error': 'Report not found'}), 404
+
+    image = Image.open(io.BytesIO(report.photo))
+
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+
+    return Response(img_byte_arr, mimetype='image/png')
 
 @report_bp.route('/site/<string:website_url>', methods=['GET'])
 def get_report(website_url):

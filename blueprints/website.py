@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
-from flask_login import login_required
-from authentication.login import user_is_admin
+from flask_jwt_extended import jwt_required, current_user
+from authentication.login import admin_required
 from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
 from models import db
@@ -43,7 +43,7 @@ def create_website():
     return jsonify(new_website.to_dict()), 201  
 
 @website_bp.route('/', methods=['PATCH'])
-@login_required
+@jwt_required()
 def update_website():
     data = request.get_json()
     website_id = data.get('id')
@@ -65,13 +65,24 @@ def update_website():
         website.base_url = data['base_url']
     if 'last_scanned' in data:
         website.last_scanned = data['last_scanned']
+    
+    if current_user and current_user.profile and current_user.profile.is_admin:
+        if 'active' in data:
+            website.active = data['active']
+        if 'rate_limit' in data:
+            website.rate_limit = data['rate_limit']
+        if 'hard_limit' in data:
+            website.hard_limit = data['hard_limit']
+        
+        
 
+    db.session.add(website)
     db.session.commit()
     return jsonify(website.to_dict()), 200
 
 @website_bp.route('/activate', methods=['POST'])
-@login_required
-@user_is_admin
+@jwt_required()
+@admin_required
 def activate_website():
     data = request.get_json()
     

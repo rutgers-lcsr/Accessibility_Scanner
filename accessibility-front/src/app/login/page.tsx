@@ -2,19 +2,27 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Typography, message } from 'antd';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@/providers/User';
 const { Title } = Typography;
 
 const LoginPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const { user, login } = useUser();
 
-    const onFinish = (values: { username: string; password: string }) => {
+    const onFinish = (values: { email: string; password: string }) => {
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            message.success('Login successful!');
-            router.push('/dashboard');
-        }, 1000);
+        login(values.email, values.password)
+            .then((user) => {
+
+                router.push('/'); // Redirect to home page after successful login
+            })
+            .catch((error) => {
+                message.error(`Login failed: ${error.message}`);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     };
 
     return (

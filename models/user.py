@@ -1,15 +1,13 @@
-from flask_login import UserMixin
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method
 
-class User(UserMixin, db.Model):
+class User(db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(128), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-    is_authenticated = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     profile = db.relationship('Profile', backref='user', lazy=True, uselist=False)

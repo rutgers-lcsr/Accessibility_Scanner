@@ -80,6 +80,8 @@ class WebsiteDict(TypedDict,total=False):
     last_scanned: datetime.datetime | None
     report_counts: dict[AxeReportKeys, AxeReportCounts]
     active: bool
+    rate_limit: int
+    hard_limit: int
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -90,6 +92,8 @@ class Website(db.Model):
     domain: Mapped['Domains'] = db.relationship('Domains', backref='websites', lazy=True)
     sites: Mapped[List['Site']] = db.relationship('Site', backref='website', lazy='dynamic')
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
+    # Rate limiting the automatic scanning, in days
+    rate_limit: Mapped[int] = db.Column(db.Integer, default=5)
     active: Mapped[bool] = db.Column(db.Boolean, default=False)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
@@ -124,6 +128,7 @@ class Website(db.Model):
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'report_counts': self.get_report_counts(),
             'active': self.active,
+            'rate_limit': self.rate_limit,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }

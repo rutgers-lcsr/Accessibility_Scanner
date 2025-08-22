@@ -5,11 +5,15 @@ import useSWR from 'swr';
 import { Report as ReportType } from '@/lib/types/axe';
 import PageLoading from './PageLoading';
 import { Content } from 'antd/es/layout/layout';
+import { useRouter } from 'next/navigation';
 type Props = {
     report_id: string;
 }
 import { AlertOutlined, ExclamationCircleOutlined, InfoCircleOutlined, WarningOutlined } from "@ant-design/icons";
 import Console from './Console';
+
+import AuditAccessibilityItem from './AuditAccessibilityItem';
+import { Image } from 'antd';
 
 function Report({ report_id }: Props) {
 
@@ -21,11 +25,15 @@ function Report({ report_id }: Props) {
 
     const violations = reportData.report_counts.violations;
 
+    const report_script_full_url = process.env.NODE_ENV === "development" ? `http://localhost:5000/api/reports/${report_id}/script` : `${window.location.origin}/api/reports/${report_id}/script`;
+
+    const report_photo_url = process.env.NODE_ENV === "development" ? `http://localhost:5000/api/reports/${report_id}/photo` : `${window.location.origin}/api/reports/${report_id}/photo`;
+
     return (
         <Content className="">
             <header className="mb-8">
                 <h1 className="text-3xl font-extrabold mb-2">
-                    Report for <span onClick={() => window.open(reportData.base_url)} className="underline text-blue-700">{reportData.base_url}</span>
+                    Report for <span onClick={() => window.open(reportData.url)} className="underline text-blue-700 cursor-pointer">{reportData.url}</span>
                 </h1>
                 <h2 className="text-gray-500 text-lg mb-2">
                     Report Date: {reportData?.timestamp ? new Date(reportData.timestamp).toLocaleDateString() : 'N/A'}
@@ -65,11 +73,40 @@ function Report({ report_id }: Props) {
                     </div>
                 </section>
             </header>
-            <Content>
-                <div><Console command={`var accessScript = fetch('https://localhost:5000/api/reports/${report_id}/script');`} /></div>
+            <Content className="mb-8">
+                <div className="mb-4 max-h-[300px] overflow-auto">
+                    <Image
+                        src={report_photo_url}
+                        alt="Report Photo"
+
+                        className="rounded-lg"
+                    />
+                </div>
+
+                <div>
+                    <h2 className="text-2xl font-semibold mb-4">Inject Script</h2>
+                    <p className="mb-2">To view the accessibility issues directly on the webpage, inject the following script into the browser console while on the page you want to audit:</p>
+                </div>
+                <Console label="Accessibility Report Script" command={`var accessScriptElement = document.createElement('script');
+accessScriptElement.src = '${report_script_full_url}';
+document.body.appendChild(accessScriptElement);
+                `} />
+
+                <div className="mt-8">
+                    <div>
+                        <h2 className="text-2xl font-semibold mb-4">Accessibility Issues</h2>
+                        <p className="mb-2">The following accessibility issues were found on the page:</p>
+                    </div>
+                    <div className="mt-4">
+                        {reportData.report.violations.map((violation, index) => (
+                            <AuditAccessibilityItem key={index} accessibilityResult={violation} />
+                        ))}
+                    </div>
+                </div>
+
             </Content>
 
-            <pre>{JSON.stringify(reportData, null, 2)}</pre>
+            {/* <pre>{JSON.stringify(reportData, null, 2)}</pre> */}
         </Content>
     )
 }

@@ -2,8 +2,8 @@ import asyncio
 from typing import List
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
-from browser.report import AccessibilityReport, generate_report
-from log import log_message
+from scanner.browser.report import AccessibilityReport, generate_report
+from scanner.log import log_message
 from app import create_app
 from models import db
 from models.website import Site, Website
@@ -144,9 +144,12 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         db.session.flush()
     return results
 
+def run_scan_site(site):
+    asyncio.run(generate_single_site_report(site))
 
 def run_scan(website:str = "https://resources.cs.rutgers.edu"):
     asyncio.run(generate_reports(website))
     
 if __name__ == "__main__":
-    run_scan()
+    # run_scan(website="https://services.cs.rutgers.edu")
+    run_scan(website="https://resources.cs.rutgers.edu")
