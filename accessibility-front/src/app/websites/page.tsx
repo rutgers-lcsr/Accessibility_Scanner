@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Website from '@/components/Website';
 import type { Website as WebsiteType } from '@/lib/types/website';
 import { Table } from 'antd';
+import { Content } from 'antd/es/layout/layout';
 
 const columns = [
     {
@@ -71,15 +72,13 @@ export default function Page() {
 
 
 
-    return <div className=''>
-        <header className='flex mb-4 w-full justify-between'>
-            <h1 className='text-2xl font-bold'>Websites</h1>
+    return <Content className=''>
+        <header className='flex mb-4 w-full justify-end'>
             <div>
                 <Input.Search className='w-64' placeholder="Search websites" onSearch={(value) => setWebsiteSearch(value)} loading={isLoading} />
-
             </div>
         </header>
-        <main className='h-[calc(100vh-12rem)] overflow-y-auto'>
+        <Content className='h-[calc(100vh-12rem)] overflow-y-auto'>
 
 
             <Table<WebsiteType>
@@ -90,11 +89,11 @@ export default function Page() {
                 pagination={false}
                 locale={{ emptyText: 'No websites found.' }}
             />
-        </main>
+        </Content>
         <footer className="mt-4 justify-center flex">
             <Pagination showSizeChanger defaultCurrent={WebsitePage} total={websitesTotal || 0} onShowSizeChange={(current, pageSize) => {
                 setWebsiteLimit(pageSize);
             }} onChange={(current) => setWebsitePage(current)} />
         </footer>
-    </div>;
+    </Content>;
 }

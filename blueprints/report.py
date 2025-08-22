@@ -2,7 +2,10 @@ from flask import Blueprint
 from flask import request, jsonify
 from sqlalchemy import func 
 from models.report import Report
+from models import db
 from urllib.parse import urlparse
+
+from utils.style_generator import report_to_js
 
 report_bp = Blueprint('report', __name__)
 
@@ -28,10 +31,25 @@ def get_reports():
 
 @report_bp.route('/<int:report_id>', methods=['GET'])
 def get_report_by_id(report_id):
-    report = Report.query.get(report_id)
+    report = db.session.get(Report, report_id)  
     if not report:
         return jsonify({'error': 'Report not found'}), 404
     return jsonify(report.to_dict()), 200
+
+@report_bp.route('/<int:report_id>/script', methods=['GET'])
+def get_report_script(report_id):
+    report = db.session.get(Report, report_id)  
+    if not report:
+        return jsonify({'error': 'Report not found'}), 404
+
+
+    violation = report.report.get('violations', [])
+
+
+    js_code = report_to_js(violation)
+
+
+    return js_code, 200 
 
 @report_bp.route('/site/<string:website_url>', methods=['GET'])
 def get_report(website_url):
