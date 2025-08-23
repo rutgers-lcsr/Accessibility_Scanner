@@ -1,6 +1,7 @@
 "use client"
 import { APIError, handleRequest } from '@/lib/api';
 import { User } from '@/lib/types/user';
+import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 
@@ -18,6 +19,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
+    const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
 
 
@@ -39,7 +41,35 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             localStorage.removeItem('user');
         }
     };
-    const logout = () => {
+
+    const refreshLogin = async () => {
+        const userString = localStorage.getItem('user');
+        const user: User | null = userString ? JSON.parse(userString) : null;
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+        try {
+            const response = await handleRequest<{ access_token: string }>("/api/auth/refresh", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${user?.refresh_token}`
+                },
+                credentials: 'include',
+            });
+            user.access_token = response.access_token;
+            setUser(user);
+            setUserLocalStorage(user);
+            return user.access_token;
+        } catch (error: unknown) {
+            console.error("Failed to refresh login:", error);
+            logout();
+            router.push('/login');
+        }
+    };
+
+    const logout = async (): Promise<void> => {
         setUser(null);
         setUserLocalStorage(null);
     };
@@ -47,20 +77,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         if (!user) {
             throw new Error("User is not authenticated");
         }
+        async function doRequest(access_token: string | undefined = user?.access_token) {
+            options = {
+                ...options,
+                headers: {
+                    ...options?.headers,
+                    "Authorization": `Bearer ${access_token}`
+                }
+            };
 
-        options = {
-            ...options,
-            headers: {
-                ...options?.headers,
-                "Authorization": `Bearer ${user?.access_token}`
+            const response = await handleRequest<T>(url, options);
+            if (!response) {
+                throw new Error("Failed to fetch user data");
             }
-        };
-
-        const response = await handleRequest<T>(url, options);
-        if (!response) {
-            throw new Error("Failed to fetch user data");
+            return response;
         }
-        return response;
+
+        // Try the request once, if it fails try refreshing the token and doing the request again
+        try {
+            return await doRequest();
+        }
+        catch {
+            const newAccessToken = await refreshLogin();
+            // Need to get new state
+            return await doRequest(newAccessToken);
+        }
     }
 
     const handleLogin = async (email: string, password: string) => {

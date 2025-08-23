@@ -14,9 +14,12 @@ import Console from './Console';
 
 import AuditAccessibilityItem from './AuditAccessibilityItem';
 import { Image } from 'antd';
+import { useUser } from '@/providers/User';
+import AdminReportItems from './AdminReportItems';
 
 function Report({ report_id }: Props) {
 
+    const { is_admin } = useUser();
     const { data: reportData, error, isLoading, } = useSWR(`/api/reports/${report_id}`, fetcherApi<ReportType>);
 
     if (isLoading) return <PageLoading />;
@@ -35,6 +38,7 @@ function Report({ report_id }: Props) {
                 <h1 className="text-3xl font-extrabold mb-2">
                     Report for <span onClick={() => window.open(reportData.url)} className="underline text-blue-700 cursor-pointer">{reportData.url}</span>
                 </h1>
+                {is_admin && <AdminReportItems report={reportData} />}
                 <h2 className="text-gray-500 text-lg mb-2">
                     Report Date: {reportData?.timestamp ? new Date(reportData.timestamp).toLocaleDateString() : 'N/A'}
                 </h2>

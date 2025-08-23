@@ -50,29 +50,31 @@ async def process_website(name: int, browser, queue: ListQueue, results: List[Ac
 
 async def generate_single_site_report(site_url:str) -> AccessibilityReport:
     app = create_app()
-    base_url = f"{urlparse(site_url).netloc}"
-    website_url = f"{urlparse(site_url).scheme}://{base_url}"
+    url_parsed = urlparse(site_url)
+    base_url = f"{url_parsed.netloc}"
+    website_url = f"{url_parsed.scheme}://{base_url}{url_parsed.path}"
     with app.app_context():        
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=False, args=['--no-sandbox', '--disable-setuid-sandbox'])
-            report = await generate_report(browser, website=site_url)
+            log_message(f"Generating report for {website_url}", 'info')
+            report = await generate_report(browser, website=website_url)
             await browser.close()
 
             web = Website.query.filter_by(base_url=base_url).first()
             if web is None:
-                web = Website(url=website_url)
+                web = Website(url=base_url)
                 db.session.add(web)
 
-            site = Site.query.filter_by(url=report['url']).first()
+            site = Site.query.filter_by(url=website_url).first()
             if site is None:
-                site = Site(url=report['url'], website_id=web.id)
+                site = Site(url=website_url, website_id=web.id)
             report = Report(report, site_id=site.id)
-
             site.reports.append(report)
             site.last_scanned = db.func.current_timestamp()
             db.session.add(report)
             db.session.add(site)
-
+            db.session.commit()
+            
         return report
 
 async def generate_reports(website: str = "https://resources.cs.rutgers.edu") -> List[AccessibilityReport]:
@@ -144,7 +146,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         db.session.flush()
     return results
 
-def run_scan_site(site):
+def run_scan_site(site :str ="https://resources.cs.rutgers.edu"):
     asyncio.run(generate_single_site_report(site))
 
 def run_scan(website:str = "https://resources.cs.rutgers.edu"):

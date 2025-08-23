@@ -52,6 +52,7 @@ export type ReportMinimized = {
 export type Report = {
     id: number;
     url: string;
+    site_id: number;
     base_url: string;
     timestamp: string;
     report: AxeReport;

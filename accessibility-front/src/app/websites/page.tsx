@@ -66,12 +66,6 @@ export default function Page() {
         return <Website websiteId={Number(id)} />;
     }
 
-
-
-
-
-
-
     return <Content className=''>
         <header className='flex mb-4 w-full justify-between'>
             <h1 className='text-2xl font-bold'>Websites</h1>

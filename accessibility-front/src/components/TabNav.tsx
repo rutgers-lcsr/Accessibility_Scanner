@@ -10,15 +10,15 @@ import { HomeOutlined, CloudServerOutlined, SolutionOutlined, ProfileOutlined, L
 
 export default function TabNav() {
     const router = useRouter();
-    const [collapsed, setCollapsed] = useState(false);
-    const { user, logout } = useUser();
+    const [collapsed, setCollapsed] = useState(true);
+    const { user, logout, is_admin } = useUser();
     const pathname = usePathname();
 
     const tabRoutes: { [key: string]: string } = {
         "1": "/",
         "2": "/websites",
         "3": "/reports",
-        "5": user ? "/dashboard" : "/login",
+        "5": user && is_admin ? "/dashboard" : "/login",
     };
     const activeKey = () => {
 

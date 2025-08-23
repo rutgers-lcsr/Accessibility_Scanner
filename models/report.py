@@ -16,12 +16,14 @@ class AxeReportCounts(TypedDict, total=False):
 class ReportMinimized(TypedDict):
     id: int
     url: str
+    site_id: int
     report_counts:dict[AxeReportKeys, AxeReportCounts]
     timestamp: str
 
 class ReportDict(TypedDict):
     id: int
     url: str
+    site_id: int
     base_url: str
     timestamp: str
     report: AxeReport
@@ -119,6 +121,7 @@ class Report(db.Model):
            return {
             'id': self.id,
             'url': self.url,
+            'site_id': self.site_id,
             'base_url': self.base_url,
             'timestamp': self.timestamp.isoformat(),
             'report_counts': self.report_counts,
@@ -136,6 +139,7 @@ class Report(db.Model):
             'id': self.id,
             'url': self.url,
             'base_url': self.base_url,
+            'site_id': self.site_id,
             'timestamp': self.timestamp.isoformat(),
             'report': self.report,
             'report_counts': self.report_counts,

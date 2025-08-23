@@ -42,11 +42,11 @@ def create_website():
     
     return jsonify(new_website.to_dict()), 201  
 
-@website_bp.route('/', methods=['PATCH'])
+@website_bp.route('/<int:website_id>', methods=['PATCH'])
 @jwt_required()
-def update_website():
+@admin_required
+def update_website(website_id):
     data = request.get_json()
-    website_id = data.get('id')
     website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
@@ -73,9 +73,7 @@ def update_website():
             website.rate_limit = data['rate_limit']
         if 'hard_limit' in data:
             website.hard_limit = data['hard_limit']
-        
-        
-
+            
     db.session.add(website)
     db.session.commit()
     return jsonify(website.to_dict()), 200

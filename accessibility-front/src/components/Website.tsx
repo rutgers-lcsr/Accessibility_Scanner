@@ -3,7 +3,7 @@ import { Paged } from '@/lib/types/Paged';
 import { Site, Website as WebsiteType } from '@/lib/types/website';
 import React from 'react'
 import useSWR from 'swr'
-import { Button, Pagination, Table } from 'antd';
+import { Button, Pagination, Space, Table } from 'antd';
 import PageLoading from './PageLoading';
 import {
     ExclamationCircleOutlined,
@@ -12,6 +12,8 @@ import {
     AlertOutlined,
 } from '@ant-design/icons';
 import { useUser } from '@/providers/User';
+import AdminWebsiteItems from './AdminWebsiteItems';
+import { Content } from 'antd/es/layout/layout';
 
 type Props = {
     websiteId: number;
@@ -19,9 +21,9 @@ type Props = {
 
 const Website = ({ websiteId }: Props) => {
 
-    const { is_admin, handlerUserApiRequest } = useUser();
+    const { is_admin } = useUser();
 
-    const { data: websiteReport, error: reportError } = useSWR(`/api/websites/${websiteId}`, fetcherApi<WebsiteType>);
+    const { data: websiteReport, error: reportError, mutate } = useSWR(`/api/websites/${websiteId}`, fetcherApi<WebsiteType>);
     // Use a ref to avoid resetting pageSize on re-render
     const [currentPage, setCurrentPage] = React.useState(1);
     const [pageSize, setPageSize] = React.useState(10);
@@ -29,14 +31,13 @@ const Website = ({ websiteId }: Props) => {
         setPageSize(pageSize);
     }, [pageSize]);
 
-    const { data: sites, error: siteError } = useSWR(
+    const { data: sites, error: siteError, isLoading: isLoadingSites } = useSWR(
         `/api/websites/${websiteId}/sites?page=${currentPage}&limit=${pageSize}`,
         fetcherApi<Paged<Site>>
     );
 
     if (reportError) return <div>Error loading website report</div>;
     if (siteError) return <div>Error loading website sites</div>;
-    if (!sites) return <PageLoading />;
     if (!websiteReport) return <PageLoading />;
 
     const violations = websiteReport.report_counts.violations;
@@ -78,15 +79,13 @@ const Website = ({ websiteId }: Props) => {
     ];
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <Content className="">
             <header className="mb-8">
                 <h1 className="text-3xl font-extrabold mb-2">
                     Website Report for <span onClick={() => window.open(websiteReport.base_url,)} className="underline text-blue-700">{websiteReport.base_url}</span>
                 </h1>
                 {is_admin && (
-                    <Button onClick={() => handlerUserApiRequest(`/api/scans/scan?website=${websiteReport.id}`, {
-                        method: 'POST'
-                    })}>Scan Now</Button>
+                    <AdminWebsiteItems website={websiteReport} mutate={mutate} />
                 )}
                 <h2 className="text-gray-500 text-lg mb-4">
                     Last Scanned: {websiteReport?.last_scanned}
@@ -124,17 +123,19 @@ const Website = ({ websiteId }: Props) => {
                 </section>
             </header>
 
-            <section
+            <Space
+                direction='vertical'
                 role='region'
                 aria-labelledby="website-sites"
-                className='bg-gray-50 rounded-lg mt-8'
+                className='bg-gray-50 rounded-lg'
             >
                 <Table<Site>
+                    className='min-h-[400px]'
                     scroll={{ y: 'calc(100vh - 40rem)' }}
                     pagination={false}
                     columns={sites_columns}
                     dataSource={sites?.items}
-                    loading={!sites}
+                    loading={isLoadingSites}
                     rowKey="id"
 
                 />
@@ -145,15 +146,15 @@ const Website = ({ websiteId }: Props) => {
                         showSizeChanger
                         current={currentPage}
                         pageSize={pageSize}
-                        total={sites.count || 0}
+                        total={sites?.count || 0}
                         onShowSizeChange={(current, newPageSize) => {
                             setPageSize(newPageSize);
                         }}
                         onChange={(page) => setCurrentPage(page)}
                     />
                 </div>
-            </section>
-        </div>
+            </Space>
+        </Content>
     );
 
 };
