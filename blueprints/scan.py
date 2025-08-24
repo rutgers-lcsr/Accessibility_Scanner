@@ -1,8 +1,8 @@
 import asyncio
+import threading
 from urllib.parse import urlparse
 from flask import Flask, Blueprint, jsonify, request
 from multiprocessing import Process
-
 from flask_jwt_extended import jwt_required
 from authentication.login import admin_required
 from models.website import Site, Website
@@ -16,7 +16,8 @@ scan_bp = Blueprint('scan', __name__)
 
 current_scans = set()
 
-
+loop = asyncio.new_event_loop()
+threading.Thread(target=loop.run_forever, daemon=True).start()
 
 async def conduct_scan_website(website: str, current_scans: set):
     url = urlparse(website)
@@ -49,13 +50,8 @@ async def conduct_scan_site(site: str, current_scans: set):
     finally:
         current_scans.remove(site_key)
 
-
-@scan_bp.route('/status', methods=['GET'])
-def scan_status():
-    return jsonify(list(current_scans)), 200
-
 @scan_bp.route('/scan', methods=['POST'])
-@scan_limiter.limit("1/second" if DEBUG else "5/minute")
+@scan_limiter.limit("1/minute" if DEBUG else "5/minute")
 @admin_required
 def scan_website():
     data = request.args
@@ -82,8 +78,12 @@ def scan_website():
                     return {"error": "Invalid website URL"}, 400
                 website_url = f"https://{website.base_url}"
 
-            asyncio.run(conduct_scan_website(website_url, current_scans))
-            return jsonify({"message": "Scan started"}), 202
+            # Check if scan is active
+            if website_url in current_scans:
+                return {"error": "Scan already in progress"}, 409
+
+            asyncio.run_coroutine_threadsafe(conduct_scan_website(website_url, current_scans), loop)
+            return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status?website={website_id}"}), 202
 
         if site:
             try:
@@ -103,14 +103,52 @@ def scan_website():
                 url_parse = urlparse(site.url)
                 site_url = f"https://{url_parse.netloc}{url_parse.path}"
 
-            asyncio.run(conduct_scan_site(site_url, current_scans))
-            
-            site = db.session.get(Site, site_id)
-            
-            report = site.get_recent_report()
-            return jsonify(report), 202
+
+            if site_url in current_scans:
+                return {"error": "Scan already in progress"}, 409
+
+            asyncio.run_coroutine_threadsafe(conduct_scan_site(site_url, current_scans), loop)
+            return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status?site={site_id}"}), 202
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+    return jsonify({"error": "No valid website or site provided"}), 400
+
+@scan_bp.route('/status', methods=['GET'])
+@admin_required
+def get_scan_status():
+    data = request.args
+    website = data.get("website", None, int)
+    site = data.get("site", None, int)
+
+    if website:
+        # site is just an id
+        website = db.session.get(Website, website)
+        if not website:
+            return {"error": "Invalid website URL"}, 400
+        website_url = f"{website.base_url}"
+        
+        if not website_url in current_scans:
+            website = website.to_dict()
+            return jsonify(website), 200
+
+        return jsonify({"scanning": website_url in current_scans}), 200
+
+    if site:
+
+        # site is just an id
+        site = db.session.get(Site, site)
+        if not site:
+            return {"error": "Invalid site URL"}, 400
+
+        url_parse = urlparse(site.url)
+        site_url = f"{url_parse.netloc}{url_parse.path}"
+        print(current_scans)
+        if not site_url in current_scans:
+            report = site.get_recent_report()
+            return jsonify(report), 200
+
+        return jsonify({"scanning": site_url in current_scans}), 200
 
     return jsonify({"error": "No valid website or site provided"}), 400

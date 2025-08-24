@@ -5,7 +5,7 @@ import { useReports } from '@/providers/Reports';
 import { Report as ReportType } from '@/lib/types/axe';
 import { useSearchParams } from 'next/navigation';
 import Report from '@/components/Report';
-
+import { format } from 'date-fns';
 
 const columns = [
     {
@@ -21,7 +21,7 @@ const columns = [
         dataIndex: 'timestamp',
         key: 'Timestamp',
         render: (text: string, record: ReportType) => (
-            <span>{new Date(record.timestamp).toLocaleDateString()}</span>
+            <span>{format(record.timestamp, 'MMMM dd, yyyy')}</span>
         ),
     },
     {
@@ -68,7 +68,7 @@ export default function ReportPage() {
             <h1 className='text-2xl font-bold'>Reports</h1>
             <div>
                 <Input.Search className='w-64' placeholder="Search reports" onSearch={(value) => {
-                    console.log(value);
+                    // console.log(value);
                     setReportSearch(value);
                 }} loading={isLoading} />
 

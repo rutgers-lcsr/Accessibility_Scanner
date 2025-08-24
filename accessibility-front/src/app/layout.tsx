@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import '@ant-design/v5-patch-for-react-19';
+
+
 import { ConfigProvider, Layout } from "antd";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import TabNav from "../components/TabNav";
 import { UserProvider } from "../providers/User";
 import { rutgersTheme } from "@/lib/theme";
-import { Content, Footer, Header } from "antd/es/layout/layout";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

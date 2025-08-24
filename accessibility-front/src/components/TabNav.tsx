@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Space, Tabs } from "antd";
+import { Menu } from "antd";
 import { useRouter } from "next/navigation";
 import { usePathname } from 'next/navigation';
 import { useUser } from "../providers/User";

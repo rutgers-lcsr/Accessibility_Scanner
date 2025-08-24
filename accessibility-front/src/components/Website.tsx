@@ -3,6 +3,7 @@ import { Paged } from '@/lib/types/Paged';
 import { Site, Website as WebsiteType } from '@/lib/types/website';
 import React from 'react'
 import useSWR from 'swr'
+import { format } from 'date-fns';
 import { Button, Pagination, Space, Table } from 'antd';
 import PageLoading from './PageLoading';
 import {
@@ -56,7 +57,7 @@ const Website = ({ websiteId }: Props) => {
             title: 'Last Scanned',
             dataIndex: 'last_scanned',
             key: 'last_scanned',
-            render: (date: string) => new Date(date).toLocaleDateString(),
+            render: (date: string) => format(date, 'MMMM dd, yyyy'),
         },
         {
             title: 'Violations',
@@ -88,7 +89,7 @@ const Website = ({ websiteId }: Props) => {
                     <AdminWebsiteItems website={websiteReport} mutate={mutate} />
                 )}
                 <h2 className="text-gray-500 text-lg mb-4">
-                    Last Scanned: {websiteReport?.last_scanned}
+                    Last Scanned: {format(websiteReport?.last_scanned, 'MMMM dd, yyyy')}
                 </h2>
                 <section
                     role="region"

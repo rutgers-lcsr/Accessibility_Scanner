@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { Report as ReportType } from '@/lib/types/axe';
 import PageLoading from './PageLoading';
 import { Content } from 'antd/es/layout/layout';
+import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 type Props = {
     report_id: string;
@@ -40,7 +41,7 @@ function Report({ report_id }: Props) {
                 </h1>
                 {is_admin && <AdminReportItems report={reportData} />}
                 <h2 className="text-gray-500 text-lg mb-2">
-                    Report Date: {reportData?.timestamp ? new Date(reportData.timestamp).toLocaleDateString() : 'N/A'}
+                    Report Date: {reportData?.timestamp ? format(new Date(reportData.timestamp), 'MMMM dd, yyyy') : 'N/A'}
                 </h2>
                 <h3 className="text-gray-500 text-lg mb-4">
                     Website: {reportData.base_url}

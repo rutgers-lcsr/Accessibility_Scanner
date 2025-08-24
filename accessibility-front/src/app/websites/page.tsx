@@ -7,6 +7,8 @@ import Website from '@/components/Website';
 import type { Website as WebsiteType } from '@/lib/types/website';
 import { Table } from 'antd';
 import { Content } from 'antd/es/layout/layout';
+import { format } from 'date-fns/fp/format';
+import { formatDate } from 'date-fns';
 
 const columns = [
     {
@@ -21,7 +23,9 @@ const columns = [
         title: 'Last Scanned',
         dataIndex: 'last_scanned',
         key: 'last_scanned',
-        render: (date: string) => new Date(date).toLocaleDateString(),
+        render: (date: string) => {
+            return formatDate(new Date(date), 'MMMM dd, yyyy');
+        },
     },
     {
         title: 'Passes',
@@ -51,6 +55,9 @@ const columns = [
 
 export default function Page() {
     const searchParams = useSearchParams();
+    const id = searchParams.get('id');
+
+
     const {
         websites,
         websitesTotal,
@@ -60,7 +67,6 @@ export default function Page() {
         isLoading,
         setWebsiteSearch
     } = useWebsites();
-    const id = searchParams.get('id');
 
     if (id) {
         return <Website websiteId={Number(id)} />;
