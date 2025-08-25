@@ -7,3 +7,5 @@ flask_jwt_extended
 flask_cors
 pillow
 flask_limiter
+Flask-Mail
+playwright

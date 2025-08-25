@@ -91,8 +91,10 @@ class Website(db.Model):
     sites: Mapped[List['Site']] = db.relationship('Site', backref='website', lazy='dynamic', cascade="all, delete-orphan")
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
     # Rate limiting the automatic scanning, in days
-    rate_limit: Mapped[int] = db.Column(db.Integer, default=5)
+    rate_limit: Mapped[int] = db.Column(db.Integer, default=30)
     active: Mapped[bool] = db.Column(db.Boolean, default=False)
+    email: Mapped[str] = db.Column(db.String(200), nullable=True)
+    should_email: Mapped[bool] = db.Column(db.Boolean, default=True)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -129,6 +131,8 @@ class Website(db.Model):
             'base_url': self.base_url,
             'sites': [site.id for site in self.sites.with_entities(Site.id).all()],
             'domain_id': self.domain_id,
+            'email': self.email,
+            'should_email': self.should_email,
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'report_counts': self.get_report_counts(),
             'active': self.is_active(),
@@ -137,8 +141,9 @@ class Website(db.Model):
             'updated_at': self.updated_at.isoformat()
         }
 
-    def __init__(self, url):
+    def __init__(self, url, email=None):
         self.base_url =  get_netloc(url)
+        self.email = email
 
     def __repr__(self):
         return f'<Website {self.base_url}>'

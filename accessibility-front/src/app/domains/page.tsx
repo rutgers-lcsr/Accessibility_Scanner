@@ -5,9 +5,23 @@ import { Button, Input, Pagination, Table, TableColumnsType } from 'antd';
 import React from 'react';
 import DeleteDomain from './modals/deleteDomain';
 import AddDomain from './modals/addDomain';
+import PageError from '@/components/PageError';
+import { useUser } from '@/providers/User';
 // type Props = {}
 
 function Page() {
+    const { is_admin } = useUser();
+
+    if (!is_admin) {
+        return (
+            <PageError
+                status={403}
+                title="Access Denied"
+                subTitle="You do not have permission to view this page."
+            />
+        );
+    }
+
     const {
         domains,
         loadingDomain,
@@ -80,7 +94,7 @@ function Page() {
                     dataSource={domains || []}
                     loading={loadingDomain}
                     pagination={false}
-                    locale={{ emptyText: 'No Domains found.' }}
+                    locale={{ emptyText: <PageError status={'info'} title="No Domains found." /> }}
                 />
             </main>
             <footer className="mt-4 flex justify-center">

@@ -1,4 +1,4 @@
-"use client"
+'use client';
 import { APIError, fetcherApi, handleRequest } from '@/lib/api';
 import { Website } from '@/lib/types/website';
 import { Paged } from '@/lib/types/Paged';
@@ -14,7 +14,7 @@ type WebsitesContextType = {
     isLoading: boolean;
     WebsitePage: number;
     WebsiteLimit: number;
-    requestWebsite: (url: string) => Promise<Website | null>;
+    requestWebsite: (url: string, email?: string) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: number) => void;
@@ -29,35 +29,50 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
     const { addAlert } = useAlerts();
-    const { data, error, isLoading, mutate } = useSWR(`/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi<Paged<Website>>);
+    const { data, error, isLoading, mutate } = useSWR(
+        `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`,
+        fetcherApi<Paged<Website>>
+    );
 
     const openWebsite = (id: number) => {
         // Logic to open the website
         router.push(`/websites?id=${id}`);
     };
 
-    const requestWebsite = async (url: string) => {
+    const requestWebsite = async (url: string, email?: string) => {
         try {
             const data = await handleRequest<Website>(`/api/websites/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ base_url: url }),
+                body: JSON.stringify({ base_url: url, email }),
             });
-            addAlert("Website created successfully", "success");
+            addAlert('Website created successfully', 'success');
             mutate();
             return data;
         } catch (error) {
-            console.error(error);
-            addAlert("Failed to create website", "error");
+            addAlert(`Failed to add website ${(error as APIError).getReason()}`, 'error');
             return null;
         }
     };
 
-
     return (
-        <WebsitesContext.Provider value={{ websites: data?.items ?? null, websitesTotal: data?.count ?? 0, error, isLoading, openWebsite, WebsitePage: page, WebsiteLimit: limit, setWebsitePage: setPage, setWebsiteLimit: setLimit, setWebsiteSearch: setSearchUrl, requestWebsite }}>
+        <WebsitesContext.Provider
+            value={{
+                websites: data?.items ?? null,
+                websitesTotal: data?.count ?? 0,
+                error,
+                isLoading,
+                openWebsite,
+                WebsitePage: page,
+                WebsiteLimit: limit,
+                setWebsitePage: setPage,
+                setWebsiteLimit: setLimit,
+                setWebsiteSearch: setSearchUrl,
+                requestWebsite,
+            }}
+        >
             {children}
         </WebsitesContext.Provider>
     );

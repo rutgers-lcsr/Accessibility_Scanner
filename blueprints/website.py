@@ -1,6 +1,8 @@
+import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import admin_required
+from mail.emails import NewWebsiteEmail
 from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
 from models import db
@@ -16,6 +18,7 @@ website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 def create_website():
     data = request.get_json()
     base_url = data.get('base_url')
+    email = data.get('email', None)
     if not base_url:
         return jsonify({'error': 'Base URL is required'}), 400
     
@@ -34,19 +37,29 @@ def create_website():
     existing_domain = best_match
 
     if not existing_domain:
-        return jsonify({'error': 'Domain not found'}), 404
+        return jsonify({'error': 'Domain is not found or is inactive'}), 400
 
     if not existing_domain.active:
         return jsonify({'error': 'The domain of the website your requested is not active, please contact the admins if you believe this is a problem'}), 400
     
 
-    new_website = Website(url=base_url)
+    # check if website already exists
+    existing_website = db.session.query(Website).filter_by(url=base_url).first()
+    if existing_website:
+        return jsonify({'error': 'Website already exists'}), 400
+
+    new_website = Website(url=base_url, email=email)
     new_website.domain = existing_domain
     
     # send email to user and admin, user confirming and admin to activate
 
+
     db.session.add(new_website)
     db.session.commit()
+    
+    if email:
+        NewWebsiteEmail(new_website).send()
+
     
     return jsonify(new_website.to_dict()), 201  
 
@@ -79,11 +92,25 @@ def update_website(website_id):
         if domain and not domain.active and data['active']:
             return jsonify({'error': 'Cannot activate website because its domain is inactive'}), 400
 
-        website.active = data['active']
+        website.active = data['active'] and True
     if 'rate_limit' in data:
         website.rate_limit = data['rate_limit']
     if 'hard_limit' in data:
         website.hard_limit = data['hard_limit']
+        
+    if 'email' in data:
+        email = str(data['email'])
+
+        regex = r"[^@]+@[^@]+\.[^@]+"
+        if not re.match(regex, email):
+            return jsonify({'error': 'Invalid email format'}), 400
+
+        # Email user that they have been added
+        website.email = data['email']
+    if 'should_email' in data:
+        
+        
+        website.should_email = data['should_email'] and True
             
     db.session.add(website)
     db.session.commit()
@@ -198,3 +225,18 @@ def get_overall_website(website_id):
         return jsonify({'error': 'Website not found'}), 404
 
     return jsonify(website.to_dict()), 200
+
+@website_bp.route('/<int:website_id>', methods=['DELETE'])
+@jwt_required()
+@admin_required
+def delete_website(website_id):
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+
+
+    # Add Deleteing website email
+
+    db.session.delete(website)
+    db.session.commit()
+    return jsonify({'message': 'Website deleted successfully'}), 200

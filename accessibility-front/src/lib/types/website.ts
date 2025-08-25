@@ -1,8 +1,10 @@
-import { AxeReportCounts, AxeReportKeys, ReportMinimized } from "./axe";
+import { AxeReportCounts, AxeReportKeys, ReportMinimized } from './axe';
 
 export type Website = {
     id: number;
     base_url: string;
+    email: string;
+    should_email: boolean;
     create_at: string;
     updated_at: string;
     last_scanned: string;

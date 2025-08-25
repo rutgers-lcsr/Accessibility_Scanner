@@ -1,8 +1,8 @@
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
 import { Site, Website as WebsiteType } from '@/lib/types/website';
-import React from 'react'
-import useSWR from 'swr'
+import React from 'react';
+import useSWR, { Key, KeyedMutator } from 'swr';
 import { format } from 'date-fns';
 import { Button, Pagination, Space, Table } from 'antd';
 import PageLoading from './PageLoading';
@@ -15,16 +15,20 @@ import {
 import { useUser } from '@/providers/User';
 import AdminWebsiteItems from './AdminWebsiteItems';
 import { Content } from 'antd/es/layout/layout';
+import PageError from './PageError';
 
 type Props = {
     websiteId: number;
-}
+};
 
 const Website = ({ websiteId }: Props) => {
-
     const { is_admin } = useUser();
 
-    const { data: websiteReport, error: reportError, mutate } = useSWR(`/api/websites/${websiteId}`, fetcherApi<WebsiteType>);
+    const {
+        data: websiteReport,
+        error: reportError,
+        mutate: mutateWebsiteReport,
+    } = useSWR(`/api/websites/${websiteId}`, fetcherApi<WebsiteType>);
     // Use a ref to avoid resetting pageSize on re-render
     const [currentPage, setCurrentPage] = React.useState(1);
     const [pageSize, setPageSize] = React.useState(10);
@@ -32,16 +36,28 @@ const Website = ({ websiteId }: Props) => {
         setPageSize(pageSize);
     }, [pageSize]);
 
-    const { data: sites, error: siteError, isLoading: isLoadingSites } = useSWR(
+    const {
+        data: sites,
+        error: siteError,
+        isLoading: isLoadingSites,
+        mutate: mutateSites,
+    } = useSWR(
         `/api/websites/${websiteId}/sites?page=${currentPage}&limit=${pageSize}`,
         fetcherApi<Paged<Site>>
     );
 
-    if (reportError) return <div>Error loading website report</div>;
-    if (siteError) return <div>Error loading website sites</div>;
+    if (reportError) return <PageError status={500} title="Error loading website report" />;
+    if (siteError) return <PageError status={500} title="Error loading sites" />;
     if (!websiteReport) return <PageLoading />;
 
     const violations = websiteReport.report_counts.violations;
+
+    // Mutate both the website report and the sites data when it become stale,
+    // this is needed for a full page reload when the website is scanned
+    const mutate: KeyedMutator<any> = async () => {
+        mutateWebsiteReport();
+        mutateSites();
+    };
 
     const sites_columns = [
         {
@@ -57,7 +73,10 @@ const Website = ({ websiteId }: Props) => {
             title: 'Last Scanned',
             dataIndex: 'last_scanned',
             key: 'last_scanned',
-            render: (date: string) => format(date, 'MMMM dd, yyyy'),
+            render: (date: string) => {
+                if (!date) return 'Never';
+                return format(new Date(date), 'MMMM dd, yyyy');
+            },
         },
         {
             title: 'Violations',
@@ -67,7 +86,9 @@ const Website = ({ websiteId }: Props) => {
             ),
             onFilter: (value: boolean | React.Key, record: Site) =>
                 record.current_report.report_counts.violations.total === Number(value),
-            sorter: (a: Site, b: Site) => a.current_report.report_counts.violations.total - b.current_report.report_counts.violations.total,
+            sorter: (a: Site, b: Site) =>
+                a.current_report.report_counts.violations.total -
+                b.current_report.report_counts.violations.total,
             dataIndex: 'violations',
         },
         {
@@ -82,42 +103,54 @@ const Website = ({ websiteId }: Props) => {
     return (
         <Content className="">
             <header className="mb-8">
-                <h1 className="text-3xl font-extrabold mb-2">
-                    Website Report for <span onClick={() => window.open(websiteReport.base_url,)} className="underline text-blue-700">{websiteReport.base_url}</span>
+                <h1 className="mb-2 text-3xl font-extrabold">
+                    Website Report for{' '}
+                    <span
+                        onClick={() => window.open(websiteReport.base_url)}
+                        className="text-blue-700 underline"
+                    >
+                        {websiteReport.base_url}
+                    </span>
                 </h1>
-                {is_admin && (
-                    <AdminWebsiteItems website={websiteReport} mutate={mutate} />
-                )}
-                <h2 className="text-gray-500 text-lg mb-4">
-                    Last Scanned: {format(websiteReport?.last_scanned, 'MMMM dd, yyyy')}
+                {is_admin && <AdminWebsiteItems website={websiteReport} mutate={mutate} />}
+                <h2 className="mb-4 text-lg text-gray-500">
+                    Last Scanned:{' '}
+                    {websiteReport?.last_scanned
+                        ? format(websiteReport?.last_scanned, 'MMMM dd, yyyy')
+                        : 'Never'}
                 </h2>
                 <section
                     role="region"
                     aria-labelledby="accessibility-report"
-                    className="bg-gray-50 rounded-lg p-6"
+                    className="rounded-lg bg-gray-50 p-6"
                 >
-                    <h2 id="accessibility-report" className="text-2xl font-semibold mb-6 text-gray-800">
+                    <h2
+                        id="accessibility-report"
+                        className="mb-6 text-2xl font-semibold text-gray-800"
+                    >
                         Accessibility Report
                     </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-                        <div className="bg-red-50 rounded-lg p-4 shadow-sm flex flex-col items-center">
-                            <ExclamationCircleOutlined className="text-3xl text-red-700 mb-2" />
-                            <h3 className="text-lg font-medium text-red-700 mb-2">Critical</h3>
+                    <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
+                        <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
+                            <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
+                            <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
                             <p className="text-3xl font-bold text-red-600">{violations.critical}</p>
                         </div>
-                        <div className="bg-red-100 rounded-lg p-4 shadow-sm flex flex-col items-center">
-                            <AlertOutlined className="text-3xl text-red-700 mb-2" />
-                            <h3 className="text-lg font-medium text-red-700 mb-2">Serious</h3>
+                        <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
+                            <AlertOutlined className="mb-2 text-3xl text-red-700" />
+                            <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
                             <p className="text-3xl font-bold text-red-600">{violations.serious}</p>
                         </div>
-                        <div className="bg-orange-50 rounded-lg p-4 shadow-sm flex flex-col items-center">
-                            <WarningOutlined className="text-3xl text-orange-700 mb-2" />
-                            <h3 className="text-lg font-medium text-orange-700 mb-2">Moderate</h3>
-                            <p className="text-3xl font-bold text-orange-600">{violations.moderate}</p>
+                        <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
+                            <WarningOutlined className="mb-2 text-3xl text-orange-700" />
+                            <h3 className="mb-2 text-lg font-medium text-orange-700">Moderate</h3>
+                            <p className="text-3xl font-bold text-orange-600">
+                                {violations.moderate}
+                            </p>
                         </div>
-                        <div className="bg-yellow-50 rounded-lg p-4 shadow-sm flex flex-col items-center">
-                            <InfoCircleOutlined className="text-3xl text-yellow-700 mb-2" />
-                            <h3 className="text-lg font-medium text-yellow-700 mb-2">Minor</h3>
+                        <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
+                            <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
+                            <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
                             <p className="text-3xl font-bold text-yellow-600">{violations.minor}</p>
                         </div>
                     </div>
@@ -125,24 +158,22 @@ const Website = ({ websiteId }: Props) => {
             </header>
 
             <Space
-                direction='vertical'
-                role='region'
+                direction="vertical"
+                role="region"
                 aria-labelledby="website-sites"
-                className='bg-gray-50 rounded-lg'
+                className="rounded-lg bg-gray-50"
             >
                 <Table<Site>
-                    className='min-h-[400px]'
+                    className="min-h-[400px]"
                     scroll={{ y: 'calc(100vh - 40rem)' }}
                     pagination={false}
                     columns={sites_columns}
                     dataSource={sites?.items}
                     loading={isLoadingSites}
                     rowKey="id"
-
                 />
 
-
-                <div className='justify-center flex pt-4 pb-4'>
+                <div className="flex justify-center pt-4 pb-4">
                     <Pagination
                         showSizeChanger
                         current={currentPage}
@@ -157,9 +188,6 @@ const Website = ({ websiteId }: Props) => {
             </Space>
         </Content>
     );
-
 };
 
-
-
-export default Website
+export default Website;

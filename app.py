@@ -4,14 +4,15 @@ import jwt
 from models import db
 from authentication.login import jwt
 from models.user import Profile, User
+from mail import mail
 from werkzeug.security import generate_password_hash
 import os 
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
     CORS(app, supports_credentials=True)
-    
-    
+
+    mail.init_app(app)
     db.init_app(app)
     jwt.init_app(app)
     app.static_folder = 'static'

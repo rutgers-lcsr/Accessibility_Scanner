@@ -6,6 +6,7 @@ import { Report as ReportType } from '@/lib/types/axe';
 import { useSearchParams } from 'next/navigation';
 import Report from '@/components/Report';
 import { format } from 'date-fns';
+import PageError from '@/components/PageError';
 
 const columns = [
     {
@@ -39,11 +40,11 @@ const columns = [
         render: (text: string, record: ReportType) => (
             <span>{record.report_counts.violations.total}</span>
         ),
-    }
+    },
 ];
 
 export default function ReportPage() {
-    const searchParams = useSearchParams()
+    const searchParams = useSearchParams();
     const {
         reports,
         isLoading,
@@ -52,44 +53,58 @@ export default function ReportPage() {
         setReportLimit,
         reportsTotal,
         ReportPage,
-
     } = useReports();
     const id = searchParams.get('id');
 
     if (id) {
-        return <Report report_id={id} />
+        return <Report report_id={id} />;
     }
 
-
-
-
-    return <div className=''>
-        <header className='flex mb-4 w-full justify-between'>
-            <h1 className='text-2xl font-bold'>Reports</h1>
-            <div>
-                <Input.Search className='w-64' placeholder="Search reports" onSearch={(value) => {
-                    // console.log(value);
-                    setReportSearch(value);
-                }} loading={isLoading} />
-
-            </div>
-        </header>
-        <main className='h-[calc(100vh-12rem)] overflow-y-auto'>
-
-
-            <Table<ReportType>
-                rowKey="id"
-                columns={columns}
-                dataSource={reports || []}
-                loading={isLoading}
-                pagination={false}
-                locale={{ emptyText: 'No reports found.' }}
-            />
-        </main>
-        <footer className="mt-4 justify-center flex">
-            <Pagination showSizeChanger defaultCurrent={ReportPage} total={reportsTotal} onShowSizeChange={(current, pageSize) => {
-                setReportLimit(pageSize);
-            }} onChange={(current) => setReportPage(current)} />
-        </footer>
-    </div>;
+    return (
+        <div className="">
+            <header className="mb-4 flex w-full justify-between">
+                <h1 className="text-2xl font-bold">Reports</h1>
+                <div>
+                    <Input.Search
+                        className="w-64"
+                        placeholder="Search reports"
+                        onSearch={(value) => {
+                            // console.log(value);
+                            setReportSearch(value);
+                        }}
+                        loading={isLoading}
+                    />
+                </div>
+            </header>
+            <main className="h-[calc(100vh-12rem)] overflow-y-auto">
+                <Table<ReportType>
+                    rowKey="id"
+                    columns={columns}
+                    dataSource={reports || []}
+                    loading={isLoading}
+                    pagination={false}
+                    locale={{
+                        emptyText: (
+                            <PageError
+                                status={'info'}
+                                title="No Reports Found"
+                                subTitle="It seems we couldn't find any reports."
+                            />
+                        ),
+                    }}
+                />
+            </main>
+            <footer className="mt-4 flex justify-center">
+                <Pagination
+                    showSizeChanger
+                    defaultCurrent={ReportPage}
+                    total={reportsTotal}
+                    onShowSizeChange={(current, pageSize) => {
+                        setReportLimit(pageSize);
+                    }}
+                    onChange={(current) => setReportPage(current)}
+                />
+            </footer>
+        </div>
+    );
 }

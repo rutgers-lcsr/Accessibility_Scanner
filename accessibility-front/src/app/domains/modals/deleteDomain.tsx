@@ -1,11 +1,12 @@
-"use client"
+'use client';
+import '@ant-design/v5-patch-for-react-19';
 import { useDomains } from '@/providers/Domain';
 import { Button, Input, Modal } from 'antd';
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 
 type Props = {
     domainId: string;
-}
+};
 
 const DeleteDomain: React.FC<Props> = ({ domainId }) => {
     const { deleteDomain } = useDomains();
@@ -20,7 +21,8 @@ const DeleteDomain: React.FC<Props> = ({ domainId }) => {
             <Button type="default" onClick={showModal}>
                 Delete Domain
             </Button>
-            <Modal title="Delete Domain"
+            <Modal
+                title="Delete Domain"
                 open={isModalOpen}
                 cancelText="Cancel"
                 okText="Delete"
@@ -28,14 +30,15 @@ const DeleteDomain: React.FC<Props> = ({ domainId }) => {
                     await deleteDomain(domainId);
                     setIsModalOpen(false);
                 }}
-                onCancel={() => setIsModalOpen(false)}>
-                <p>Are you sure you want to delete this domain? This will remove all associated data including websites and reports</p>
-
+                onCancel={() => setIsModalOpen(false)}
+            >
+                <p>
+                    Are you sure you want to delete this domain? This will remove all associated
+                    data including websites and reports
+                </p>
             </Modal>
-
         </>
+    );
+};
 
-    )
-}
-
-export default DeleteDomain
+export default DeleteDomain;
