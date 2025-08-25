@@ -1,7 +1,6 @@
 
 import datetime
 from typing import List, TypedDict
-from urllib.parse import urlparse
 
 from sqlalchemy import func
 from models import db
@@ -9,6 +8,7 @@ from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.orm import Mapped
 from models.report import AxeReportCounts, Report, ReportMinimized
 from scanner.accessibility.ace import AxeReportKeys
+from utils.urls import get_netloc, is_valid_url
 
 class SiteDict(TypedDict):
     id: int
@@ -26,7 +26,7 @@ class Site(db.Model):
     url: Mapped[str] = db.Column(db.String(200), nullable=False)
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
     website_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('website.id'))
-    reports: Mapped[List[Report]] = db.relationship('Report', back_populates='site', lazy='dynamic')
+    reports: Mapped[List[Report]] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
@@ -65,10 +65,8 @@ class Site(db.Model):
         }
 
     def __init__(self, url, website_id):
-        parsed = urlparse(url)
-        if not all([parsed.scheme, parsed.netloc]):
+        if not is_valid_url(url):
             raise ValueError("Invalid URL")
-        
         self.url = url
         self.website_id = website_id
 
@@ -88,15 +86,21 @@ class WebsiteDict(TypedDict,total=False):
 class Website(db.Model):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     base_url: Mapped[str] = db.Column(db.String(200), nullable=False)
-    domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'))
-    domain: Mapped['Domains'] = db.relationship('Domains', backref='websites', lazy=True)
-    sites: Mapped[List['Site']] = db.relationship('Site', backref='website', lazy='dynamic')
+    domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'),)
+    # domain: Mapped['Domains'] = db.relationship('Domains', backref='websites', lazy=True)
+    sites: Mapped[List['Site']] = db.relationship('Site', backref='website', lazy='dynamic', cascade="all, delete-orphan")
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
     # Rate limiting the automatic scanning, in days
     rate_limit: Mapped[int] = db.Column(db.Integer, default=5)
     active: Mapped[bool] = db.Column(db.Boolean, default=False)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+
+    @hybrid_method
+    def is_active(self) -> bool:
+        # website is active if a domain doesnt exist and the website is active, or if a domain exists and is active
+        return (self.domain and self.domain.active and self.active) or (not self.domain and self.active)
 
     @hybrid_method
     def get_report_counts(self) -> AxeReportCounts | None:
@@ -127,15 +131,14 @@ class Website(db.Model):
             'domain_id': self.domain_id,
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'report_counts': self.get_report_counts(),
-            'active': self.active,
+            'active': self.is_active(),
             'rate_limit': self.rate_limit,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
 
     def __init__(self, url):
-        base_url = urlparse(url).netloc
-        self.base_url = base_url
+        self.base_url =  get_netloc(url)
 
     def __repr__(self):
         return f'<Website {self.base_url}>'
@@ -145,23 +148,27 @@ class Website(db.Model):
 class Domains(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     domain = db.Column(db.String(200), nullable=False)
+    parent_id = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=True)
+    parent = db.relationship('Domains', remote_side=[id], backref='subdomains', lazy=True, post_update=True)
+    websites = db.relationship('Website', backref='domain', lazy=True, cascade="all, delete-orphan")
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     
     @hybrid_method
     def part_of_domain(self, url):
-        parsed = urlparse(url)
-
-        if not parsed.netloc:
+        try:
+            netloc =  get_netloc(url)
+        except ValueError:
             return False
-
-        return parsed.netloc.endswith(self.domain)
+       
+        return netloc.endswith(self.domain)
 
     def to_dict(self):
         return {
             'id': self.id,
             'domain': self.domain,
+            'parent': self.parent.to_dict() if self.parent else None,
             'active': self.active,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()

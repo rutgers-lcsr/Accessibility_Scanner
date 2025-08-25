@@ -3,8 +3,9 @@ import { APIError, fetcherApi, handleRequest } from '@/lib/api';
 import { Website } from '@/lib/types/website';
 import { Paged } from '@/lib/types/Paged';
 import { useRouter } from 'next/navigation';
-import React, { createContext, useContext, ReactNode, useState } from 'react';
-import useSWR from 'swr';
+import React, { createContext, useContext, useState } from 'react';
+import useSWR, { mutate } from 'swr';
+import { useAlerts } from './Alerts';
 
 type WebsitesContextType = {
     websites: Website[] | null;
@@ -13,6 +14,7 @@ type WebsitesContextType = {
     isLoading: boolean;
     WebsitePage: number;
     WebsiteLimit: number;
+    requestWebsite: (url: string) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: number) => void;
@@ -26,18 +28,36 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
-
-    const { data, error, isLoading } = useSWR(`/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi<Paged<Website>>);
+    const { addAlert } = useAlerts();
+    const { data, error, isLoading, mutate } = useSWR(`/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi<Paged<Website>>);
 
     const openWebsite = (id: number) => {
         // Logic to open the website
         router.push(`/websites?id=${id}`);
     };
 
+    const requestWebsite = async (url: string) => {
+        try {
+            const data = await handleRequest<Website>(`/api/websites/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ base_url: url }),
+            });
+            addAlert("Website created successfully", "success");
+            mutate();
+            return data;
+        } catch (error) {
+            console.error(error);
+            addAlert("Failed to create website", "error");
+            return null;
+        }
+    };
 
 
     return (
-        <WebsitesContext.Provider value={{ websites: data?.items ?? null, websitesTotal: data?.count ?? 0, error, isLoading, openWebsite, WebsitePage: page, WebsiteLimit: limit, setWebsitePage: setPage, setWebsiteLimit: setLimit, setWebsiteSearch: setSearchUrl }}>
+        <WebsitesContext.Provider value={{ websites: data?.items ?? null, websitesTotal: data?.count ?? 0, error, isLoading, openWebsite, WebsitePage: page, WebsiteLimit: limit, setWebsitePage: setPage, setWebsiteLimit: setLimit, setWebsiteSearch: setSearchUrl, requestWebsite }}>
             {children}
         </WebsitesContext.Provider>
     );

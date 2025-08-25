@@ -4,10 +4,11 @@ from authentication.login import admin_required
 from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
 from models import db
-from urllib.parse import urlparse
 
 from scanner.accessibility.ace import AxeReportKeys
 from sqlalchemy import Integer, cast, func
+
+from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
@@ -18,14 +19,20 @@ def create_website():
     if not base_url:
         return jsonify({'error': 'Base URL is required'}), 400
     
-    # Check if valid urlparse
-    parsed = urlparse(base_url)
-    if not all([parsed.scheme, parsed.netloc]):
+    # Check if valid URL
+    if not is_valid_url(base_url):
         return jsonify({'error': 'The provided URL is invalid'}), 400
 
-    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    website_netloc = get_netloc(base_url)
+    all_domains = db.session.query(Domains).filter(Domains.active == True).all()
+    best_match = None
+    max_len = 0
+    for domain in all_domains:
+        if website_netloc.endswith(domain.domain) and len(domain.domain) > max_len:
+            best_match = domain
+            max_len = len(domain.domain)
+    existing_domain = best_match
 
-    existing_domain = Domains.query.filter(Domains.part_of_domain(base_url)).first()
     if not existing_domain:
         return jsonify({'error': 'Domain not found'}), 404
 
@@ -34,6 +41,7 @@ def create_website():
     
 
     new_website = Website(url=base_url)
+    new_website.domain = existing_domain
     
     # send email to user and admin, user confirming and admin to activate
 
@@ -43,7 +51,6 @@ def create_website():
     return jsonify(new_website.to_dict()), 201  
 
 @website_bp.route('/<int:website_id>', methods=['PATCH'])
-@jwt_required()
 @admin_required
 def update_website(website_id):
     data = request.get_json()
@@ -54,25 +61,29 @@ def update_website(website_id):
     if 'base_url' in data:
         
         base_url = data['base_url']
-        
-        parsed = urlparse(base_url)
-
-        if not all([parsed.scheme, parsed.netloc]):
+        if not is_valid_url(base_url):
             return jsonify({'error': 'The provided URL is invalid'}), 400
-    
-
 
         website.base_url = data['base_url']
+
     if 'last_scanned' in data:
         website.last_scanned = data['last_scanned']
     
-    if current_user and current_user.profile and current_user.profile.is_admin:
-        if 'active' in data:
-            website.active = data['active']
-        if 'rate_limit' in data:
-            website.rate_limit = data['rate_limit']
-        if 'hard_limit' in data:
-            website.hard_limit = data['hard_limit']
+    if 'active' in data:
+        
+        domain = db.session.get(Domains, website.domain_id)
+        
+        # scanner can add websites without a domain. this is because if a manual scan was made its not obvious what the parent domain might be.
+        # some websites will be www.example.com, but some might be org.example.com, and its not always clear what the parent domain is.
+        # if the domain is not found, we just use the website itself
+        if domain and not domain.active and data['active']:
+            return jsonify({'error': 'Cannot activate website because its domain is inactive'}), 400
+
+        website.active = data['active']
+    if 'rate_limit' in data:
+        website.rate_limit = data['rate_limit']
+    if 'hard_limit' in data:
+        website.hard_limit = data['hard_limit']
             
     db.session.add(website)
     db.session.commit()
@@ -116,22 +127,24 @@ def get_websites():
         .subquery()
     )
 
-    # Join websites to sites, sites to their most recent report, and order by violations
+    # Query all websites, left join to sites and reports (so websites with no sites/reports are included)
     w_query = (
         db.session.query(Website)
-        .join(Site, Site.website_id == Website.id)
-        .join(Report, Report.site_id == Site.id)
-        .join(
+        .outerjoin(Site, Site.website_id == Website.id)
+        .outerjoin(Report, Report.site_id == Site.id)
+        .outerjoin(
             latest_report_subq,
             (latest_report_subq.c.site_id == Report.site_id) &
             (latest_report_subq.c.max_timestamp == Report.timestamp)
         )
-        .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc())
+        .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc().nullslast())
         .distinct()
     )
     if search:
         w_query = w_query.filter(Website.base_url.icontains(f"%{search}%"))
     w = w_query.paginate(page=page, per_page=limit)
+    
+            
 
     return jsonify({
         'count': w.total,

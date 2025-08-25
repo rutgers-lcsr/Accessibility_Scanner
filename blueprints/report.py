@@ -5,7 +5,6 @@ from models.report import Report
 from models import db
 from PIL import Image
 import io
-from urllib.parse import urlparse
 
 from utils.style_generator import report_to_js
 
@@ -66,27 +65,3 @@ def get_report_photo(report_id):
     img_byte_arr.seek(0)
 
     return Response(img_byte_arr, mimetype='image/png')
-
-@report_bp.route('/site/<string:website_url>', methods=['GET'])
-def get_report(website_url):
-    params = request.args
-
-    limit = params.get('limit', default=100, type=int)
-    page = params.get('page', default=1, type=int)
-
-    # Check if str is valid url
-    try:
-        result = urlparse(website_url)
-        if not all([result.scheme, result.netloc]):
-            raise ValueError
-    except ValueError:
-        return jsonify({'error': 'Invalid URL'}), 400
-
-    report = Report.query.filter(Report.url == website_url).paginate(page=page, per_page=limit)
-
-    if not report:
-        return jsonify({'error': 'Report not found'}), 404
-    return jsonify({
-        'count': report.total,
-        'items': [r.to_dict() for r in report.items]
-    }), 200

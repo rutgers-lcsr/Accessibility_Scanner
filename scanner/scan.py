@@ -1,6 +1,5 @@
 import asyncio
 from typing import List
-from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 from scanner.browser.report import AccessibilityReport, generate_report
 from scanner.log import log_message
@@ -9,6 +8,7 @@ from models import db
 from models.website import Site, Website
 from models.report import Report
 from scanner.utils.queue import ListQueue
+from utils.urls import get_full_url, get_netloc, get_site_netloc
 
 sites_done: set[str] = set()
 currently_processing: set[str] = set()
@@ -50,12 +50,11 @@ async def process_website(name: int, browser, queue: ListQueue, results: List[Ac
 
 async def generate_single_site_report(site_url:str) -> AccessibilityReport:
     app = create_app()
-    url_parsed = urlparse(site_url)
-    base_url = f"{url_parsed.netloc}"
-    website_url = f"{url_parsed.scheme}://{base_url}{url_parsed.path}"
-    with app.app_context():        
+    base_url = get_netloc(site_url)
+    website_url = get_full_url(site_url)
+    with app.app_context():
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False, args=['--no-sandbox', '--disable-setuid-sandbox'])
+            browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
             log_message(f"Generating report for {website_url}", 'info')
             report = await generate_report(browser, website=website_url)
             await browser.close()
@@ -68,6 +67,10 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
             site = Site.query.filter_by(url=website_url).first()
             if site is None:
                 site = Site(url=website_url, website_id=web.id)
+            else: 
+                # make sure that the site is associated with the correct website
+                if site.website_id != web.id:
+                    site.website_id = web.id
             report = Report(report, site_id=site.id)
             site.reports.append(report)
             site.last_scanned = db.func.current_timestamp()
@@ -85,10 +88,9 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     sites_done = set()
     currently_processing = set()
     app = create_app()
-    parsed_url = urlparse(website)
-    base_url = f"{parsed_url.netloc}"
+    base_url = get_netloc(website)
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False,args=['--no-sandbox', '--disable-setuid-sandbox'],)
+        browser = await p.chromium.launch(headless=True,args=['--no-sandbox', '--disable-setuid-sandbox'],)
         q = ListQueue()
         await q.put(website)
         # Launch N workers
@@ -124,10 +126,13 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
 
         for site_reports in results:
             # check if site exists if not create one
-            site = Site.query.filter_by(url=site_reports['url']).first()
+            site = db.session.query(Site).filter_by(url=site_reports['url']).first()
             if site is None:
                 site = Site(url=site_reports['url'], website_id=web.id)
                 sites.append(site)
+            else: 
+                if site.website_id != web.id:
+                    site.website_id = web.id
             report = Report(site_reports, site_id=site.id)
 
             

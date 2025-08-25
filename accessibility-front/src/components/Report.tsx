@@ -6,7 +6,6 @@ import { Report as ReportType } from '@/lib/types/axe';
 import PageLoading from './PageLoading';
 import { Content } from 'antd/es/layout/layout';
 import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
 type Props = {
     report_id: string;
 }

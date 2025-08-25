@@ -1,11 +1,12 @@
 
 from typing import List, TypedDict
 from scanner.accessibility.ace import AxeReport, get_accessibility_report
-from scanner.browser.parse import get_base_url, get_imgs, get_links, get_videos
+from scanner.browser.parse import  get_imgs, get_links, get_videos
 from playwright.async_api import Browser
 import time 
 from scanner.browser.tabbable import is_page_tabbable
 from utils.style_generator import report_to_js
+from utils.urls import get_website_url
 
 class AccessibilityReport(TypedDict, total=False):
     url: str
@@ -30,7 +31,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     except Exception as e:
         return {"error": str(e)}
 
-    base_url = get_base_url(page)
+    base_url = get_website_url(page.url)
     report = await get_accessibility_report(page)
 
     links = await get_links(page)

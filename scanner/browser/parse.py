@@ -1,8 +1,9 @@
 from typing import List
-from urllib.parse import urlparse
 
 from scanner.accessibility.ace import get_accessibility_report
 from playwright.async_api import Page
+
+from utils.urls import get_full_url, get_netloc, get_website_url
 
 
 def get_link_js(website):
@@ -39,12 +40,9 @@ def get_imgs_js():
         return links;
 }}"""
 
-def get_base_url(page:Page) -> str:
-    parsed_url = urlparse(page.url)
-    return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
 async def get_links(page:  Page) -> List[str]:
-    current_page = get_base_url(page)
+    current_page = get_website_url(page.url)
     links = await page.evaluate(get_link_js(current_page))
     return links
 

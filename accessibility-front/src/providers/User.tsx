@@ -22,8 +22,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
 
-
-    // Set the user if a reload is done 
+    // Set the user if a reload is done
     useEffect(() => {
         getUserFromLocalStorage();
     }, []);
@@ -73,7 +72,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setUserLocalStorage(null);
     };
-    const handlerUserApiRequest = async function <T>(url: string, options?: RequestInit) {
+    const handlerUserApiRequest = async function <T>(url: string, options: RequestInit = {
+        'method': 'GET'
+    }) {
         if (!user) {
             throw new Error("User is not authenticated");
         }
@@ -95,7 +96,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
         // Try the request once, if it fails try refreshing the token and doing the request again
         try {
-            return await doRequest();
+            return await doRequest(user.access_token);
         }
         catch {
             const newAccessToken = await refreshLogin();

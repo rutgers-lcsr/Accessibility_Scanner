@@ -9,6 +9,7 @@ import { Table } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { format } from 'date-fns/fp/format';
 import { formatDate } from 'date-fns';
+import CreateWebsite from './modals/createWebsite';
 
 const columns = [
     {
@@ -76,7 +77,8 @@ export default function Page() {
         <header className='flex mb-4 w-full justify-between'>
             <h1 className='text-2xl font-bold'>Websites</h1>
 
-            <div>
+            <div className='flex items-center gap-2'>
+                <CreateWebsite />
                 <Input.Search className='w-64' placeholder="Search websites" onSearch={(value) => setWebsiteSearch(value)} loading={isLoading} />
             </div>
         </header>
