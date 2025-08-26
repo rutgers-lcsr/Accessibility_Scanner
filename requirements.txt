@@ -9,3 +9,4 @@ pillow
 flask_limiter
 Flask-Mail
 playwright
+schedule

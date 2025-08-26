@@ -1,4 +1,5 @@
 'use client';
+
 import { useWebsites } from '@/providers/Websites';
 import Pagination from 'antd/es/pagination/Pagination';
 import { Input } from 'antd';
@@ -7,7 +8,6 @@ import Website from '@/components/Website';
 import type { Website as WebsiteType } from '@/lib/types/website';
 import { Table } from 'antd';
 import { Content } from 'antd/es/layout/layout';
-import { format } from 'date-fns/fp/format';
 import { formatDate } from 'date-fns';
 import CreateWebsite from './modals/createWebsite';
 import PageError from '@/components/PageError';

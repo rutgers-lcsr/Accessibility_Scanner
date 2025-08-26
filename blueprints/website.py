@@ -44,7 +44,7 @@ def create_website():
     
 
     # check if website already exists
-    existing_website = db.session.query(Website).filter_by(url=base_url).first()
+    existing_website = db.session.query(Website).filter_by(base_url=base_url).first()
     if existing_website:
         return jsonify({'error': 'Website already exists'}), 400
 

@@ -104,6 +104,10 @@ class Website(db.Model):
         # website is active if a domain doesnt exist and the website is active, or if a domain exists and is active
         return (self.domain and self.domain.active and self.active) or (not self.domain and self.active)
 
+    @is_active.expression
+    def is_active(cls):
+        return (cls.domain.has(Domains.active == True) & cls.active) | (cls.domain == None & cls.active)
+
     @hybrid_method
     def get_report_counts(self) -> AxeReportCounts | None:
         if not self.sites:

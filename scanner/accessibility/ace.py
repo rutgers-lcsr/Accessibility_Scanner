@@ -46,7 +46,7 @@ _ace_js = """async () => {
             return await axe.run({
                 runOnly: {
                     type: 'tag',
-                    values: ['wcag2a', 'wcag2aa','wcag21a', 'wcag21aa']
+                    values: ['wcag2a', 'wcag2aa','wcag2aaa' ,'wcag21a', 'wcag21aa']
                 }
             });
         }"""

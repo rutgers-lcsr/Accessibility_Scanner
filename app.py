@@ -1,3 +1,4 @@
+from multiprocessing import Process
 from flask import Flask
 from flask_cors import CORS
 import jwt
@@ -6,7 +7,8 @@ from authentication.login import jwt
 from models.user import Profile, User
 from mail import mail
 from werkzeug.security import generate_password_hash
-import os 
+import os
+
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
@@ -51,7 +53,17 @@ def init_admin(app):
             db.session.add(user)
             db.session.commit()
 
+
+def init_scanner():
+    from scanner.queue_process import queue_scanner 
+    p = Process(target=queue_scanner, )
+    p.start()
+
 if __name__ == '__main__':
     app = create_app()
     init_admin(app)
+    init_scanner()
+
     app.run(debug=True)
+    
+    

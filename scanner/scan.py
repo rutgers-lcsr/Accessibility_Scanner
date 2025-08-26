@@ -1,6 +1,7 @@
 import asyncio
 from typing import List
 from playwright.async_api import async_playwright
+from mail.emails import ScanFinishedEmail
 from scanner.browser.report import AccessibilityReport, generate_report
 from scanner.log import log_message
 from app import create_app
@@ -149,6 +150,10 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         db.session.add(web)
         db.session.commit()
         db.session.flush()
+        
+        
+        ScanFinishedEmail(web).send()
+        
     return results
 
 def run_scan_site(site :str ="https://resources.cs.rutgers.edu"):
