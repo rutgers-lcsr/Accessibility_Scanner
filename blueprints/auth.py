@@ -1,5 +1,5 @@
 from flask import Blueprint, app, redirect, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, current_user, get_jwt_identity, jwt_required, unset_jwt_cookies
+from flask_jwt_extended import create_access_token, create_refresh_token, current_user, jwt_required, unset_jwt_cookies, set_access_cookies, set_refresh_cookies
 from models.user import User
 from models import db
 from werkzeug.security import check_password_hash
@@ -17,7 +17,15 @@ def token():
     if user and check_password_hash(user.password, password):
         access_token = create_access_token(identity=user)
         refresh_token = create_refresh_token(identity=user)
-        return jsonify({**user.to_dict(), 'access_token': access_token, 'refresh_token': refresh_token}), 200
+        
+        
+        
+        
+        response = jsonify({**user.to_dict(), 'access_token': access_token, 'refresh_token': refresh_token})
+        set_access_cookies(response, access_token)
+        set_refresh_cookies(response, refresh_token)
+
+        return response, 200
 
     if not email or not password:
         return jsonify({'error': 'Email and password are required'}), 400
@@ -30,8 +38,9 @@ def refresh():
     access_token = create_access_token(identity=current_user)
     return jsonify(access_token=access_token), 200
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
-    unset_jwt_cookies()
-    return jsonify({'message': 'Logged out successfully'}), 200
+    response = jsonify({"msg": "logout successful"})
+    unset_jwt_cookies(response)
+    return response, 200

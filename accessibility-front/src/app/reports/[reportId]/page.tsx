@@ -2,68 +2,75 @@ import { fetcherApi } from '@/lib/api';
 import React from 'react';
 import useSWR from 'swr';
 import { Report as ReportType } from '@/lib/types/axe';
-import PageLoading from './PageLoading';
-import { Content } from 'antd/es/layout/layout';
+import PageLoading from '@/components/PageLoading';
+import { Content, Header } from 'antd/es/layout/layout';
 import { format } from 'date-fns';
-type Props = {
-    report_id: string;
-};
+import { headers, cookies } from 'next/headers';
 import {
     AlertOutlined,
     ExclamationCircleOutlined,
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
-import Console from './Console';
+import Console from '@/components/Console';
 
-import AuditAccessibilityItem from './AuditAccessibilityItem';
-import { Image } from 'antd';
-import { useUser } from '@/providers/User';
-import AdminReportItems from './AdminReportItems';
-import PageError from './PageError';
+import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
+import { Button, Image } from 'antd';
+import AdminReportItems from '@/components/AdminReportItems';
+import PageError from '@/components/PageError';
+import HeaderLink from './components/HeaderLink';
 
-function Report({ report_id }: Props) {
-    const { handlerUserApiRequest, user, is_admin } = useUser();
+interface Props {
+    reportId: string;
+}
 
-    const {
-        data: reportData,
-        error,
-        isLoading,
-    } = useSWR(
-        `/api/reports/${report_id}`,
-        user ? handlerUserApiRequest<ReportType> : fetcherApi<ReportType>
+// The reason this is a server component and the rest of them are not, is that all of them should have been really :0
+export const getReport = async (reportId: string) => {
+    const headerList = await headers();
+    // need to forward the request as if we are the user
+    // Theres an isssue with headers for some reason out of out control. the type is messed up
+    const options = {
+        ...headerList,
+    };
+
+    const response = await fetch(
+        `${process.env.API_URL}/api/reports/${reportId}`,
+        options as RequestInit
     );
 
-    if (isLoading) return <PageLoading />;
-    if (error) return <PageError status={500} title="Error loading report" />;
-    if (!reportData) return <PageError status={404} />;
+    if (!response.ok) throw new Error('Failed to fetch report');
+    return response.json() as Promise<ReportType>;
+};
 
-    const violations = reportData.report_counts.violations;
+async function Report({ params }: { params: Promise<{ reportId: string }> }) {
+    const headersList = await headers();
+    const host = headersList.get('host');
+    const { reportId } = await params;
 
-    const report_script_full_url = `/api/reports/${report_id}/script`;
+    const report = await getReport(reportId);
 
-    const report_photo_url = `/api/reports/${report_id}/photo`;
+    if (!report) return <PageError status={404} />;
+
+    const violations = report.report_counts.violations;
+
+    const report_script_full_url = `https://${host}/api/reports/${reportId}/script`;
+
+    const report_photo_url = `/api/reports/${reportId}/photo`;
 
     return (
         <Content className="">
             <header className="mb-8">
                 <h1 className="mb-2 text-3xl font-extrabold">
-                    Report for{' '}
-                    <span
-                        onClick={() => window.open(reportData.url)}
-                        className="cursor-pointer text-blue-700 underline"
-                    >
-                        {reportData.url}
-                    </span>
+                    Report for <HeaderLink url={report.url} />
                 </h1>
-                {is_admin && <AdminReportItems report={reportData} />}
+                <AdminReportItems report={report} />
                 <h2 className="mb-2 text-lg text-gray-500">
                     Report Date:{' '}
-                    {reportData?.timestamp
-                        ? format(new Date(reportData.timestamp), 'MMMM dd, yyyy')
+                    {report?.timestamp
+                        ? format(new Date(report.timestamp), 'MMMM dd, yyyy')
                         : 'N/A'}
                 </h2>
-                <h3 className="mb-4 text-lg text-gray-500">Website: {reportData.base_url}</h3>
+                <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
                 <section
                     role="region"
                     aria-labelledby="accessibility-report"
@@ -99,7 +106,7 @@ function Report({ report_id }: Props) {
                             <p className="text-3xl font-bold text-yellow-600">{violations.minor}</p>
                         </div>
                     </div>
-                    {reportData.videos.length > 0 && (
+                    {report.videos.length > 0 && (
                         <div className="mt-4 text-center text-sm text-gray-600">
                             <ExclamationCircleOutlined className="mr-1 inline" />
                             This site has videos please make sure they are properly tagged with{' '}
@@ -145,14 +152,14 @@ document.body.appendChild(accessScriptElement);
                         </p>
                     </div>
                     <div className="mt-4">
-                        {reportData.report.violations.map((violation, index) => (
+                        {report.report.violations.map((violation, index) => (
                             <AuditAccessibilityItem key={index} accessibilityResult={violation} />
                         ))}
                     </div>
                 </div>
             </Content>
 
-            {/* <pre>{JSON.stringify(reportData, null, 2)}</pre> */}
+            {/* <pre>{JSON.stringify(report, null, 2)}</pre> */}
         </Content>
     );
 }

@@ -1,4 +1,5 @@
 from datetime import datetime
+from select import select
 from typing import List, TypedDict
 
 from . import db
@@ -60,6 +61,20 @@ class Report(db.Model):
     @hybrid_method
     def get_date_iso(self, property):
         return property.isoformat() if property else None
+
+    @hybrid_property
+    def public(self):
+        return self.site.public if self.site else False
+
+    @public.expression
+    def public(cls):
+        from sqlalchemy import select
+        from models.website import Site
+        return (
+            select(Site.public)
+            .where(Site.id == cls.site_id)
+            .scalar_subquery()
+        )
 
     def _count_axe(self,type: AxeReportKeys, impact: str| None) -> int:
         axereportList:List[AxeResult] = self.report.get(type, [])

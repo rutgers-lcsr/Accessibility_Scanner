@@ -1,27 +1,35 @@
 from flask import Blueprint, Response
 from flask import request, jsonify
+from flask_jwt_extended import jwt_required, current_user
 from sqlalchemy import func 
 from models.report import Report
 from models import db
 from PIL import Image
 import io
 
+from models.website import Site
 from utils.style_generator import report_to_js
 
 report_bp = Blueprint('report', __name__)
 
 
 @report_bp.route('/', methods=['GET'])
+@jwt_required(optional=True)
 def get_reports():
     params = request.args
     limit = params.get('limit', default=100, type=int)
     page = params.get('page', default=1, type=int)
     search = params.get('search', type=str)
 
-    reports_q = Report.query.order_by(Report.timestamp.desc(), func.json_extract(Report.report_counts, '$.violations.total').desc())
+    reports_q = db.session.query(Report).order_by(Report.timestamp.desc(), func.json_extract(Report.report_counts, '$.violations.total').desc())
+
 
     if search:
         reports_q = reports_q.filter(Report.url.icontains(f"%{search}%"))
+
+    if not current_user or not current_user.profile.is_admin:
+        
+        reports_q = reports_q.filter(Report.public)
 
     reports = reports_q.paginate(page=page, per_page=limit)
 
@@ -31,19 +39,28 @@ def get_reports():
     }), 200
 
 @report_bp.route('/<int:report_id>', methods=['GET'])
+@jwt_required(optional=True)
 def get_report_by_id(report_id):
     report = db.session.get(Report, report_id)  
     if not report:
         return jsonify({'error': 'Report not found'}), 404
+    
+    if not current_user or not current_user.profile.is_admin:
+        if not report.public:
+            return jsonify({'error': 'Unauthorized'}), 403
     return jsonify(report.to_dict()), 200
 
 @report_bp.route('/<int:report_id>/script', methods=['GET'])
+@jwt_required(optional=True)
 def get_report_script(report_id):
     report = db.session.get(Report, report_id)  
     if not report:
         return jsonify({'error': 'Report not found'}), 404
 
-
+    if not current_user or not current_user.profile.is_admin:
+        if not report.public:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
     violation = report.report.get('violations', [])
 
 
@@ -53,10 +70,15 @@ def get_report_script(report_id):
     return js_code, 200 
 
 @report_bp.route('/<int:report_id>/photo', methods=['GET'])
+@jwt_required(optional=True)
 def get_report_photo(report_id):
     report = db.session.get(Report, report_id)
     if not report:
         return jsonify({'error': 'Report not found'}), 404
+
+    if not current_user or not current_user.profile.is_admin:
+        if not report.public:
+            return jsonify({'error': 'Unauthorized'}), 403
 
     image = Image.open(io.BytesIO(report.photo))
 

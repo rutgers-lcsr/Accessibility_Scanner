@@ -12,4 +12,4 @@ node_modules/
 
 .venv
 
-audit.db
+instance/*.db

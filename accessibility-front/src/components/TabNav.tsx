@@ -78,7 +78,7 @@ export default function TabNav() {
             collapsed={collapsed}
             onCollapse={(value) => setCollapsed(value)}
         >
-            <div className="p-4 pl-2 text-xl font-bold">Access</div>
+            <div className="p-4 pl-2 text-xl font-bold">A11y</div>
             <Menu
                 onSelect={(info) => {
                     const route = tabRoutes[info.key] + '?';

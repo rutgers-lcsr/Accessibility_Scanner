@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState } from 'react';
 import useSWR, { mutate } from 'swr';
 import { useAlerts } from './Alerts';
+import { useUser } from './User';
 
 type WebsitesContextType = {
     websites: Website[] | null;
@@ -28,10 +29,12 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
+    const { user, handlerUserApiRequest } = useUser();
+
     const { addAlert } = useAlerts();
     const { data, error, isLoading, mutate } = useSWR(
         `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`,
-        fetcherApi<Paged<Website>>
+        user ? handlerUserApiRequest<Paged<Website>> : fetcherApi<Paged<Website>>
     );
 
     const openWebsite = (id: number) => {

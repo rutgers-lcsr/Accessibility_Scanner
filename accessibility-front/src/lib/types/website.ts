@@ -7,6 +7,7 @@ export type Website = {
     should_email: boolean;
     create_at: string;
     updated_at: string;
+    public: boolean;
     last_scanned: string;
     report_counts: Record<AxeReportKeys, AxeReportCounts>;
     domain_id: string;

@@ -1,9 +1,8 @@
-"use client"
+'use client';
 import { APIError, handleRequest } from '@/lib/api';
 import { User } from '@/lib/types/user';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-
 
 type UserContextType = {
     user: User | null;
@@ -16,21 +15,33 @@ type UserContextType = {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-
-
 export const UserProvider = ({ children }: { children: ReactNode }) => {
     const router = useRouter();
-    const [user, setUser] = useState<User | null>(null);
+
+    function getUserFromLocalStorage() {
+        if (typeof window === 'undefined') return null;
+        const user = window.localStorage.getItem('user');
+        try {
+            if (user) {
+                return JSON.parse(user);
+            }
+        } catch (error) {
+            console.error('Failed to parse user from localStorage:', error);
+            return null;
+        }
+    }
+
+    const [user, setUser] = useState<User | null>(getUserFromLocalStorage());
 
     // Set the user if a reload is done
     useEffect(() => {
-        getUserFromLocalStorage();
+        getCurrentUser();
     }, []);
 
-    const getUserFromLocalStorage = () => {
-        const user = localStorage.getItem('user');
+    const getCurrentUser = () => {
+        const user = getUserFromLocalStorage();
         if (user) {
-            setUser(JSON.parse(user));
+            setUser(user);
         }
     };
     const setUserLocalStorage = (user: User | null) => {
@@ -49,11 +60,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
         try {
-            const response = await handleRequest<{ access_token: string }>("/api/auth/refresh", {
-                method: "POST",
+            const response = await handleRequest<{ access_token: string }>('/api/auth/refresh', {
+                method: 'POST',
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${user?.refresh_token}`
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${user?.refresh_token}`,
                 },
                 credentials: 'include',
             });
@@ -62,7 +73,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             setUserLocalStorage(user);
             return user.access_token;
         } catch (error: unknown) {
-            console.error("Failed to refresh login:", error);
+            console.error('Failed to refresh login:', error);
             logout();
             router.push('/login');
         }
@@ -71,25 +82,32 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const logout = async (): Promise<void> => {
         setUser(null);
         setUserLocalStorage(null);
+        // Make this a request to clear cookies
+        await handlerUserApiRequest<void>('/api/auth/logout', {
+            method: 'POST',
+        });
     };
-    const handlerUserApiRequest = async function <T>(url: string, options: RequestInit = {
-        'method': 'GET'
-    }) {
+    const handlerUserApiRequest = async function <T>(
+        url: string,
+        options: RequestInit = {
+            method: 'GET',
+        }
+    ) {
         if (!user) {
-            throw new Error("User is not authenticated");
+            throw new Error('User is not authenticated');
         }
         async function doRequest(access_token: string | undefined = user?.access_token) {
             options = {
                 ...options,
                 headers: {
                     ...options?.headers,
-                    "Authorization": `Bearer ${access_token}`
-                }
+                    Authorization: `Bearer ${access_token}`,
+                },
             };
 
             const response = await handleRequest<T>(url, options);
             if (!response) {
-                throw new Error("Failed to fetch user data");
+                throw new Error('Failed to fetch user data');
             }
             return response;
         }
@@ -97,21 +115,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         // Try the request once, if it fails try refreshing the token and doing the request again
         try {
             return await doRequest(user.access_token);
-        }
-        catch {
+        } catch {
             const newAccessToken = await refreshLogin();
             // Need to get new state
             return await doRequest(newAccessToken);
         }
-    }
+    };
 
     const handleLogin = async (email: string, password: string) => {
         try {
             // Implement your login logic here
-            const response = await handleRequest<User>("/api/auth/token", {
-                method: "POST",
+            const response = await handleRequest<User>('/api/auth/token', {
+                method: 'POST',
                 headers: {
-                    "Content-Type": "application/json",
+                    'Content-Type': 'application/json',
                 },
                 credentials: 'include', // Ensure cookies are sent with the request
                 body: JSON.stringify({ email, password }),
@@ -119,20 +136,29 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
             setUser(response);
             setUserLocalStorage(response);
-            console.log(response)
+            console.log(response);
             return true;
         } catch (error: unknown) {
-            console.error("Login failed:", error);
+            console.error('Login failed:', error);
             if (error instanceof APIError) {
                 return error;
             }
-            return new Error("Login failed");
+            router.push('/login');
+            return new Error('Login failed');
         }
-
-    }
+    };
 
     return (
-        <UserContext.Provider value={{ user, is_admin: user?.is_admin || false, handlerUserApiRequest, setUser, login: handleLogin, logout }}>
+        <UserContext.Provider
+            value={{
+                user,
+                is_admin: user?.is_admin || false,
+                handlerUserApiRequest,
+                setUser,
+                login: handleLogin,
+                logout,
+            }}
+        >
             {children}
         </UserContext.Provider>
     );

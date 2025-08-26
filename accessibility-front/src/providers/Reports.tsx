@@ -1,11 +1,11 @@
-"use client"
+'use client';
 import { APIError, fetcherApi } from '@/lib/api';
 import React, { createContext, useContext, useState } from 'react';
 import useSWR from 'swr';
 import { Report } from '@/lib/types/axe';
 import { Paged } from '@/lib/types/Paged';
 import { useRouter } from 'next/navigation';
-
+import { useUser } from './User';
 
 type ReportsContextType = {
     reports: Report[] | undefined;
@@ -23,15 +23,16 @@ type ReportsContextType = {
 
 const ReportsContext = createContext<ReportsContextType | undefined>(undefined);
 
-
-
 export const ReportsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
-
-    const { data, error, isLoading, mutate } = useSWR<Paged<Report>>(`/api/reports/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`, fetcherApi);
+    const { user, handlerUserApiRequest } = useUser();
+    const { data, error, isLoading, mutate } = useSWR<Paged<Report>>(
+        `/api/reports/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`,
+        user ? handlerUserApiRequest : fetcherApi
+    );
 
     const openReport = (id: string) => {
         router.push(`/reports?id=${id}`);

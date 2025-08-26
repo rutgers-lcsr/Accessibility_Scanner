@@ -1,10 +1,7 @@
-import type { NextConfig } from "next";
+import type { NextConfig, Redirect } from 'next';
 
 const nextConfig: NextConfig = {
     /* config options here */
-    output: "export",
-    images: { unoptimized: true },
-    trailingSlash: true,
     turbopack: {},
 };
 

@@ -4,7 +4,7 @@ from typing import List, TypedDict
 
 from sqlalchemy import func
 from models import db
-from sqlalchemy.ext.hybrid import hybrid_method
+from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
 from models.report import AxeReportCounts, Report, ReportMinimized
 from scanner.accessibility.ace import AxeReportKeys
@@ -41,6 +41,21 @@ class Site(db.Model):
             'timestamp': report.timestamp.isoformat() if report.timestamp else None
         }
         return report
+
+
+
+    @hybrid_property
+    def public(self) -> bool:
+        return self.website.public if self.website else False
+
+    @public.expression
+    def public(cls):
+        from sqlalchemy import select
+        return (
+            select(Website.public)
+            .where(Website.id == cls.website_id)
+            .scalar_subquery()
+        )
 
     def to_dict(self) -> SiteDict:
 
@@ -79,7 +94,7 @@ class WebsiteDict(TypedDict,total=False):
     report_counts: dict[AxeReportKeys, AxeReportCounts]
     active: bool
     rate_limit: int
-    hard_limit: int
+    public: bool
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -95,6 +110,8 @@ class Website(db.Model):
     active: Mapped[bool] = db.Column(db.Boolean, default=False)
     email: Mapped[str] = db.Column(db.String(200), nullable=True)
     should_email: Mapped[bool] = db.Column(db.Boolean, default=True)
+    # Whether the website reports are public 
+    public: Mapped[bool] = db.Column(db.Boolean, default=False)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -141,6 +158,7 @@ class Website(db.Model):
             'report_counts': self.get_report_counts(),
             'active': self.is_active(),
             'rate_limit': self.rate_limit,
+            'public': self.public,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }

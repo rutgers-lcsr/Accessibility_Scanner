@@ -24,6 +24,8 @@ def process_queue():
     for website in websites:
         now = datetime.now()
         
+        if DEBUG:
+            process_q.put(website)
         if website.last_scanned is None or now - website.last_scanned > timedelta(days=website.rate_limit):
             process_q.put(website)
 

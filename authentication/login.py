@@ -17,6 +17,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
     identity = int(jwt_data["sub"])
     return db.session.get(User, identity)
 
+
 def admin_required(fn):
     @wraps(fn)
     @jwt_required()

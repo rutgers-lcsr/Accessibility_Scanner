@@ -1,7 +1,7 @@
 import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
-from authentication.login import admin_required
+from authentication.login import  admin_required
 from mail.emails import NewWebsiteEmail
 from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
@@ -42,7 +42,6 @@ def create_website():
     if not existing_domain.active:
         return jsonify({'error': 'The domain of the website your requested is not active, please contact the admins if you believe this is a problem'}), 400
     
-
     # check if website already exists
     existing_website = db.session.query(Website).filter_by(base_url=base_url).first()
     if existing_website:
@@ -108,10 +107,11 @@ def update_website(website_id):
         # Email user that they have been added
         website.email = data['email']
     if 'should_email' in data:
-        
-        
         website.should_email = data['should_email'] and True
-            
+
+    if 'public' in data:
+        website.public = data['public'] and True
+
     db.session.add(website)
     db.session.commit()
     return jsonify(website.to_dict()), 200
@@ -133,6 +133,7 @@ def activate_website():
     return jsonify(website.to_dict()), 200
 
 @website_bp.route('/', methods=['GET'])
+@jwt_required(optional=True)
 def get_websites():
     """Get a list of websites.
 
@@ -169,6 +170,10 @@ def get_websites():
     )
     if search:
         w_query = w_query.filter(Website.base_url.icontains(f"%{search}%"))
+
+    if not current_user or not current_user.profile.is_admin:
+        # make sure that non-admin users can only see public websites
+        w_query = w_query.filter(Website.public == True)
     w = w_query.paginate(page=page, per_page=limit)
     
             
@@ -179,6 +184,7 @@ def get_websites():
     }), 200
 
 @website_bp.route('/<int:website_id>/sites', methods=['GET'])
+@jwt_required(optional=True)
 def get_website_sites(website_id):
     params = request.args
     limit = params.get('limit', default=10, type=int)
@@ -187,6 +193,12 @@ def get_website_sites(website_id):
     website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
+
+    if not current_user or not current_user.profile.is_admin:
+        # make sure that non-admin users can only see public websites
+        print(website.public)
+        if not website.public:
+            return jsonify({'error': 'Unauthorized'}), 403
 
     latest_report_subq = (
         db.session.query(
