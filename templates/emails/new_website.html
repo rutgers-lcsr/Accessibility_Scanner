@@ -1,7 +1,9 @@
 {% extends "emails/base_template.html" %}
 {% block content %}
     <h1>New Website Added</h1>
-    <p>You've added the following site: {{ website.url }}</p>
+    <p>
+        You've added the following site: <a href="https://{{ website.base_url }}">{{ website.base_url }}</a>
+    </p>
     {% if website.active %}
         <p>Status: Active</p>
     {% else %}
@@ -10,7 +12,15 @@
     {% endif %}
     <p>
         The accessibility scanner provides automatic scanning of websites. To comply with WCAG 2.1AA standards, please ensure your website meets the necessary requirements.
-        <a href="{{ client_url }}/website/?id={{ website.id }}">View Website</a>
+        <a class="btn" href="{{ client_url }}/websites?id={{ website.id }}">View Website</a>
     </p>
-    <p>If you'd like to not receive these emails, please visit {{ client_url }}/unsubscribe?token={{ jwt_token }}</p>
+    <p>
+        For more information on accessibility standards, visit
+        <a href="https://www.w3.org/WAI/standards-guidelines/wcag/">WCAG 2.1AA</a>.
+        <br>
+        or visit <a href="https://accessibility.rutgers.edu/">Accessibility Rutgers</a> for university recommendations.
+    </p>
+    <p>
+        If you'd like to not receive these emails, please visit <a href="{{ client_url }}/unsubscribe?token={{ jwt_token }}">unsubscribe</a>.
+    </p>
 {% endblock content %}

@@ -55,6 +55,12 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
     base_url = get_netloc(site_url)
     website_url = get_full_url(site_url)
     with app.app_context():
+        site = Site.query.filter_by(url=website_url).first()
+        if site is None:
+            site = Site(url=website_url, website_id=web.id)    
+        site.scanning = True
+        db.session.add(site)
+        db.session.commit()
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
             log_message(f"Generating report for {website_url}", 'info')
@@ -76,6 +82,7 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
             report = Report(report, site_id=site.id)
             site.reports.append(report)
             site.last_scanned = db.func.current_timestamp()
+            site.scanning = False
             db.session.add(report)
             db.session.add(site)
             db.session.commit()
@@ -91,6 +98,19 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     currently_processing = set()
     app = create_app()
     base_url = get_netloc(website)
+
+    with app.app_context():
+        
+        # Check if website exists if not create one, and set scanning to true
+        web = Website.query.filter_by(base_url=base_url).first()
+        if web is None:
+            web = Website(url=website)
+            web.active = True
+        web.scanning = True
+        db.session.add(web)
+        db.session.commit()
+            
+    
 
     accessibility = check_url(website)
     if not accessibility:
@@ -124,6 +144,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         if web is None:
             web = Website(url=website)
             web.active = True
+            web.scanning = False
             db.session.add(web)
     
         log_message(f"Storing {len(results)} reports for {website}", 'info')
@@ -153,14 +174,16 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         web.last_scanned = db.func.current_timestamp()
         # add sites to website if site didnt exist
         web.sites.extend(sites)
-
+        web.scanning = False
         db.session.add(web)
         db.session.commit()
         db.session.flush()
         
         
-        ScanFinishedEmail(web).send()
-        
+        website = db.session.get(Website, web.id)
+
+        ScanFinishedEmail(website).send()
+
     return results
 
 def run_scan_site(site :str ="https://resources.cs.rutgers.edu"):

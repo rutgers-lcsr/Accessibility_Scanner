@@ -1,0 +1,50 @@
+name: Deploy A11y
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    deploy:
+        environment: production
+        runs-on: production-a11y
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v2
+
+            - name: Set up Certs
+              run: |
+                  HOSTNAME=$(hostname)
+                  cp -rflT /etc/letsencrypt/live/$HOSTNAME/ certs/
+
+            - name: Setup environment
+              run: |
+                  cat <<EOF > .env
+                  DEBUG=${{vars.DEBUG}}
+                  FLASK_ENV=${{vars.FLASK_ENV}}
+                  TESTING=${{vars.TESTING}}
+                  JWT_SECRET_KEY=${{secrets.JWT_SECRET_KEY}}
+                  CLIENT_URL=${{vars.CLIENT_URL}}
+                  MAIL_SERVER=${{vars.MAIL_SERVER}}
+                  MAIL_PORT=${{vars.MAIL_PORT}}
+                  MAIL_DEFAULT_SENDER=${{vars.MAIL_DEFAULT_SENDER}}
+                  ADMIN_EMAIL=${{vars.ADMIN_EMAIL}}
+                  ADMIN_PASSWORD=${{secrets.ADMIN_PASSWORD}}
+                  DB_ROOT_PASSWORD=${{secrets.DB_ROOT_PASSWORD}}
+                  DB_PASSWORD=${{secrets.DB_PASSWORD}}
+                  NFS_SERVER_IP=${{ vars.NFS_SERVER_IP }}
+                  NFS_SHARE_PATH=${{ vars.NFS_SHARE_PATH }}
+                  EOF
+
+            - name: build and deploy
+              run: |
+                  docker compose -f docker-compose.yml build
+                  docker compose -f docker-compose.yml up -d --remove-orphans
+
+            - name: Remove docker artifacts
+              run: |
+                  docker system prune -f
+
+            - name: Notify deployment success
+              run: echo "Deployment to production server successful!"

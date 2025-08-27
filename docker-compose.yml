@@ -1,0 +1,107 @@
+version: "3.8"
+
+services:
+    a11y-nginx:
+        container_name: a11y_nginx
+        image: nginx:latest
+        ports:
+            - "443:443"
+        volumes:
+            - ./certs:/etc/nginx/certs:ro
+            - ./nginx.conf:/etc/nginx/nginx.conf
+        depends_on:
+            - a11y-nextjs
+        restart: unless-stopped
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+    a11y-nextjs:
+        container_name: a11y_nextjs
+        build: ./accessibility-front
+        env_file:
+            - .env
+        environment:
+            - FLASK_ENV=${FLASK_ENV}
+            - API_URL=a11y-api:5000
+            - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+            - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        depends_on:
+            - a11y-db
+        restart: unless-stopped
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+
+    a11y-scanner:
+        container_name: a11y_scanner
+        build: ./scanner
+        environment:
+            - FLASK_ENV=${FLASK_ENV}
+            - DATABASE_URL=mysql://ally-user:${DB_PASSWORD}@db:3306
+            - API_URL=a11y-api:5000
+            - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+            - CLIENT_URL=${CLIENT_URL}
+        depends_on:
+            - a11y-db
+        restart: unless-stopped
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+    a11y-api:
+        container_name: a11y_api
+        build: .
+        environment:
+            - FLASK_ENV=${FLASK_ENV}
+            - DATABASE_URL=mysql://ally-user:${DB_PASSWORD}@db:3306
+            - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+            - HOSTNAME=${HOSTNAME}
+            - CLIENT_URL=${CLIENT_URL}
+            - MAIL_SERVER=${MAIL_SERVER}
+            - MAIL_PORT=${MAIL_PORT}
+            - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}
+            - ADMIN_EMAIL=${ADMIN_EMAIL}
+            - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+        depends_on:
+            - a11y-db
+        restart: unless-stopped
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+    a11y-db:
+        container_name: a11y_db
+        image: mariadb:latest
+        environment:
+            - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+            - MARIADB_USER=ally-user
+            - MARIADB_PASSWORD=${DB_PASSWORD}
+            - MARIADB_DATABASE=a11y
+        healthcheck:
+            test: ["CMD", "mariadb-admin", "ping", "-h", "a11y-db", "--silent", "--user=root", "--password=${ROOT_DATABASE_PASSWORD}"]
+            interval: 10s
+            timeout: 10s
+            retries: 5
+        restart: unless-stopped
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
+        volumes:
+            - db_data:/var/lib/mysql
+
+volumes:
+    db_data:
+        name: a11y_db_data
+        driver: local
+        driver_opts:
+            type: none
+            o: addr=${NFS_SERVER_IP},rw
+            device: ":${NFS_SERVER_PATH}/db_data"

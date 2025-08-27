@@ -9,6 +9,23 @@ from mail import mail
 from werkzeug.security import generate_password_hash
 import os
 
+def init_admin(app):
+    admin_user = os.environ.get("ADMIN_EMAIL", "admin")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+
+    with app.app_context():
+        user = User.query.filter_by(email=admin_user).first()
+        if not user:
+            try:
+                user = User(email=admin_user, password=generate_password_hash(admin_password))
+                user.profile = Profile(user=user, is_admin=True)
+                db.session.add(user)
+                db.session.commit()
+                print(f"Admin user created with email: {admin_user}")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error creating admin user: {e}")
+
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
@@ -40,20 +57,6 @@ def create_app():
         db.create_all()
     return app
 
-
-def init_admin(app):
-    admin_user = os.environ.get("ADMIN_EMAIL", "admin")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
-
-    with app.app_context():
-        user = User.query.filter_by(email=admin_user).first()
-        if not user:
-            user = User(email=admin_user, password=generate_password_hash(admin_password))
-            user.profile = Profile(user=user, is_admin=True)
-            db.session.add(user)
-            db.session.commit()
-
-
 def init_scanner():
     from scanner.queue_process import queue_scanner 
     p = Process(target=queue_scanner,daemon=True)
@@ -65,6 +68,5 @@ if __name__ == '__main__':
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         init_scanner()
 
-    app.run(debug=True)
-    
-    
+    app.run(debug=False)
+

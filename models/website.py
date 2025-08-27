@@ -28,6 +28,7 @@ class Site(db.Model):
     website_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('website.id'))
     reports: Mapped[List[Report]] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
+    scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -112,6 +113,7 @@ class Website(db.Model):
     should_email: Mapped[bool] = db.Column(db.Boolean, default=True)
     # Whether the website reports are public 
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
+    scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -127,9 +129,10 @@ class Website(db.Model):
 
     @hybrid_method
     def get_report_counts(self) -> AxeReportCounts | None:
-        if not self.sites:
-            return None
-        
+        sites = self.sites.all()
+        if not sites:
+            sites = []
+
         total_counts = {
             'violations': {'total': 0, 'critical': 0, 'serious': 0, 'moderate': 0, 'minor': 0},
             'inaccessible': {'total': 0, 'critical': 0, 'serious': 0, 'moderate': 0, 'minor': 0},
@@ -137,7 +140,7 @@ class Website(db.Model):
             'passes': {'total': 0, 'critical': 0, 'serious': 0, 'moderate': 0, 'minor': 0}
         }
 
-        for site in self.sites:
+        for site in sites:
             current_report = site.get_recent_report()
             if current_report and 'report_counts' in current_report:
                 for key in total_counts:

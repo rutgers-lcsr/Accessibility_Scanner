@@ -11,6 +11,13 @@ const CreateDomain: React.FC = () => {
     const showModal = () => {
         setIsModalOpen(true);
     };
+    const handleSubmit = async () => {
+        if (domainName) {
+            await createDomain(domainName);
+            setDomainName('');
+            setIsModalOpen(false);
+        }
+    };
 
     return (
         <>
@@ -21,6 +28,7 @@ const CreateDomain: React.FC = () => {
                 title="Add a new Domain"
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
+                onOk={handleSubmit}
             >
                 <div>
                     <label>
@@ -30,13 +38,7 @@ const CreateDomain: React.FC = () => {
                             type="text"
                             value={domainName}
                             onChange={(e) => setDomainName(e.target.value)}
-                            onPressEnter={async () => {
-                                if (domainName) {
-                                    await createDomain(domainName);
-                                    setDomainName('');
-                                    setIsModalOpen(false);
-                                }
-                            }}
+                            onPressEnter={handleSubmit}
                         />
                     </label>
                 </div>

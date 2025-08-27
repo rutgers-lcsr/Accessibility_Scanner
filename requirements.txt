@@ -10,3 +10,4 @@ flask_limiter
 Flask-Mail
 playwright
 schedule
+gunicorn

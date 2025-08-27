@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 from flask_mail import Message
-from config import CLIENT_URL, JWT_SECRET_KEY
-import mail
+from config import CLIENT_URL, DEBUG, JWT_SECRET_KEY, TESTING
+from mail import mail
 from models.report import Report
 from models.website import Website
 from datetime import datetime
@@ -11,6 +11,19 @@ class AccessEmails():
     def __init__(self):
         self.client_url = CLIENT_URL
         self.year = datetime.now().year
+
+    def send(self):
+        if not self.msg:
+            raise ValueError("Message not initialized")
+        
+        if TESTING:
+            print("Email content:")
+            print("Subject:", self.msg.subject)
+            print("To:", self.msg.recipients)
+            print("Body:", self.msg.html)
+        
+        mail.send(self.msg)
+
 
 
 class AdminNewWebsiteEmail(AccessEmails):
@@ -36,7 +49,9 @@ class NewWebsiteEmail(AccessEmails):
 
         jwt_token = generate_jwt_token({"action": "subscribe", "website_id": self.website.id, "email": self.website.email})
         msg.html = render_template("emails/new_website.html", website=self.website, client_url=self.client_url, jwt_token=jwt_token)
-        mail.mail.send(msg)
+
+        self.msg = msg
+        super().send()
 
 class ScanFinishedEmail(AccessEmails):
     def __init__(self, website: Website):
@@ -47,11 +62,11 @@ class ScanFinishedEmail(AccessEmails):
     def send(self):
         if not self.website.should_email or not self.website.email:
             return
-        
+
         msg = Message("Accessibility Scan Finished",
                       recipients=[self.website.email])
 
-        msg.html = render_template("emails/scan_finished.html", website=self.website, client_url=self.client_url, scan=self.report_counts)
-        
-        
-        mail.mail.send(msg)
+        msg.html = render_template("emails/scan_finished.html", website=self.website.to_dict(), client_url=self.client_url, scan=self.report_counts, timestamp=datetime.now().isoformat())
+
+        self.msg = msg
+        super().send()
