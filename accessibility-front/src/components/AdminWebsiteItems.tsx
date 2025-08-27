@@ -1,12 +1,12 @@
 'use client';
-import { useUser } from '@/providers/User';
-import { Website } from '@/lib/types/website';
 import { scanResponse } from '@/lib/types/scan';
+import { Website } from '@/lib/types/website';
+import { useUser } from '@/providers/User';
 
-import { Button, Input, InputNumber, Modal, Space, Tooltip } from 'antd';
-import React, { useState } from 'react';
 import { useAlerts } from '@/providers/Alerts';
+import { Button, Input, InputNumber, Modal, Space, Tooltip } from 'antd';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 type Props = {
     website: Website;

@@ -1,12 +1,9 @@
 'use client';
-import React from 'react';
-import { Input, Table, Pagination } from 'antd';
-import { useReports } from '@/providers/Reports';
-import { Report as ReportType } from '@/lib/types/axe';
-import { useSearchParams } from 'next/navigation';
-import Report from '@/components/Report';
-import { format } from 'date-fns';
 import PageError from '@/components/PageError';
+import { Report as ReportType } from '@/lib/types/axe';
+import { useReports } from '@/providers/Reports';
+import { Input, Pagination, Table } from 'antd';
+import { format } from 'date-fns';
 
 const columns = [
     {
@@ -61,7 +58,7 @@ export default function ReportPage() {
     return (
         <div className="">
             <header className="mb-4 flex w-full justify-between">
-                <h1 className="text-2xl font-bold">Reports</h1>
+                <h1 className="text-2xl font-bold">Accessibility Reports</h1>
                 <div>
                     <Input.Search
                         className="w-64"

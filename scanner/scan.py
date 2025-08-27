@@ -9,6 +9,7 @@ from models import db
 from models.website import Site, Website
 from models.report import Report
 from scanner.utils.queue import ListQueue
+from scanner.utils.service import check_url
 from utils.urls import get_full_url, get_netloc, get_site_netloc
 
 sites_done: set[str] = set()
@@ -90,6 +91,12 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     currently_processing = set()
     app = create_app()
     base_url = get_netloc(website)
+
+    accessibility = check_url(website)
+    if not accessibility:
+        log_message(f"Website {website} is not accessible, aborting scan", 'error')
+        return []
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True,args=['--no-sandbox', '--disable-setuid-sandbox'],)
         q = ListQueue()

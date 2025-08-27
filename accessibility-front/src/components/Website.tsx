@@ -1,20 +1,20 @@
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
 import { Site, Website as WebsiteType } from '@/lib/types/website';
+import { useUser } from '@/providers/User';
+import {
+    AlertOutlined,
+    ExclamationCircleOutlined,
+    InfoCircleOutlined,
+    WarningOutlined,
+} from '@ant-design/icons';
+import { Pagination, Space, Table } from 'antd';
+import { format } from 'date-fns';
 import React from 'react';
 import useSWR from 'swr';
-import { format } from 'date-fns';
-import { Button, Pagination, Space, Table } from 'antd';
-import PageLoading from './PageLoading';
-import {
-    ExclamationCircleOutlined,
-    WarningOutlined,
-    InfoCircleOutlined,
-    AlertOutlined,
-} from '@ant-design/icons';
-import { useUser } from '@/providers/User';
 import AdminWebsiteItems from './AdminWebsiteItems';
 import PageError from './PageError';
+import PageLoading from './PageLoading';
 
 type Props = {
     websiteId: number;
@@ -174,7 +174,7 @@ const Website = ({ websiteId }: Props) => {
                 <Table<Site>
                     className="min-h-[400px]"
                     style={{ width: '100%', minHeight: 400, maxWidth: '100%' }}
-                    scroll={{ y: 'calc(100vh - 40rem)' }}
+                    scroll={{ y: '45em' }}
                     pagination={false}
                     columns={sites_columns}
                     dataSource={sites?.items}

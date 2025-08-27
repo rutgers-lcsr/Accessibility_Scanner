@@ -1,25 +1,24 @@
 import { fetcherApi } from '@/lib/api';
-import React from 'react';
-import useSWR from 'swr';
 import { Report as ReportType } from '@/lib/types/axe';
-import PageLoading from './PageLoading';
-import { Content } from 'antd/es/layout/layout';
-import { format } from 'date-fns';
-type Props = {
-    report_id: string;
-};
 import {
     AlertOutlined,
     ExclamationCircleOutlined,
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
+import { Content } from 'antd/es/layout/layout';
+import { format } from 'date-fns';
+import useSWR from 'swr';
 import Console from './Console';
+import PageLoading from './PageLoading';
+type Props = {
+    report_id: string;
+};
 
-import AuditAccessibilityItem from './AuditAccessibilityItem';
-import { Image } from 'antd';
 import { useUser } from '@/providers/User';
+import { Image } from 'antd';
 import AdminReportItems from './AdminReportItems';
+import AuditAccessibilityItem from './AuditAccessibilityItem';
 import PageError from './PageError';
 
 function Report({ report_id }: Props) {

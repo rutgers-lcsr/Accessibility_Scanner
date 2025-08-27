@@ -1,4 +1,4 @@
-import type { NextConfig, Redirect } from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
     /* config options here */

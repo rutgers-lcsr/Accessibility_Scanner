@@ -1,6 +1,6 @@
 export type AxeCheck = {
     id: string; // Unique identifier for the check (e.g., 'color-contrast')
-    impact?: "minor" | "moderate" | "serious" | "critical"; // Severity of the issue
+    impact?: 'minor' | 'moderate' | 'serious' | 'critical'; // Severity of the issue
     message: string; // Human-readable message describing the check
     data: Record<string, unknown>; // Additional data relevant to the check
     relatedNodes: Array<Record<string, unknown>>; // Nodes related to the check
@@ -17,7 +17,7 @@ export type AxeNode = {
 
 export type AxeResult = {
     id: number;
-    impact?: "minor" | "moderate" | "serious" | "critical";
+    impact?: 'minor' | 'moderate' | 'serious' | 'critical';
     description: string;
     help: string;
     helpUrl: string;
@@ -40,7 +40,7 @@ export type AxeReportCounts = {
     minor: number;
 };
 
-export type AxeReportKeys = "violations" | "passes" | "inapplicable" | "incomplete";
+export type AxeReportKeys = 'violations' | 'passes' | 'inapplicable' | 'incomplete';
 
 export type ReportMinimized = {
     id: number;

@@ -2,7 +2,7 @@
 import { APIError, handleRequest } from '@/lib/api';
 import { User } from '@/lib/types/user';
 import { useRouter } from 'next/navigation';
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 type UserContextType = {
     user: User | null;
@@ -86,6 +86,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         await handlerUserApiRequest<void>('/api/auth/logout', {
             method: 'POST',
         });
+        window.location.reload();
+        router.push('/login');
     };
     const handlerUserApiRequest = async function <T>(
         url: string,
@@ -136,7 +138,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
             setUser(response);
             setUserLocalStorage(response);
-            console.log(response);
+            window.location.reload();
+
             return true;
         } catch (error: unknown) {
             console.error('Login failed:', error);

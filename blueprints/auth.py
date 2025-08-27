@@ -36,7 +36,9 @@ def token():
 @jwt_required(refresh=True)
 def refresh():
     access_token = create_access_token(identity=current_user)
-    return jsonify(access_token=access_token), 200
+    response = jsonify(access_token=access_token)
+    set_access_cookies(response, access_token)
+    return response, 200
 
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()

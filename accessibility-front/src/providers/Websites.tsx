@@ -4,7 +4,7 @@ import { Website } from '@/lib/types/website';
 import { Paged } from '@/lib/types/Paged';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 import { useAlerts } from './Alerts';
 import { useUser } from './User';
 

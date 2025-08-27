@@ -5,7 +5,7 @@ import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
 import { Button, Space } from 'antd';
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 type Props = {
     report: Report;

@@ -1,7 +1,9 @@
 'use client';
-import React from 'react';
-import { Button, Tooltip, Typography, message } from 'antd';
+import { useAlerts } from '@/providers/Alerts';
 import { CopyOutlined } from '@ant-design/icons';
+import '@ant-design/v5-patch-for-react-19';
+import { Button, Tooltip } from 'antd';
+import React from 'react';
 
 type Props = {
     label: string;
@@ -9,12 +11,14 @@ type Props = {
 };
 
 const Console: React.FC<Props> = ({ label, command }) => {
+    const { addAlert } = useAlerts();
+
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(command);
-            message.success('Copied to clipboard!');
+            addAlert(`Copied to clipboard`, 'success');
         } catch (err: unknown) {
-            message.error('Failed to copy command');
+            addAlert('Failed to copy to clipboard', 'error');
             console.error('Failed to copy command:', err);
         }
     };

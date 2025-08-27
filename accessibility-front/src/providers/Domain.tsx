@@ -1,11 +1,11 @@
 'use client';
+import { APIError } from '@/lib/api';
 import { Domain } from '@/lib/types/domain';
+import { Paged } from '@/lib/types/Paged';
 import React, { createContext, useContext } from 'react';
 import useSWR from 'swr';
-import { useUser } from './User';
 import { useAlerts } from './Alerts';
-import { Paged } from '@/lib/types/Paged';
-import { APIError } from '@/lib/api';
+import { useUser } from './User';
 
 type DomainContextType = {
     domains: Domain[];

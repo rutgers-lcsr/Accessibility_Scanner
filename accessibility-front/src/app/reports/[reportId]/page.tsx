@@ -1,23 +1,19 @@
-import { fetcherApi } from '@/lib/api';
-import React from 'react';
-import useSWR from 'swr';
+import Console from '@/components/Console';
 import { Report as ReportType } from '@/lib/types/axe';
-import PageLoading from '@/components/PageLoading';
-import { Content, Header } from 'antd/es/layout/layout';
-import { format } from 'date-fns';
-import { headers, cookies } from 'next/headers';
 import {
     AlertOutlined,
     ExclamationCircleOutlined,
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
-import Console from '@/components/Console';
+import { Content } from 'antd/es/layout/layout';
+import { format } from 'date-fns';
+import { headers } from 'next/headers';
 
-import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
-import { Button, Image } from 'antd';
 import AdminReportItems from '@/components/AdminReportItems';
+import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
+import { Card, Image } from 'antd';
 import HeaderLink from './components/HeaderLink';
 
 interface Props {
@@ -38,7 +34,9 @@ export const getReport = async (reportId: string) => {
         options as RequestInit
     );
 
-    if (!response.ok) throw new Error('Failed to fetch report');
+    if (!response.ok) {
+        throw new Error('Failed to fetch report');
+    }
     return response.json() as Promise<ReportType>;
 };
 
@@ -58,104 +56,121 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const report_photo_url = `/api/reports/${reportId}/photo`;
 
     return (
-        <Content className="">
-            <header className="mb-8">
-                <h1 className="mb-2 text-3xl font-extrabold">
-                    Report for <HeaderLink url={report.url} />
-                </h1>
-                <AdminReportItems report={report} />
-                <h2 className="mb-2 text-lg text-gray-500">
-                    Report Date:{' '}
-                    {report?.timestamp
-                        ? format(new Date(report.timestamp), 'MMMM dd, yyyy')
-                        : 'N/A'}
-                </h2>
-                <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
-                <section
-                    role="region"
-                    aria-labelledby="accessibility-report"
-                    className="rounded-lg bg-gray-50 p-6"
-                >
-                    <h2
-                        id="accessibility-report"
-                        className="mb-6 text-2xl font-semibold text-gray-800"
-                    >
-                        Accessibility Report
+        <Content>
+            <Content role="main" className="mb-2">
+                <Card>
+                    <h1 className="mb-2 text-3xl font-extrabold">
+                        Report for <HeaderLink url={report.url} />
+                    </h1>
+                    <AdminReportItems report={report} />
+                    <h2 className="mb-2 text-lg text-gray-500">
+                        Report Date:{' '}
+                        {report?.timestamp
+                            ? format(new Date(report.timestamp), 'MMMM dd, yyyy')
+                            : 'N/A'}
                     </h2>
-                    <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
-                        <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
-                            <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
-                            <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
-                            <p className="text-3xl font-bold text-red-600">{violations.critical}</p>
+                    <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
+
+                    <section
+                        role="region"
+                        aria-labelledby="accessibility-report"
+                        className="rounded-lg bg-gray-50 p-6"
+                    >
+                        <h2
+                            id="accessibility-report"
+                            className="mb-6 text-2xl font-semibold text-gray-800"
+                        >
+                            Accessibility Report
+                        </h2>
+                        <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
+                            <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
+                                <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
+                                <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
+                                <p className="text-3xl font-bold text-red-600">
+                                    {violations.critical}
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
+                                <AlertOutlined className="mb-2 text-3xl text-red-700" />
+                                <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
+                                <p className="text-3xl font-bold text-red-600">
+                                    {violations.serious}
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
+                                <WarningOutlined className="mb-2 text-3xl text-orange-700" />
+                                <h3 className="mb-2 text-lg font-medium text-orange-700">
+                                    Moderate
+                                </h3>
+                                <p className="text-3xl font-bold text-orange-600">
+                                    {violations.moderate}
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
+                                <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
+                                <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
+                                <p className="text-3xl font-bold text-yellow-600">
+                                    {violations.minor}
+                                </p>
+                            </div>
                         </div>
-                        <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
-                            <AlertOutlined className="mb-2 text-3xl text-red-700" />
-                            <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
-                            <p className="text-3xl font-bold text-red-600">{violations.serious}</p>
-                        </div>
-                        <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
-                            <WarningOutlined className="mb-2 text-3xl text-orange-700" />
-                            <h3 className="mb-2 text-lg font-medium text-orange-700">Moderate</h3>
-                            <p className="text-3xl font-bold text-orange-600">
-                                {violations.moderate}
-                            </p>
-                        </div>
-                        <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
-                            <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
-                            <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
-                            <p className="text-3xl font-bold text-yellow-600">{violations.minor}</p>
-                        </div>
+                        {report.videos.length > 0 && (
+                            <div className="mt-4 text-center text-sm text-gray-600">
+                                <ExclamationCircleOutlined className="mr-1 inline" />
+                                This site has videos please make sure they are properly tagged with{' '}
+                                <code>role=&quot;video&quot;</code> and <code>aria-label</code>{' '}
+                                attributes.{' '}
+                                <a
+                                    href={'https://dequeuniversity.com/rules/axe/4.7/video-caption'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Learn more
+                                </a>
+                            </div>
+                        )}
+                    </section>
+                </Card>
+            </Content>
+            <Content className="mb-2">
+                <Card>
+                    <div className="mb-4 max-h-[300px] overflow-auto">
+                        <Image src={report_photo_url} alt="Report Photo" className="rounded-lg" />
                     </div>
-                    {report.videos.length > 0 && (
-                        <div className="mt-4 text-center text-sm text-gray-600">
-                            <ExclamationCircleOutlined className="mr-1 inline" />
-                            This site has videos please make sure they are properly tagged with{' '}
-                            <code>role=&quot;video&quot;</code> and <code>aria-label</code>{' '}
-                            attributes.{' '}
-                            <a
-                                href={'https://dequeuniversity.com/rules/axe/4.7/video-caption'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                Learn more
-                            </a>
-                        </div>
-                    )}
-                </section>
-            </header>
-            <Content className="mb-8">
-                <div className="mb-4 max-h-[300px] overflow-auto">
-                    <Image src={report_photo_url} alt="Report Photo" className="rounded-lg" />
-                </div>
 
-                <div>
-                    <h2 className="mb-4 text-2xl font-semibold">Inject Script</h2>
-                    <p className="mb-2">
-                        To view the accessibility issues directly on the webpage, inject the
-                        following script into the browser console while on the page you want to
-                        audit:
-                    </p>
-                </div>
-                <Console
-                    label="Accessibility Report Script"
-                    command={`var accessScriptElement = document.createElement('script');
-accessScriptElement.src = '${report_script_full_url}';
-document.body.appendChild(accessScriptElement);
-                `}
-                />
-
-                <div className="mt-8">
                     <div>
-                        <h2 className="mb-4 text-2xl font-semibold">Accessibility Issues</h2>
+                        <h2 className="mb-4 text-2xl font-semibold">Inject Script</h2>
                         <p className="mb-2">
-                            The following accessibility issues were found on the page:
+                            To view the accessibility issues directly on the webpage, inject the
+                            following script into the browser console while on the page you want to
+                            audit:
                         </p>
                     </div>
-                    <div className="mt-4">
-                        {report.report.violations.map((violation, index) => (
-                            <AuditAccessibilityItem key={index} accessibilityResult={violation} />
-                        ))}
-                    </div>
+                    <Console
+                        label="Accessibility Report Script"
+                        command={`var accessScriptElement = document.createElement('script');
+accessScriptElement.src = '${report_script_full_url}';
+document.body.appendChild(accessScriptElement);`}
+                    />
+                </Card>
+
+                <div className="mt-2">
+                    <Card>
+                        <div>
+                            <h2 className="mb-4 text-2xl font-semibold">Accessibility Issues</h2>
+                            <p className="mb-2">
+                                The following accessibility issues were found on the page:
+                            </p>
+                        </div>
+                        <div className="mt-4">
+                            {report.report.violations.map((violation, index) => (
+                                <AuditAccessibilityItem
+                                    key={index}
+                                    accessibilityResult={violation}
+                                />
+                            ))}
+                        </div>
+                    </Card>
                 </div>
             </Content>
 

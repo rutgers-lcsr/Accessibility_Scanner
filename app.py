@@ -56,13 +56,14 @@ def init_admin(app):
 
 def init_scanner():
     from scanner.queue_process import queue_scanner 
-    p = Process(target=queue_scanner, )
+    p = Process(target=queue_scanner,daemon=True)
     p.start()
 
 if __name__ == '__main__':
     app = create_app()
     init_admin(app)
-    init_scanner()
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        init_scanner()
 
     app.run(debug=True)
     

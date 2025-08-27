@@ -4,31 +4,35 @@
  * Handles the navigation between different tabs in the application.
  */
 
-import { Menu } from 'antd';
-import { useRouter } from 'next/navigation';
-import { usePathname } from 'next/navigation';
-import { useUser } from '../providers/User';
-import Sider from 'antd/es/layout/Sider';
-import { useState } from 'react';
+import { User } from '@/lib/types/user';
 import {
-    HomeOutlined,
-    CloudServerOutlined,
-    SolutionOutlined,
-    LoginOutlined,
     CloudOutlined,
+    CloudServerOutlined,
+    HomeOutlined,
+    LoginOutlined,
+    SolutionOutlined,
 } from '@ant-design/icons';
+import { Menu } from 'antd';
+import Sider from 'antd/es/layout/Sider';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useUser } from '../providers/User';
 
-export default function TabNav() {
+type Props = {
+    user: User | null;
+};
+
+export default function TabNav({ user }: Props) {
     const router = useRouter();
     const [collapsed, setCollapsed] = useState(true);
-    const { user, logout, is_admin } = useUser();
+    const { logout } = useUser();
     const pathname = usePathname();
 
     const tabRoutes: { [key: string]: string } = {
         '1': '/',
         '2': '/websites',
         '3': '/reports',
-        '5': user && is_admin ? '/domains' : '/login',
+        '5': user && user.is_admin ? '/domains' : '/login',
         '6': '/login',
     };
     // Find the longest matching route key for the current pathname
@@ -72,6 +76,7 @@ export default function TabNav() {
             style={{
                 position: 'sticky',
             }}
+            role="navigation"
             className="scrollbar-thin scrollbar-gutter sticky top-0 bottom-0 h-[100vh] overflow-auto"
             theme="light"
             collapsible

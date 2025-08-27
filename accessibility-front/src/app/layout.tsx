@@ -1,15 +1,16 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
 import '@ant-design/v5-patch-for-react-19';
 import 'antd/dist/reset.css';
+import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
-import { ConfigProvider, Layout } from 'antd';
+import { rutgersTheme } from '@/lib/theme';
+import { getUser } from '@/lib/user';
+import { AlertsProvider } from '@/providers/Alerts';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
+import { ConfigProvider, Layout } from 'antd';
 import TabNav from '../components/TabNav';
 import { UserProvider } from '../providers/User';
-import { rutgersTheme } from '@/lib/theme';
-import { AlertsProvider } from '@/providers/Alerts';
 const geistSans = Geist({
     variable: '--font-geist-sans',
     subsets: ['latin'],
@@ -23,13 +24,19 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
     title: 'A11y',
     description: 'LCSR Accessibility Audit Tool',
+    icons: {
+        icon: '/favicon.ico',
+        apple: '/apple-touch-icon.png',
+    },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const user = await getUser();
+
     return (
         <html lang="en">
             <body className={`${geistSans.variable} ${geistMono.variable}`}>
@@ -38,7 +45,7 @@ export default function RootLayout({
                         <ConfigProvider theme={rutgersTheme}>
                             <AlertsProvider>
                                 <UserProvider>
-                                    <TabNav />
+                                    <TabNav user={user} />
                                     <Layout>{children}</Layout>
                                 </UserProvider>
                             </AlertsProvider>

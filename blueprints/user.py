@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import current_user, jwt_required
 from models.user import User
 from models import db
 from models.website import Website
@@ -10,7 +10,7 @@ user_bp = Blueprint('user', __name__)
 @user_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_user():
-    user = db.session.get(User, get_jwt_identity())
+    user = db.session.get(User, current_user.id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
     

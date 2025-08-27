@@ -1,6 +1,6 @@
-import React from 'react';
-import { Result, Button } from 'antd';
+import { Button, Result } from 'antd';
 import { ResultStatusType } from 'antd/es/result';
+import React from 'react';
 
 interface PageErrorProps {
     status?: ResultStatusType;
