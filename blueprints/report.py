@@ -67,7 +67,7 @@ def get_report_script(report_id):
     js_code = report_to_js(violation)
 
 
-    return js_code, 200 
+    return Response(js_code, mimetype='text/javascript')
 
 @report_bp.route('/<int:report_id>/photo', methods=['GET'])
 @jwt_required(optional=True)
