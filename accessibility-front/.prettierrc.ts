@@ -1,5 +1,6 @@
-/** @type {import("prettier").Config} */
-module.exports = {
+import { Config } from "prettier";
+
+const config: Config =  {
     htmlWhitespaceSensitivity: 'strict',
     semi: true, // always add semicolons
     singleQuote: true, // use single quotes instead of double
@@ -13,3 +14,5 @@ module.exports = {
     plugins: [require.resolve('prettier-plugin-tailwindcss'), require.resolve('prettier-plugin-organize-imports')], // if using Tailwind
 
 };
+
+export default config

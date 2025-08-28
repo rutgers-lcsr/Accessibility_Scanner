@@ -12,6 +12,7 @@ CLIENT_URL = os.environ.get("CLIENT_URL", "http://localhost:3000")
 TESTING = True
 MAIL_SERVER = os.environ.get("MAIL_SERVER", "mx.farside.rutgers.edu")
 MAIL_PORT = os.environ.get("MAIL_PORT", 25)
+SITE_ADMINS = os.environ.get("SITE_ADMINS", "mk1800@rutgers.edu").split(",")
 MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "help@cs.rutgers.edu")
 MAIL_USE_SSL= False
 MAIL_USE_TLS = True

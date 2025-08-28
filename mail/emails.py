@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from flask_mail import Message
-from config import CLIENT_URL, DEBUG, JWT_SECRET_KEY, TESTING
+from config import CLIENT_URL, DEBUG, JWT_SECRET_KEY, SITE_ADMINS, TESTING
 from mail import mail
 from models.report import Report
 from models.website import Website
@@ -20,7 +20,7 @@ class AccessEmails():
             print("Email content:")
             print("Subject:", self.msg.subject)
             print("To:", self.msg.recipients)
-            print("Body:", self.msg.html)
+            # print("Body:", self.msg.html)
         
         mail.send(self.msg)
 
@@ -33,11 +33,12 @@ class AdminNewWebsiteEmail(AccessEmails):
 
     def send(self):
         msg = Message("New Website Added",
-                      recipients=[self.website.email])
+                      recipients=SITE_ADMINS)
 
         msg.html = render_template("emails/admin_new_website.html", website=self.website, client_url=self.client_url)
-        mail.send(msg)
-
+        self.msg = msg
+        super().send()
+        
 class NewWebsiteEmail(AccessEmails):
     def __init__(self, website: Website):
         self.website = website
@@ -45,7 +46,7 @@ class NewWebsiteEmail(AccessEmails):
 
     def send(self):
         msg = Message("New Website Added",
-                      recipients=[self.website.email])
+                recipients=[self.website.email])
 
         jwt_token = generate_jwt_token({"action": "subscribe", "website_id": self.website.id, "email": self.website.email})
         msg.html = render_template("emails/new_website.html", website=self.website, client_url=self.client_url, jwt_token=jwt_token)

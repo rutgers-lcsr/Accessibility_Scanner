@@ -1,29 +1,19 @@
 'use client';
+import "@ant-design/v5-patch-for-react-19";
 
 import { useUser } from '@/providers/User';
-import { Button, Form, Input, Typography, message } from 'antd';
-import { useRouter } from 'next/navigation';
+import { Button, Form, Input, Typography } from 'antd';
 import React, { useState } from 'react';
 const { Title } = Typography;
 
 const LoginPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
-
-    const router = useRouter();
     const { login } = useUser();
 
-    const onFinish = (values: { email: string; password: string }) => {
+    const onFinish = async (values: { email: string; password: string }) => {
         setLoading(true);
-        login(values.email, values.password)
-            .then((user) => {
-                router.push('/'); // Redirect to home page after successful login
-            })
-            .catch((error) => {
-                message.error(`Login failed: ${error.message}`);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
+        await login(values.email, values.password);
+        setLoading(false);
     };
 
     return (

@@ -39,7 +39,6 @@ const columns = [
 ];
 
 export default function ReportPage() {
-    // const searchParams = useSearchParams();
     const {
         reports,
         isLoading,
@@ -49,11 +48,6 @@ export default function ReportPage() {
         reportsTotal,
         ReportPage,
     } = useReports();
-    // const id = searchParams.get('id');
-
-    // if (id) {
-    //   return <Report report_id={id} />;
-    // }
 
     return (
         <div className="">

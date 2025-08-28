@@ -1,11 +1,11 @@
-version: "3.8"
+version: '3.8'
 
 services:
     a11y-nginx:
         container_name: a11y_nginx
         image: nginx:latest
         ports:
-            - "443:443"
+            - '443:443'
         volumes:
             - ./certs:/etc/nginx/certs:ro
             - ./nginx.conf:/etc/nginx/nginx.conf
@@ -15,8 +15,8 @@ services:
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: '10m'
+                max-file: '3'
     a11y-nextjs:
         container_name: a11y_nextjs
         build: ./accessibility-front
@@ -33,8 +33,8 @@ services:
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: '10m'
+                max-file: '3'
 
     a11y-scanner:
         container_name: a11y_scanner
@@ -51,8 +51,8 @@ services:
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: '10m'
+                max-file: '3'
     a11y-api:
         container_name: a11y_api
         build: .
@@ -65,6 +65,7 @@ services:
             - MAIL_SERVER=${MAIL_SERVER}
             - MAIL_PORT=${MAIL_PORT}
             - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}
+            - SITE_ADMINS=${SITE_ADMINS}
             - ADMIN_EMAIL=${ADMIN_EMAIL}
             - ADMIN_PASSWORD=${ADMIN_PASSWORD}
         depends_on:
@@ -73,8 +74,8 @@ services:
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: '10m'
+                max-file: '3'
     a11y-db:
         container_name: a11y_db
         image: mariadb:latest
@@ -84,7 +85,17 @@ services:
             - MARIADB_PASSWORD=${DB_PASSWORD}
             - MARIADB_DATABASE=a11y
         healthcheck:
-            test: ["CMD", "mariadb-admin", "ping", "-h", "a11y-db", "--silent", "--user=root", "--password=${ROOT_DATABASE_PASSWORD}"]
+            test:
+                [
+                    'CMD',
+                    'mariadb-admin',
+                    'ping',
+                    '-h',
+                    'a11y-db',
+                    '--silent',
+                    '--user=root',
+                    '--password=${DB_ROOT_PASSWORD}',
+                ]
             interval: 10s
             timeout: 10s
             retries: 5
@@ -92,8 +103,8 @@ services:
         logging:
             driver: json-file
             options:
-                max-size: "10m"
-                max-file: "3"
+                max-size: '10m'
+                max-file: '3'
         volumes:
             - db_data:/var/lib/mysql
 
@@ -104,4 +115,4 @@ volumes:
         driver_opts:
             type: none
             o: addr=${NFS_SERVER_IP},rw
-            device: ":${NFS_SERVER_PATH}/db_data"
+            device: ':${NFS_SERVER_PATH}/mariadb'

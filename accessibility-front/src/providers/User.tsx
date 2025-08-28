@@ -1,15 +1,17 @@
 'use client';
 import { APIError, handleRequest } from '@/lib/api';
 import { User } from '@/lib/types/user';
+import "@ant-design/v5-patch-for-react-19";
 import { useRouter } from 'next/navigation';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { useAlerts } from './Alerts';
 
 type UserContextType = {
     user: User | null;
     is_admin: boolean;
     setUser: (user: User | null) => void;
     handlerUserApiRequest: <T>(url: string, options?: RequestInit) => Promise<T>;
-    login: (email: string, password: string) => Promise<true | APIError | Error>;
+    login: (email: string, password: string) => Promise<boolean>;
     logout: () => Promise<void>;
 };
 
@@ -17,7 +19,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider = ({ children }: { children: ReactNode }) => {
     const router = useRouter();
-
+    const { addAlert } = useAlerts();
     function getUserFromLocalStorage() {
         if (typeof window === 'undefined') return null;
         const user = window.localStorage.getItem('user');
@@ -135,19 +137,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 credentials: 'include', // Ensure cookies are sent with the request
                 body: JSON.stringify({ email, password }),
             });
+            
 
             setUser(response);
             setUserLocalStorage(response);
             window.location.reload();
-
+            router.push('/');
             return true;
         } catch (error: unknown) {
-            console.error('Login failed:', error);
-            if (error instanceof APIError) {
-                return error;
+            if (error instanceof APIError || error instanceof Error) {
+                addAlert(`Login failed: ${error.message}`, 'error');
             }
-            router.push('/login');
-            return new Error('Login failed');
+            return false;                                                                                                                              
+            // router.push('/login');
         }
     };
 

@@ -31,6 +31,10 @@ def create_app():
     app.config.from_pyfile('config.py')
     CORS(app, supports_credentials=True)
 
+    # Swagger docs
+    from flasgger import Swagger
+    swagger = Swagger(app)
+
     mail.init_app(app)
     db.init_app(app)
     jwt.init_app(app)
@@ -43,8 +47,7 @@ def create_app():
     from blueprints.user import user_bp
     from blueprints.website import website_bp
     from blueprints.scan import scan_bp
-    
-    
+
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(domain_bp, url_prefix='/api/domains')
     app.register_blueprint(report_bp, url_prefix='/api/reports')
@@ -68,5 +71,5 @@ if __name__ == '__main__':
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         init_scanner()
 
-    app.run(debug=False)
+    app.run(debug=True)
 

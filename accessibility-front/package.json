@@ -5,7 +5,6 @@
     "scripts": {
         "dev": "next dev --turbopack",
         "build": "next build --turbopack",
-        "export": "next export",
         "start": "next start",
         "lint": "eslint"
     },
@@ -13,7 +12,7 @@
         "@ant-design/nextjs-registry": "^1.1.0",
         "@ant-design/v5-patch-for-react-19": "^1.0.3",
         "antd": "^5.27.1",
-        "date-fns": "^4.1.0",
+        "date-fns": "^4.1.0",   
         "http-proxy": "^1.18.1",
         "next": "15.5.0",
         "react": "19.1.0",

@@ -42,7 +42,7 @@ function AdminReportItems({ report }: Props) {
                     );
                     if (newReport && newReport.id) {
                         setLoadingScan(false);
-                        router.push(`/reports?id=${newReport.id}`);
+                        router.push(`/reports/${newReport.id}`);
                         addAlert('Scan completed successfully', 'success');
                     } else {
                         return await pollReport(); // recursively poll until we get the report
