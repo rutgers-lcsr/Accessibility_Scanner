@@ -38,6 +38,9 @@ class ReportDict(TypedDict):
     
 
 class Report(db.Model):
+    __tablename__ = 'report'
+    __table_args__ = {"schema": "a11y"}
+    
     id: Mapped[str] = db.Column(db.Integer, primary_key=True)
     site_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('site.id'))
     site = db.relationship("Site", back_populates="reports")

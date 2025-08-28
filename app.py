@@ -2,6 +2,7 @@ from multiprocessing import Process
 from flask import Flask
 from flask_cors import CORS
 import jwt
+from importlib.metadata.diagnose import inspect
 from models import db
 from authentication.login import jwt
 from models.user import Profile, User
@@ -57,7 +58,9 @@ def create_app():
     app.register_blueprint(scan_bp, url_prefix='/api/scans')
 
     with app.app_context():
-        db.create_all()
+        inspector = inspect(db.engine)
+        # force schema default to db.engine.url.database
+        db.metadata.create_all(bind=db.engine, checkfirst=True)
     return app
 
 def init_scanner():

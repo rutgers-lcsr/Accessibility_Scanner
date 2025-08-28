@@ -22,6 +22,9 @@ class SiteDict(TypedDict):
     updated_at: str
 
 class Site(db.Model):
+    __tablename__ = 'site'
+    __table_args__ = {"schema": "a11y"}
+
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     url: Mapped[str] = db.Column(db.String(200), nullable=False)
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
@@ -100,6 +103,8 @@ class WebsiteDict(TypedDict,total=False):
     updated_at: datetime.datetime
 
 class Website(db.Model):
+    __tablename__ = 'website'
+    __table_args__ = {"schema": "a11y"}
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     base_url: Mapped[str] = db.Column(db.String(200), nullable=False)
     domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'),)
@@ -176,6 +181,8 @@ class Website(db.Model):
 
 # Domains can only be created by the admins
 class Domains(db.Model):
+    __tablename__ = 'domains'
+    __table_args__ = {"schema": "a11y"}
     id = db.Column(db.Integer, primary_key=True)
     domain = db.Column(db.String(200), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=True)
@@ -203,3 +210,5 @@ class Domains(db.Model):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
+    def __repr__(self):
+        return f'<Domain {self.domain}>'
