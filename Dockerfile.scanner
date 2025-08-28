@@ -12,7 +12,6 @@ COPY scanner/ ./scanner/
 COPY blueprints/ ./blueprints/
 COPY mail/ ./mail/
 COPY models/ ./models/
-COPY static/ ./static/
 COPY templates/ ./templates/
 COPY utils/ ./utils/
 COPY app.py .
