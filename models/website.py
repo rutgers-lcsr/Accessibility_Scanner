@@ -26,7 +26,7 @@ class Site(db.Model):
     __table_args__ = {"schema": "a11y"}
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    url: Mapped[str] = db.Column(db.String(200), nullable=False)
+    url: Mapped[str] = db.Column(db.String(500), nullable=False)
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
     website_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('a11y.website.id'))
     reports: Mapped[List[Report]] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
@@ -106,7 +106,7 @@ class Website(db.Model):
     __tablename__ = 'website'
     __table_args__ = {"schema": "a11y"}
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    base_url: Mapped[str] = db.Column(db.String(200), nullable=False)
+    base_url: Mapped[str] = db.Column(db.String(255), nullable=False)
     domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('a11y.domains.id'),)
     # domain: Mapped['Domains'] = db.relationship('Domains', backref='websites', lazy=True)
     sites: Mapped[List['Site']] = db.relationship('Site', backref='website', lazy='dynamic', cascade="all, delete-orphan")
@@ -114,7 +114,7 @@ class Website(db.Model):
     # Rate limiting the automatic scanning, in days
     rate_limit: Mapped[int] = db.Column(db.Integer, default=30)
     active: Mapped[bool] = db.Column(db.Boolean, default=False)
-    email: Mapped[str] = db.Column(db.String(200), nullable=True)
+    email: Mapped[str] = db.Column(db.String(255), nullable=True)
     should_email: Mapped[bool] = db.Column(db.Boolean, default=True)
     # Whether the website reports are public 
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
