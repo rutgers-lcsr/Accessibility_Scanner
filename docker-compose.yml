@@ -115,4 +115,4 @@ volumes:
         driver_opts:
             type: nfs
             o: addr=${NFS_SERVER_IP},rw
-            device: ':${NFS_SHARE_PATH}/mariadb'
+            device: :${NFS_SHARE_PATH}/mariadb
