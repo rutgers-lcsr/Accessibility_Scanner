@@ -6,6 +6,7 @@ from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail
 from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
 from models import db
+from sqlalchemy import case
 
 from scanner.accessibility.ace import AxeReportKeys
 from sqlalchemy import Integer, cast, func
@@ -311,7 +312,10 @@ def get_websites():
             (latest_report_subq.c.site_id == Report.site_id) &
             (latest_report_subq.c.max_timestamp == Report.timestamp)
         )
-        .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc().nullslast())
+        .order_by(
+            case([(Report.report_counts == None, 1)], else_=0),
+            func.json_extract(Report.report_counts, '$.violations.total').desc()
+        )
         .distinct()
     )
     if search:
