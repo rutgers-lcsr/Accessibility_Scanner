@@ -2,7 +2,7 @@ from multiprocessing import Process
 from flask import Flask
 from flask_cors import CORS
 import jwt
-from importlib.metadata.diagnose import inspect
+from sqlalchemy import inspect
 from models import db
 from authentication.login import jwt
 from models.user import Profile, User
