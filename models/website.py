@@ -28,7 +28,7 @@ class Site(db.Model):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     url: Mapped[str] = db.Column(db.String(200), nullable=False)
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
-    website_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('website.id'))
+    website_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('a11y.website.id'))
     reports: Mapped[List[Report]] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -107,7 +107,7 @@ class Website(db.Model):
     __table_args__ = {"schema": "a11y"}
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     base_url: Mapped[str] = db.Column(db.String(200), nullable=False)
-    domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'),)
+    domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('a11y.domains.id'),)
     # domain: Mapped['Domains'] = db.relationship('Domains', backref='websites', lazy=True)
     sites: Mapped[List['Site']] = db.relationship('Site', backref='website', lazy='dynamic', cascade="all, delete-orphan")
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
@@ -185,7 +185,7 @@ class Domains(db.Model):
     __table_args__ = {"schema": "a11y"}
     id = db.Column(db.Integer, primary_key=True)
     domain = db.Column(db.String(200), nullable=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('a11y.domains.id'), nullable=True)
     parent = db.relationship('Domains', remote_side=[id], backref='subdomains', lazy=True, post_update=True)
     websites = db.relationship('Website', backref='domain', lazy=True, cascade="all, delete-orphan")
     active = db.Column(db.Boolean, default=True)

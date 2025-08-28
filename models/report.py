@@ -42,7 +42,7 @@ class Report(db.Model):
     __table_args__ = {"schema": "a11y"}
     
     id: Mapped[str] = db.Column(db.Integer, primary_key=True)
-    site_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('site.id'))
+    site_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('a11y.site.id'))
     site = db.relationship("Site", back_populates="reports")
     url: Mapped[str] = db.Column(db.String(200), nullable=False)
     base_url: Mapped[str] = db.Column(db.String(200), nullable=False)
