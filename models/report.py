@@ -1,6 +1,7 @@
 from datetime import datetime
 from select import select
 from typing import List, TypedDict
+from sqlalchemy.dialects.mysql import LONGBLOB
 
 from . import db
 from scanner.browser.report import AccessibilityReport
@@ -53,7 +54,7 @@ class Report(db.Model):
     videos: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     imgs: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     tabable: Mapped[bool] = db.Column(db.Boolean, nullable=False)
-    photo: Mapped[bytes] = db.Column(db.LargeBinary, nullable=True)
+    photo: Mapped[bytes] = db.Column(LONGBLOB, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 

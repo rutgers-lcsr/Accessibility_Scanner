@@ -176,9 +176,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         web.sites.extend(sites)
         web.scanning = False
         db.session.add(web)
-        db.session.commit()
-        db.session.flush()
-        
+        db.session.commit()        
         
         website = db.session.get(Website, web.id)
 
