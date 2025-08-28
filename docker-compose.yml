@@ -107,13 +107,12 @@ services:
                 max-size: '10m'
                 max-file: '3'
         volumes:
-            - db_data:/var/lib/mysql
+            - a11y_db_data:/var/lib/mysql
 
 volumes:
-    db_data:
-        name: a11y_db_data
+    a11y_db_data:
         driver: local
         driver_opts:
-            type: none
+            type: nfs
             o: addr=${NFS_SERVER_IP},rw
             device: ':${NFS_SERVER_PATH}/mariadb'
