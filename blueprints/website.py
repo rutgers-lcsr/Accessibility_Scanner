@@ -313,7 +313,7 @@ def get_websites():
             (latest_report_subq.c.max_timestamp == Report.timestamp)
         )
         .order_by(
-            case([(Report.report_counts == None, 1)], else_=0),
+            case((Report.report_counts == None, 1), else_=0),
             func.json_extract(Report.report_counts, '$.violations.total').desc()
         )
         .distinct()
