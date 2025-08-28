@@ -1,4 +1,4 @@
-FROM playwright/chromium
+FROM python:latest
 
 RUN apt-get update && apt-get install -y
 
@@ -6,6 +6,8 @@ RUN python3 -m pip install --upgrade pip
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+RUN playwright install --with-deps chromium
 
 COPY authentication/ ./authentication/
 COPY scanner/ ./scanner/
