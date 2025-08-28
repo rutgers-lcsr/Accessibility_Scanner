@@ -11,7 +11,7 @@ jobs:
         runs-on: production-a11y
         env:
             NFS_SERVER_IP: ${{ vars.NFS_SERVER_IP }}
-            NFS_SERVER_PATH: ${{ vars.NFS_SERVER_PATH }}
+            NFS_SHARE_PATH: ${{ vars.NFS_SHARE_PATH }}
             HOSTNAME: ${{ vars.CLIENT_URL }}
         steps:
             - name: Checkout Code
@@ -39,7 +39,7 @@ jobs:
                   DB_ROOT_PASSWORD=${{secrets.DB_ROOT_PASSWORD}}
                   DB_PASSWORD=${{secrets.DB_PASSWORD}}
                   NFS_SERVER_IP=${{ vars.NFS_SERVER_IP }}
-                  NFS_SERVER_PATH=${{ vars.NFS_SERVER_PATH }}
+                  NFS_SHARE_PATH=${{ vars.NFS_SHARE_PATH }}
                   EOF
 
             - name: build and deploy
