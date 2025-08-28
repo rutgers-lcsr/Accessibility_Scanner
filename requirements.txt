@@ -11,3 +11,4 @@ Flask-Mail
 playwright
 schedule
 gunicorn
+flasgger
