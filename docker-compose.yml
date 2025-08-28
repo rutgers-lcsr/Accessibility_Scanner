@@ -16,6 +16,7 @@ services:
                 max-size: '10m'
                 max-file: '3'
     a11y-nextjs:
+        container_name: a11y_nextjs
         build:
             context: ./accessibility-front
             dockerfile: ./Dockerfile
@@ -33,6 +34,7 @@ services:
                 max-size: '10m'
                 max-file: '3'
     a11y-scanner:
+        container_name: a11y_scanner
         build:
             context: .
             dockerfile: Dockerfile.scanner
@@ -40,7 +42,7 @@ services:
             - .env
         environment:
             - FLASK_ENV=${FLASK_ENV}
-            - DATABASE_URL=mysql://ally-user:${DB_PASSWORD}@db:3306
+            - DATABASE_URL=mysql://ally-user:${DB_PASSWORD}@a11y-db:3306
             - API_URL=a11y-api:5000
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
             - CLIENT_URL=${CLIENT_URL}
@@ -53,6 +55,7 @@ services:
                 max-size: '10m'
                 max-file: '3'
     a11y-api:
+        container_name: a11y_api
         build: .
         env_file:
             - .env
@@ -77,6 +80,7 @@ services:
                 max-size: '10m'
                 max-file: '3'
     a11y-db:
+        container_name: a11y_db
         image: mariadb:latest
         env_file:
             - .env
