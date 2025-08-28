@@ -23,7 +23,7 @@ services:
         env_file:
             - .env
         environment:
-            - API_URL=a11y-api:5000
+            - API_URL=http://a11y-api:5000
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
         depends_on:
             - a11y-db
@@ -43,7 +43,7 @@ services:
         environment:
             - FLASK_ENV=${FLASK_ENV}
             - DATABASE_URL=mariadb+mariadbconnector://ally-user:${DB_PASSWORD}@a11y-db:3306
-            - API_URL=a11y-api:5000
+            - API_URL=http://a11y-api:5000
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
             - CLIENT_URL=${CLIENT_URL}
         depends_on:
