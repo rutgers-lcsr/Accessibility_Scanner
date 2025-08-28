@@ -1,13 +1,17 @@
 FROM python:latest
 
-RUN apt-get update && apt-get install -y
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       libmariadb-dev build-essential pkg-config
 
 RUN python3 -m pip install --upgrade pip
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 RUN playwright install --with-deps chromium
+
+RUN rm -rf /var/lib/apt/lists/*
 
 COPY authentication/ ./authentication/
 COPY scanner/ ./scanner/
