@@ -117,7 +117,7 @@ services:
                 max-file: '3'
         volumes:
             - a11y_db_data:/var/lib/mysql
-            - a11y_db_logs:/var/log/mysql
+            - a11y_db_txlogs:/var/log/mysql
     adminer:
         image: adminer
         environment:
