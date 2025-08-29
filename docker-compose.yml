@@ -82,6 +82,11 @@ services:
     a11y-db:
         container_name: a11y_db
         image: mariadb:latest
+        command:
+            - --innodb_page_size=64k
+            - --innodb_buffer_pool_size=10G
+            - --innodb_log_file_size=256M
+            - --innodb_log_group_home_dir=/var/log/mysql
         env_file:
             - .env
         environment:
@@ -112,7 +117,14 @@ services:
                 max-file: '3'
         volumes:
             - a11y_db_data:/var/lib/mysql
-
+            - a11y_db_logs:/var/log/mysql
+    adminer:
+        image: adminer
+        environment:
+            - ADMINER_DEFAULT_SERVER=a11y-db
+        restart: always
+        ports:
+            - 8080:8080
 volumes:
     a11y_db_data:
         driver: local
@@ -120,3 +132,5 @@ volumes:
             type: nfs
             o: addr=${NFS_SERVER_IP},rw
             device: :${NFS_SHARE_PATH}/mariadb
+    a11y_db_txlogs:
+        driver: local
