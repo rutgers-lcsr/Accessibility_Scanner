@@ -1,28 +1,31 @@
 import { fetcherApi } from '@/lib/api';
 import { Report as ReportType } from '@/lib/types/axe';
+import { User } from '@/lib/types/user';
+import { useUser } from '@/providers/User';
 import {
     AlertOutlined,
     ExclamationCircleOutlined,
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
+import { Image } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { format } from 'date-fns';
 import useSWR from 'swr';
-import Console from './Console';
-import PageLoading from './PageLoading';
-type Props = {
-    report_id: string;
-};
-
-import { useUser } from '@/providers/User';
-import { Image } from 'antd';
 import AdminReportItems from './AdminReportItems';
 import AuditAccessibilityItem from './AuditAccessibilityItem';
+import Console from './Console';
 import PageError from './PageError';
+import PageLoading from './PageLoading';
 
-function Report({ report_id }: Props) {
-    const { handlerUserApiRequest, user, is_admin } = useUser();
+type Props = {
+    report_id: string;
+    user: User | null;
+};
+
+
+function Report({ report_id,user }: Props) {
+    const { handlerUserApiRequest } = useUser();
 
     const {
         data: reportData,
@@ -55,7 +58,7 @@ function Report({ report_id }: Props) {
                         {reportData.url}
                     </span>
                 </h1>
-                {is_admin && <AdminReportItems report={reportData} />}
+                {user && user.is_admin && <AdminReportItems report={reportData} />}
                 <h2 className="mb-2 text-lg text-gray-500">
                     Report Date:{' '}
                     {reportData?.timestamp

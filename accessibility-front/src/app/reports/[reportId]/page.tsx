@@ -13,7 +13,9 @@ import { headers } from 'next/headers';
 import AdminReportItems from '@/components/AdminReportItems';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
+import { User } from '@/lib/types/user';
 import { Card, Image } from 'antd';
+import { getCurrentUser } from 'next-cas-client/app';
 import HeaderLink from './components/HeaderLink';
 
 interface Props {
@@ -46,6 +48,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const { reportId } = await params;
 
     const report = await getReport(reportId);
+    const user = await getCurrentUser<User>();
 
     if (!report) return <PageError status={404} />;
 
@@ -62,7 +65,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                     <h1 className="mb-2 text-3xl font-extrabold">
                         Report for <HeaderLink url={report.url} />
                     </h1>
-                    <AdminReportItems report={report} />
+                    {user && user.is_admin && <AdminReportItems report={report} />}
                     <h2 className="mb-2 text-lg text-gray-500">
                         Report Date:{' '}
                         {report?.timestamp

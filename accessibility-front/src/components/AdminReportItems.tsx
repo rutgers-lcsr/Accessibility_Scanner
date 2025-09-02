@@ -1,4 +1,3 @@
-'use client';
 import { Report, ReportMinimized } from '@/lib/types/axe';
 import { scanResponse } from '@/lib/types/scan';
 import { useAlerts } from '@/providers/Alerts';
@@ -17,8 +16,7 @@ function AdminReportItems({ report }: Props) {
 
     const [loadingScan, setLoadingScan] = useState(false);
 
-    const { is_admin, handlerUserApiRequest } = useUser();
-    if (!is_admin) return null;
+    const { handlerUserApiRequest } = useUser();
 
     const handleScan = async () => {
         setLoadingScan(true);

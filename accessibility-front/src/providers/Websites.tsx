@@ -1,7 +1,8 @@
 'use client';
 import { APIError, fetcherApi, handleRequest } from '@/lib/api';
-import { Website } from '@/lib/types/website';
 import { Paged } from '@/lib/types/Paged';
+import { User } from '@/lib/types/user';
+import { Website } from '@/lib/types/website';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState } from 'react';
 import useSWR from 'swr';
@@ -24,12 +25,12 @@ type WebsitesContextType = {
 
 const WebsitesContext = createContext<WebsitesContextType | undefined>(undefined);
 
-export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const WebsitesProvider: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
-    const { user, handlerUserApiRequest } = useUser();
+    const { handlerUserApiRequest } = useUser();
 
     const { addAlert } = useAlerts();
     const { data, error, isLoading, mutate } = useSWR(

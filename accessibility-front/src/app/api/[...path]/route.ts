@@ -1,5 +1,6 @@
+import { User } from '@/lib/types/user';
+import { getCurrentUser } from 'next-cas-client/app';
 import { NextRequest, NextResponse } from 'next/server';
-
 const API_URL = process.env.API_URL;
 
 function rewriteUrl(path: string[], query: string) {
@@ -10,19 +11,30 @@ async function proxyRequest(req: NextRequest, ctx: RouteContext<'/api/[...path]'
     const path = (await ctx.params).path;
     const query = req.nextUrl.searchParams.toString();
     const url = rewriteUrl(path, query);
+    const user: User | null = await getCurrentUser();
+    console.log(user)
 
-    const init: RequestInit = {
+    if(user){
+        if (path.join('/') == 'auth/refresh'){
+            req.headers.set('Authorization', `Bearer ${user?.refresh_token || ''}`)
+        }else  {
+            req.headers.set('Authorization', `Bearer ${user?.access_token || ''}`)
+        }
+    }
+    
+
+
+    const request = new Request(url, {
         method,
         headers: req.headers,
-    };
+        body: ['POST', 'PUT', 'PATCH'].includes(method) ? await req.text() : null
+        
+    });
 
-    // Only set body for methods that support it
-    if (['POST', 'PUT', 'PATCH'].includes(method)) {
-        init.body = await req.text();
-    }
+    const res = await fetch(request);
 
-    const res = await fetch(url, init);
     const data = await res.arrayBuffer();
+
 
     return new NextResponse(data, {
         status: res.status,

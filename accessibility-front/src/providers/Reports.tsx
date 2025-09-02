@@ -2,6 +2,7 @@
 import { APIError, fetcherApi } from '@/lib/api';
 import { Report } from '@/lib/types/axe';
 import { Paged } from '@/lib/types/Paged';
+import { User } from '@/lib/types/user';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState } from 'react';
 import useSWR from 'swr';
@@ -23,12 +24,12 @@ type ReportsContextType = {
 
 const ReportsContext = createContext<ReportsContextType | undefined>(undefined);
 
-export const ReportsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ReportsProvider: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
-    const { user, handlerUserApiRequest } = useUser();
+    const { handlerUserApiRequest } = useUser();
     const { data, error, isLoading, mutate } = useSWR<Paged<Report>>(
         `/api/reports/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`,
         user ? handlerUserApiRequest : fetcherApi

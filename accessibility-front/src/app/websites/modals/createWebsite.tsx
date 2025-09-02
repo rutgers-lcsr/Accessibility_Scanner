@@ -1,13 +1,12 @@
 'use client';
-import { useUser } from '@/providers/User';
+import { User } from '@/lib/types/user';
 import { useWebsites } from '@/providers/Websites';
 import '@ant-design/v5-patch-for-react-19';
 import { Button, Checkbox, Divider, Form, Input, Modal, Select, Space } from 'antd';
 import React, { useState } from 'react';
 
-const CreateWebsite: React.FC = () => {
+const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
     const { requestWebsite } = useWebsites();
-    const { is_admin } = useUser();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form] = Form.useForm();
     const [shouldEmail, setShouldEmail] = useState(false);
@@ -23,7 +22,7 @@ const CreateWebsite: React.FC = () => {
 
             form.resetFields();
             setIsModalOpen(false);
-        } catch (err) {
+        } catch {
             // Validation error, do nothing
         }
     };
@@ -31,15 +30,15 @@ const CreateWebsite: React.FC = () => {
     return (
         <>
             <Button type="primary" onClick={showModal}>
-                {is_admin ? 'Add Website' : 'Request Website'}
+                {user && user.is_admin ? 'Add Website' : 'Request Website'}
             </Button>
 
             <Modal
-                title={is_admin ? 'Add Website' : 'Request Website'}
+                title={user && user.is_admin ? 'Add Website' : 'Request Website'}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
-                okText={is_admin ? 'Add' : 'Request'}
+                okText={user && user.is_admin ? 'Add' : 'Request'}
             >
                 <Form
                     form={form}

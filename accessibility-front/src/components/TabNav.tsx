@@ -14,9 +14,9 @@ import {
 } from '@ant-design/icons';
 import { Menu } from 'antd';
 import Sider from 'antd/es/layout/Sider';
+import { login, logout } from 'next-cas-client';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useUser } from '../providers/User';
 
 type Props = {
     user: User | null;
@@ -25,7 +25,6 @@ type Props = {
 export default function TabNav({ user }: Props) {
     const router = useRouter();
     const [collapsed, setCollapsed] = useState(true);
-    const { logout } = useUser();
     const pathname = usePathname();
 
     const tabRoutes: { [key: string]: string } = {
@@ -60,7 +59,7 @@ export default function TabNav({ user }: Props) {
                   key: '6',
                   icon: <LoginOutlined />,
                   onClick: () => {
-                      logout().then(() => router.push('/login'));
+                      logout();
                   },
               },
           ]
@@ -68,7 +67,10 @@ export default function TabNav({ user }: Props) {
               { label: 'Home', key: '1', icon: <HomeOutlined /> },
               { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
               { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
-              { label: 'Login', key: '5', icon: <LoginOutlined /> },
+              { label: 'Login', key: '5', icon: <LoginOutlined />, onClick: () => {
+                  login()
+                }
+              },
           ];
 
     return (
@@ -87,6 +89,8 @@ export default function TabNav({ user }: Props) {
             <Menu
                 onSelect={(info) => {
                     const route = tabRoutes[info.key] + '?';
+
+
 
                     router.push(route, undefined);
                 }}
