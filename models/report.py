@@ -1,6 +1,7 @@
 from datetime import datetime
 from select import select
 from typing import List, TypedDict
+from sqlalchemy import LargeBinary
 from sqlalchemy.dialects.mysql import LONGBLOB
 
 from . import db
@@ -40,10 +41,9 @@ class ReportDict(TypedDict):
 
 class Report(db.Model):
     __tablename__ = 'report'
-    __table_args__ = {"schema": "a11y"}
     
     id: Mapped[str] = db.Column(db.Integer, primary_key=True)
-    site_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('a11y.site.id'))
+    site_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('site.id'))
     site = db.relationship("Site", back_populates="reports")
     url: Mapped[str] = db.Column(db.String(255), nullable=False)
     base_url: Mapped[str] = db.Column(db.String(255), nullable=False)
@@ -54,7 +54,7 @@ class Report(db.Model):
     videos: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     imgs: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     tabable: Mapped[bool] = db.Column(db.Boolean, nullable=False)
-    photo: Mapped[bytes] = db.Column(LONGBLOB, nullable=True)
+    photo: Mapped[bytes] = db.Column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 

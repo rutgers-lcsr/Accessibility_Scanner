@@ -72,8 +72,6 @@ def init_scanner():
 if __name__ == '__main__':
     app = create_app()
     init_admin(app)
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        init_scanner()
 
     app.run(debug=True)
 
