@@ -8,7 +8,8 @@ import 'antd/dist/reset.css';
 import type { Metadata } from 'next';
 import { getCurrentUser, isLoggedIn } from 'next-cas-client/app';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { redirect } from "next/navigation";
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import TabNav from '../components/TabNav';
 import { UserProvider } from '../providers/User';
 import './globals.css';
@@ -38,12 +39,15 @@ export default async function RootLayout({
     children: React.ReactNode;
 }>) {
     const user: User | null = await getCurrentUser();
-
+    const headersList = headers()
 
     // If we are in development allow access to all routes
     if (!user || !await isLoggedIn()) {
-        if(process.env.NODE_ENV == "production")
-        redirect('/login');
+        if(process.env.NODE_ENV == "production"){
+            if ((await headersList).get("x-current-path") != '/login') {
+                redirect('/login')
+            }
+        }
     }
 
 
