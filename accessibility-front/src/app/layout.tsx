@@ -39,14 +39,16 @@ export default async function RootLayout({
     children: React.ReactNode;
 }>) {
     const user: User | null = await getCurrentUser();
-    const headersList = headers()
+    const headersList = await headers()
 
     // If we are in development allow access to all routes
     if (!user || !await isLoggedIn()) {
         if(process.env.NODE_ENV == "production"){
-            if ((await headersList).get("x-current-path") != '/login') {
+            console.log(headersList.get("x-current-path"))
+            if (headersList.get("x-current-path") != '/login') {
                 redirect('/login')
             }
+
         }
     }
 
