@@ -6,10 +6,8 @@ import '@ant-design/v5-patch-for-react-19';
 import { ConfigProvider, Layout } from 'antd';
 import 'antd/dist/reset.css';
 import type { Metadata } from 'next';
-import { getCurrentUser, isLoggedIn } from 'next-cas-client/app';
+import { getCurrentUser } from 'next-cas-client/app';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
 import TabNav from '../components/TabNav';
 import { UserProvider } from '../providers/User';
 import './globals.css';
@@ -33,7 +31,6 @@ export const metadata: Metadata = {
     },
 };
 
-const base_url = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 export default async function RootLayout({
     children,
@@ -41,21 +38,6 @@ export default async function RootLayout({
     children: React.ReactNode;
 }>) {
     const user: User | null = await getCurrentUser();
-    const headersList = await headers()
-
-    // If we are in development allow access to all routes
-    if (!user || !await isLoggedIn()) {
-        if(process.env.NODE_ENV == "production"){
-
-            // this prevents infinite redirect loops, its a workaround because once a user is redirected the referer header is set and next time it will not redirect
-            // its dumb but it works
-            if (headersList.get("Referer") != base_url + "/login") {
-                // If the user is not logged in, redirect to the login page
-                redirect('/login')
-            }
-
-        }
-    }
 
 
     return (

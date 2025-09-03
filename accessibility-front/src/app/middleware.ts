@@ -1,17 +1,15 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { getCurrentUser } from 'next-cas-client/app';
+import { NextRequest, NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  // Log the current request pathname
-  const headers = new Headers(request.headers);
-  headers.set("x-current-path", request.nextUrl.pathname);
-
-  return NextResponse.next();
+ 
+export async function middleware(request: NextRequest) {
+    const user = await getCurrentUser();
+    if (!user && process.env.NODE_ENV === 'production') {
+        return NextResponse.redirect(new URL('/login', request.url))
+    }
+    return NextResponse.next();
 }
-
+ 
 export const config = {
-  matcher: [
-    // match all routes except static files and APIs
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
-};
+  matcher: '/*',
+}
