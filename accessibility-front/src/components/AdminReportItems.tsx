@@ -1,3 +1,4 @@
+'use client'
 import { Report, ReportMinimized } from '@/lib/types/axe';
 import { scanResponse } from '@/lib/types/scan';
 import { useAlerts } from '@/providers/Alerts';
@@ -22,7 +23,7 @@ function AdminReportItems({ report }: Props) {
         setLoadingScan(true);
         try {
             const scanResponse = await handlerUserApiRequest<scanResponse>(
-                `/api/scans/scan?site=${report.site_id}`,
+                `/api/scans/scan/?site=${report.site_id}`,
                 {
                     method: 'POST',
                 }

@@ -1,3 +1,4 @@
+import datetime
 from urllib.parse import urlparse
 from flask import Blueprint, app, json, redirect, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, current_user, jwt_required, unset_jwt_cookies, set_access_cookies, set_refresh_cookies
@@ -55,11 +56,9 @@ def cas_login():
     user = db.session.query(User).filter_by(username=cas_user).first()
     if user:
         # Create a JWT token for the user
-        access_token = create_access_token(identity=user)
-        refresh_token = create_refresh_token(identity=user)
-        response = jsonify(**user.to_dict(), access_token=access_token, refresh_token=refresh_token)
+        access_token = create_access_token(identity=user, expires_delta=datetime.timedelta(hours=24))
+        response = jsonify(**user.to_dict(), access_token=access_token)
         set_access_cookies(response, access_token)
-        set_refresh_cookies(response, refresh_token)
         return response, 200
     else:
         user = User(username=cas_user, email=user_email)
@@ -67,11 +66,9 @@ def cas_login():
         db.session.add(user)
         db.session.commit()
         # Create a JWT token for the user
-        access_token = create_access_token(identity=user)
-        refresh_token = create_refresh_token(identity=user)
-        response = jsonify(**user.to_dict(), access_token=access_token, refresh_token=refresh_token)
+        access_token = create_access_token(identity=user, expires_delta=datetime.timedelta(hours=24))
+        response = jsonify(**user.to_dict(), access_token=access_token)
         set_access_cookies(response, access_token)
-        set_refresh_cookies(response, refresh_token)
         return response, 200
 
 @auth_bp.route("/refresh", methods=["POST"])

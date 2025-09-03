@@ -14,6 +14,7 @@ website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
 @website_bp.route('/', methods=['POST'])
+@jwt_required(optional=True)
 def create_website():
     """
     Create a new website.
@@ -105,7 +106,7 @@ def create_website():
 
     return jsonify(new_website.to_dict()), 201
 
-@website_bp.route('/<int:website_id>', methods=['PATCH'])
+@website_bp.route('/<int:website_id>/', methods=['PATCH'])
 @admin_required
 def update_website(website_id):
     """
@@ -335,7 +336,7 @@ def get_websites():
         'items': [website.to_dict() for website in w.items]
     }), 200
 
-@website_bp.route('/<int:website_id>/sites', methods=['GET'])
+@website_bp.route('/<int:website_id>/sites/', methods=['GET'])
 @jwt_required(optional=True)
 def get_website_sites(website_id):
     """
@@ -428,7 +429,7 @@ def get_website_sites(website_id):
         'items': [site.to_dict() for site in sites.items]
     }), 200
 
-@website_bp.route('/<int:website_id>', methods=['GET'])
+@website_bp.route('/<int:website_id>/', methods=['GET'])
 def get_overall_website(website_id):
     """
     Get details for a specific website.
@@ -459,7 +460,7 @@ def get_overall_website(website_id):
 
     return jsonify(website.to_dict()), 200
 
-@website_bp.route('/<int:website_id>', methods=['DELETE'])
+@website_bp.route('/<int:website_id>/', methods=['DELETE'])
 @jwt_required()
 @admin_required
 def delete_website(website_id):

@@ -1,8 +1,8 @@
 "use client"
-import { handleRequest } from '@/lib/api';
+import { APIError, handleRequest } from '@/lib/api';
 import { User } from '@/lib/types/user';
 import "@ant-design/v5-patch-for-react-19";
-import { logout } from 'next-cas-client';
+import { login } from 'next-cas-client';
 import { createContext, ReactNode, useContext } from 'react';
 import { useAlerts } from './Alerts';
 
@@ -36,7 +36,7 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
             });
         } catch {
             addAlert('Failed to refresh login', 'error');
-            logout();
+            login();
         }
     };
 
@@ -61,6 +61,7 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
 
             const response = await handleRequest<T>(url, options);
             if (!response) {
+                console.log('Failed to fetch user data');
                 throw new Error('Failed to fetch user data');
             }
             return response;
@@ -69,10 +70,17 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
         // Try the request once, if it fails try refreshing the token and doing the request again
         try {
             return await doRequest();
-        } catch {
-            await refreshLogin();
-            // Need to get new state
-            return await doRequest();
+        } catch (error) {
+            // dont fail if its not 401
+            if(!(error instanceof APIError)){
+                throw new Error("Unknown Error occured")    
+            }
+            if (error.response.status === 401) {
+                await refreshLogin();
+                // Need to get new state
+                return await doRequest();
+            }
+            throw error;
         }
     };
 
@@ -87,6 +95,7 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
         </UserContext.Provider>
     );
 };
+
 
 export const useUser = () => {
     const context = useContext(UserContext);

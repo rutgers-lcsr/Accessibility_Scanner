@@ -26,15 +26,15 @@ async function proxyRequest(req: NextRequest, ctx: RouteContext<'/api/[...path]'
     
 
 
-    const request = new Request(url, {
+    const request:RequestInit = {
         method,
         headers: req.headers,
         body: ['POST', 'PUT', 'PATCH'].includes(method) ? await req.text() : null,
         redirect: 'follow'
-    });
+    };
     try {
-        console.log(request)
-        const res = await fetch(request);
+
+        const res = await fetch(url, request);
 
         const data = await res.arrayBuffer();
 

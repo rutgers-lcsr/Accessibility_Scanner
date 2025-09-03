@@ -46,8 +46,11 @@ export const DomainProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const patchDomain = async (id: string, data: Partial<Domain>) => {
         try {
-            await handlerUserApiRequest(`/api/domains/${id}`, {
+            await handlerUserApiRequest(`/api/domains/${id}/`, {
                 method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify(data),
             });
             mutateDomains();
@@ -76,7 +79,7 @@ export const DomainProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     const deleteDomain = async (id: string) => {
         try {
-            await handlerUserApiRequest(`/api/domains/${id}`, {
+            await handlerUserApiRequest(`/api/domains/${id}/`, {
                 method: 'DELETE',
             });
             mutateDomains();

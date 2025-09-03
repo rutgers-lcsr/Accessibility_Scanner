@@ -112,7 +112,7 @@ def get_domain(domain_id):
         return jsonify({'error': 'Domain not found'}), 404
     return jsonify(domain.to_dict()), 200
 
-@domain_bp.route("/<int:domain_id>", methods=["PATCH"])
+@domain_bp.route("/<int:domain_id>/", methods=["PATCH"])
 @admin_required
 def update_domain(domain_id):
     data = request.get_json()
@@ -132,7 +132,7 @@ def update_domain(domain_id):
     db.session.commit()
     return jsonify(domain.to_dict()), 200
 
-@domain_bp.route('/<int:domain_id>', methods=['DELETE'])
+@domain_bp.route('/<int:domain_id>/', methods=['DELETE'])
 @admin_required
 def delete_domain(domain_id):
     if not domain_id:

@@ -17,7 +17,6 @@ const {
         setDomainLimit,
         setDomainFilters,
         patchDomain,
-        deleteDomain,
     } = useDomains();
 
     // Table columns
@@ -44,7 +43,7 @@ const {
             render: (_, record) => {
                 return (
                     <div className="flex justify-center gap-4">
-                        <Button type={record.active ? 'primary' : 'default'}>
+                        <Button onClick={() => patchDomain(record.id, { active: !record.active })} type={record.active ? 'primary' : 'default'}>
                             {record.active ? 'Deactivate' : 'Activate'}
                         </Button>
                         <DeleteDomain domainId={record.id} />
