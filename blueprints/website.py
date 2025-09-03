@@ -6,10 +6,8 @@ from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail
 from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
 from models import db
-from sqlalchemy import case
-
 from scanner.accessibility.ace import AxeReportKeys
-from sqlalchemy import Integer, cast, func
+from sqlalchemy import case, func
 
 from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
@@ -32,9 +30,9 @@ def create_website():
                     base_url:
                         type: string
                         example: "https://example.com"
-                    email:
-                        type: string
-                        example: "user@example.com"
+                    should_email:
+                        type: boolean
+                        example: true
     responses:
         200:
             description: Website created successfully
@@ -55,7 +53,7 @@ def create_website():
     """
     data = request.get_json()
     base_url = data.get('base_url')
-    email = data.get('email', None)
+    should_email = data.get('should_email', False)
     if not base_url:
         return jsonify({'error': 'Base URL is required'}), 400
     
@@ -84,14 +82,20 @@ def create_website():
     if existing_website:
         return jsonify({'error': 'Website already exists'}), 400
 
-    new_website = Website(url=base_url, email=email)
+        
+    # check if user exists
+    if not current_user and should_email:
+        return jsonify({'error': 'User is not authenticated'}), 401
+
+    new_website = Website(url=base_url, email=current_user.email)
     new_website.domain = existing_domain
+    new_website.should_email = should_email and True
     
 
     db.session.add(new_website)
     db.session.commit()
     try:
-        if email:
+        if should_email and 'email' in data:
             NewWebsiteEmail(new_website).send()
 
         AdminNewWebsiteEmail(new_website).send()

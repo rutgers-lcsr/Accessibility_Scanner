@@ -1,3 +1,4 @@
+"use client"
 import PageError from "@/components/PageError";
 import { Domain } from "@/lib/types/domain";
 import { useDomains } from "@/providers/Domain";

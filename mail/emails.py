@@ -6,6 +6,7 @@ from models.report import Report
 from models.website import Website
 from datetime import datetime
 
+from scanner.log import log_message
 from utils.jwt import generate_jwt_token
 class AccessEmails():
     def __init__(self):
@@ -21,9 +22,10 @@ class AccessEmails():
             print("Subject:", self.msg.subject)
             print("To:", self.msg.recipients)
             # print("Body:", self.msg.html)
-        
-        mail.send(self.msg)
-
+        try:
+            mail.send(self.msg)
+        except Exception as e:
+            log_message(f"Error sending email: {e}", 'error')
 
 
 class AdminNewWebsiteEmail(AccessEmails):

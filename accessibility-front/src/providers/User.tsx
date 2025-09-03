@@ -24,7 +24,10 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
 
     const refreshLogin = async () => {
         try {
-            await handleRequest<{ access_token: string }>('/api/auth/refresh', {
+            
+            // need to fix this 
+
+            await handleRequest<{ access_token: string }>('/api/auth/refresh/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

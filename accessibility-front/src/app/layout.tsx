@@ -39,6 +39,8 @@ export default async function RootLayout({
 }>) {
     const user: User | null = await getCurrentUser();
 
+
+    // If we are in development allow access to all routes
     if (!user || !await isLoggedIn()) {
         if(process.env.NODE_ENV == "production")
         redirect('/login');

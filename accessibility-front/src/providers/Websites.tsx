@@ -16,7 +16,7 @@ type WebsitesContextType = {
     isLoading: boolean;
     WebsitePage: number;
     WebsiteLimit: number;
-    requestWebsite: (url: string, email?: string) => Promise<Website | null>;
+    requestWebsite: (url: string, should_email:boolean) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: number) => void;
@@ -43,14 +43,14 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode, user: User 
         router.push(`/websites?id=${id}`);
     };
 
-    const requestWebsite = async (url: string, email?: string) => {
+    const requestWebsite = async (url: string, should_email:boolean) => {
         try {
             const data = await handleRequest<Website>(`/api/websites/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ base_url: url, email }),
+                body: JSON.stringify({ base_url: url, should_email: should_email }),
             });
             addAlert('Website created successfully', 'success');
             mutate();

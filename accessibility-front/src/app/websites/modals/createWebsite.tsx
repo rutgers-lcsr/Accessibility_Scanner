@@ -18,7 +18,7 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            await requestWebsite(values.protocol + values.websiteName, values?.email);
+            await requestWebsite(values.protocol + values.websiteName, values.should_email);
 
             form.resetFields();
             setIsModalOpen(false);
@@ -69,7 +69,7 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
                                     Email me updates
                                 </Checkbox>
                             </Form.Item>
-                            <Form.Item
+                            {/* <Form.Item
                                 name="email"
                                 style={{ marginBottom: 0 }}
                                 rules={[
@@ -96,7 +96,7 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
                                     placeholder="netid@rutgers.edu"
                                     disabled={!shouldEmail}
                                 />
-                            </Form.Item>
+                            </Form.Item> */}
                         </Space>
                     </Form.Item>
                 </Form>
