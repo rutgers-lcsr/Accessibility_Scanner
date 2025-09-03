@@ -44,7 +44,7 @@ export default async function RootLayout({
     // If we are in development allow access to all routes
     if (!user || !await isLoggedIn()) {
         if(process.env.NODE_ENV == "production"){
-            console.log(headersList.get("x-current-path"))
+            console.log(headersList)
             if (headersList.get("x-current-path") != '/login') {
                 redirect('/login')
             }
