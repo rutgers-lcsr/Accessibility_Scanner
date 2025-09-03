@@ -13,7 +13,9 @@ import { headers } from 'next/headers';
 import AdminReportItems from '@/components/AdminReportItems';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
+import { User } from '@/lib/types/user';
 import { Card, Image } from 'antd';
+import { getCurrentUser } from 'next-cas-client/app';
 import HeaderLink from './components/HeaderLink';
 
 interface Props {
@@ -25,12 +27,17 @@ export const getReport = async (reportId: string) => {
     const headerList = await headers();
     // need to forward the request as if we are the user
     // Theres an isssue with headers for some reason out of out control. the type is messed up
+
+    const user = await getCurrentUser<User>()
+
     const options = {
-        ...headerList,
+        headers: user && {
+            'Authorization': `Bearer ${user.access_token || ''}`
+        }
     };
 
     const response = await fetch(
-        `${process.env.API_URL}/api/reports/${reportId}`,
+        `${process.env.API_URL}/api/reports/${reportId}/`,
         options as RequestInit
     );
 
@@ -46,14 +53,15 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const { reportId } = await params;
 
     const report = await getReport(reportId);
+    const user = await getCurrentUser<User>();
 
     if (!report) return <PageError status={404} />;
 
     const violations = report.report_counts.violations;
 
-    const report_script_full_url = `https://${host}/api/reports/${reportId}/script`;
+    const report_script_full_url = `https://${host}/api/reports/${reportId}/script/`;
 
-    const report_photo_url = `/api/reports/${reportId}/photo`;
+    const report_photo_url = `/api/reports/${reportId}/photo/`;
 
     return (
         <Content>
@@ -62,7 +70,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                     <h1 className="mb-2 text-3xl font-extrabold">
                         Report for <HeaderLink url={report.url} />
                     </h1>
-                    <AdminReportItems report={report} />
+                    {user && user.is_admin && <AdminReportItems report={report} />}
                     <h2 className="mb-2 text-lg text-gray-500">
                         Report Date:{' '}
                         {report?.timestamp

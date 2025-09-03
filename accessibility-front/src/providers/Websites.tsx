@@ -1,7 +1,8 @@
 'use client';
 import { APIError, fetcherApi, handleRequest } from '@/lib/api';
-import { Website } from '@/lib/types/website';
 import { Paged } from '@/lib/types/Paged';
+import { User } from '@/lib/types/user';
+import { Website } from '@/lib/types/website';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState } from 'react';
 import useSWR from 'swr';
@@ -15,7 +16,7 @@ type WebsitesContextType = {
     isLoading: boolean;
     WebsitePage: number;
     WebsiteLimit: number;
-    requestWebsite: (url: string, email?: string) => Promise<Website | null>;
+    requestWebsite: (url: string, should_email:boolean) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: number) => void;
@@ -24,12 +25,12 @@ type WebsitesContextType = {
 
 const WebsitesContext = createContext<WebsitesContextType | undefined>(undefined);
 
-export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const WebsitesProvider: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchUrl, setSearchUrl] = useState('');
-    const { user, handlerUserApiRequest } = useUser();
+    const { handlerUserApiRequest } = useUser();
 
     const { addAlert } = useAlerts();
     const { data, error, isLoading, mutate } = useSWR(
@@ -42,14 +43,14 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         router.push(`/websites?id=${id}`);
     };
 
-    const requestWebsite = async (url: string, email?: string) => {
+    const requestWebsite = async (url: string, should_email:boolean) => {
         try {
             const data = await handleRequest<Website>(`/api/websites/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ base_url: url, email }),
+                body: JSON.stringify({ base_url: url, should_email: should_email }),
             });
             addAlert('Website created successfully', 'success');
             mutate();

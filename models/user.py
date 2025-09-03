@@ -3,11 +3,12 @@ from sqlalchemy.ext.hybrid import hybrid_method
 
 class User(db.Model):
     __tablename__ = 'users'
-    __table_args__ = {"schema": "a11y"}
 
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), unique=True, nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+    # password is nullable because users can login using cas 
+    password = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
@@ -20,6 +21,7 @@ class User(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'username': self.username,
             'email': self.email,
             'is_admin': self.profile.is_admin if self.profile else False,
             'is_active': self.is_active,
@@ -28,9 +30,9 @@ class User(db.Model):
         }
 
 
-    def __init__(self, email, password):
+    def __init__(self, username, email):
+        self.username = username
         self.email = email
-        self.password = password
 
     def __repr__(self):
         return f'<User {self.email}>'
@@ -38,10 +40,9 @@ class User(db.Model):
 
 class Profile(db.Model):
     __tablename__ = 'profiles'
-    __table_args__ = {"schema": "a11y"}
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('a11y.users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())

@@ -38,7 +38,7 @@ def get_reports():
         'items': [r.to_dict_without_report() for r in reports.items]
     }), 200
 
-@report_bp.route('/<int:report_id>', methods=['GET'])
+@report_bp.route('/<int:report_id>/', methods=['GET'])
 @jwt_required(optional=True)
 def get_report_by_id(report_id):
     report = db.session.get(Report, report_id)  
@@ -50,16 +50,13 @@ def get_report_by_id(report_id):
             return jsonify({'error': 'Unauthorized'}), 403
     return jsonify(report.to_dict()), 200
 
-@report_bp.route('/<int:report_id>/script', methods=['GET'])
-@jwt_required(optional=True)
+@report_bp.route('/<int:report_id>/script/', methods=['GET'])
 def get_report_script(report_id):
+    # Note, Anyone can access this endpoint
     report = db.session.get(Report, report_id)  
     if not report:
         return jsonify({'error': 'Report not found'}), 404
 
-    if not current_user or not current_user.profile.is_admin:
-        if not report.public:
-            return jsonify({'error': 'Unauthorized'}), 403
         
     violation = report.report.get('violations', [])
 
@@ -69,7 +66,7 @@ def get_report_script(report_id):
 
     return Response(js_code, mimetype='text/javascript')
 
-@report_bp.route('/<int:report_id>/photo', methods=['GET'])
+@report_bp.route('/<int:report_id>/photo/', methods=['GET'])
 @jwt_required(optional=True)
 def get_report_photo(report_id):
     report = db.session.get(Report, report_id)

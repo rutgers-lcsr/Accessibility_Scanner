@@ -1,5 +1,7 @@
+"use client"
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
+import { User } from '@/lib/types/user';
 import { Site, Website as WebsiteType } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 import {
@@ -18,10 +20,11 @@ import PageLoading from './PageLoading';
 
 type Props = {
     websiteId: number;
+    user: User | null;
 };
 
-const Website = ({ websiteId }: Props) => {
-    const { user, is_admin, handlerUserApiRequest } = useUser();
+const Website = ({ websiteId, user }: Props) => {
+    const {  handlerUserApiRequest } = useUser();
 
     const {
         data: websiteReport,
@@ -120,7 +123,7 @@ const Website = ({ websiteId }: Props) => {
                         {websiteReport.base_url}
                     </span>
                 </h1>
-                {is_admin && <AdminWebsiteItems website={websiteReport} mutate={mutate} />}
+                {user && user.is_admin && <AdminWebsiteItems website={websiteReport} mutate={mutate} />}
                 <h2 className="mb-4 text-lg text-gray-500">
                     Last Scanned:{' '}
                     {websiteReport?.last_scanned

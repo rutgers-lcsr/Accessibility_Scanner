@@ -18,7 +18,8 @@ def init_admin(app):
         user = User.query.filter_by(email=admin_user).first()
         if not user:
             try:
-                user = User(email=admin_user, password=generate_password_hash(admin_password))
+                user = User(username=admin_user, email=admin_user)
+                user.password = generate_password_hash(admin_password)
                 user.profile = Profile(user=user, is_admin=True)
                 db.session.add(user)
                 db.session.commit()
@@ -72,8 +73,6 @@ def init_scanner():
 if __name__ == '__main__':
     app = create_app()
     init_admin(app)
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        init_scanner()
 
     app.run(debug=True)
 

@@ -25,6 +25,10 @@ services:
         environment:
             - API_URL=http://a11y-api:5000
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+            - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+            - NEXT_PUBLIC_CAS_URL=${NEXT_PUBLIC_CAS_URL}
+            - NEXT_CAS_CLIENT_SAML_TOLERANCE=${NEXT_CAS_CLIENT_SAML_TOLERANCE}
+            - NEXT_CAS_CLIENT_SECRET=${NEXT_CAS_CLIENT_SECRET}
         depends_on:
             - a11y-db
         restart: unless-stopped

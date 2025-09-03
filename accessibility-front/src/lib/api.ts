@@ -3,7 +3,11 @@ export const fetcherApi = <T>(url: string) => handleRequest<T>(url);
 export const handleRequest = async <T>(url: string, options?: RequestInit): Promise<T> => {
     const response = await fetch(url, options);
     if (!response.ok) {
-        const reason = await response.json();
+
+        let reason = await response.json().catch(() => ({}));
+        if(response.status == 404){
+            reason = { error: 'Not Found' };
+        }
 
         throw new APIError(response, reason.error || 'API request failed');
     }
@@ -15,7 +19,7 @@ export class APIError extends Error {
     message: string;
 
     constructor(response: Response, message?: string) {
-        super(response.statusText);
+        super(message);
         this.response = response;
         this.message = message || 'API request failed';
     }

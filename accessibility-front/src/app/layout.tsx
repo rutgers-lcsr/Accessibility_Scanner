@@ -1,16 +1,18 @@
-import '@ant-design/v5-patch-for-react-19';
-import 'antd/dist/reset.css';
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import './globals.css';
-
 import { rutgersTheme } from '@/lib/theme';
-import { getUser } from '@/lib/user';
+import { User } from '@/lib/types/user';
 import { AlertsProvider } from '@/providers/Alerts';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
+import '@ant-design/v5-patch-for-react-19';
 import { ConfigProvider, Layout } from 'antd';
+import 'antd/dist/reset.css';
+import type { Metadata } from 'next';
+import { getCurrentUser, isLoggedIn } from 'next-cas-client/app';
+import { Geist, Geist_Mono } from 'next/font/google';
+import { redirect } from "next/navigation";
 import TabNav from '../components/TabNav';
 import { UserProvider } from '../providers/User';
+import './globals.css';
+
 const geistSans = Geist({
     variable: '--font-geist-sans',
     subsets: ['latin'],
@@ -35,7 +37,15 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const user = await getUser();
+    const user: User | null = await getCurrentUser();
+
+
+    // If we are in development allow access to all routes
+    if (!user || !await isLoggedIn()) {
+        if(process.env.NODE_ENV == "production")
+        redirect('/login');
+    }
+
 
     return (
         <html lang="en">
@@ -44,7 +54,7 @@ export default async function RootLayout({
                     <Layout hasSider>
                         <ConfigProvider theme={rutgersTheme}>
                             <AlertsProvider>
-                                <UserProvider>
+                                <UserProvider user={user}>
                                     <TabNav user={user} />
                                     <Layout>{children}</Layout>
                                 </UserProvider>

@@ -40,7 +40,7 @@ async def conduct_scan_site(site: str):
     except Exception as e:
         return {"error": str(e)}, 500
 
-@scan_bp.route('/scan', methods=['POST'])
+@scan_bp.route('/scan/', methods=['POST'])
 @scan_limiter.limit("1/minute" if DEBUG else "5/minute")
 @admin_required
 def scan_website():
@@ -69,7 +69,7 @@ def scan_website():
                 return {"error": "Scan already in progress"}, 409
 
             asyncio.run_coroutine_threadsafe(conduct_scan_website(website_url), loop)
-            return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status?website={website_id}"}), 202
+            return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status/?website={website_id}"}), 202
 
         if site:
             try:
@@ -87,14 +87,14 @@ def scan_website():
                 return {"error": "Scan already in progress"}, 409
 
             asyncio.run_coroutine_threadsafe(conduct_scan_site(site_url), loop)
-            return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status?site={site_id}"}), 202
+            return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status/?site={site_id}"}), 202
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"error": "No valid website or site provided"}), 400
 
-@scan_bp.route('/status', methods=['GET'])
+@scan_bp.route('/status/', methods=['GET'])
 @admin_required
 def get_scan_status():
     data = request.args

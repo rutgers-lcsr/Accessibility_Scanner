@@ -7,7 +7,7 @@ from models import db
 
 sites_bp = Blueprint('sites', __name__)
 
-@sites_bp.route('/<int:site_id>', methods=['GET'])
+@sites_bp.route('/<int:site_id>/', methods=['GET'])
 @jwt_required(optional=True)
 def get_site(site_id):
     site = db.session.get(Site, site_id)

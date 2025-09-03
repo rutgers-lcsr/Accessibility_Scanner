@@ -7,7 +7,7 @@ from utils.jwt import decode_jwt_token
 
 user_bp = Blueprint('user', __name__)
 
-@user_bp.route('/me', methods=['GET'])
+@user_bp.route('/me/', methods=['GET'])
 @jwt_required()
 def get_user():
     user = db.session.get(User, current_user.id)
@@ -17,7 +17,7 @@ def get_user():
     return jsonify(user.to_dict()), 200
     
 
-@user_bp.route('/unsubscribe', methods=['GET'])
+@user_bp.route('/unsubscribe/', methods=['GET'])
 def unsubscribe():
     
     # This token is created in NewWebsiteEmail
