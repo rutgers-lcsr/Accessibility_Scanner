@@ -8,7 +8,7 @@ function rewriteUrl(path: string, query: string) {
     return `${API_URL}${path}/?${query}`;
 }
 
-async function proxyRequest(req: NextRequest, ctx: RouteContext<'/api/[...path]'>, method: string) {
+async function proxyRequest(req: NextRequest, method: string) {
     const path = req.nextUrl.pathname;
     
     const query = req.nextUrl.searchParams.toString();
@@ -40,7 +40,7 @@ async function proxyRequest(req: NextRequest, ctx: RouteContext<'/api/[...path]'
 
 
         if(res.status === 401){
-            return 
+            return new NextResponse('Unauthorized', { status: 401 });
         }
 
         return new NextResponse(data, {
@@ -67,7 +67,7 @@ async function loadUser(casUser: CasUser) {
 
 const cas_get_route = handleAuth({ loadUser, validator: ValidatorProtocol.CAS30 });
 
-export async function GET(req: NextRequest, ctx: RouteContext<'/api/[...path]'>) {
+export async function GET(req: NextRequest) {
 
     if (req.nextUrl.pathname === '/api/cas/login') {
         // Handle token refresh
@@ -76,17 +76,17 @@ export async function GET(req: NextRequest, ctx: RouteContext<'/api/[...path]'>)
     if (req.nextUrl.pathname === '/api/cas/logout'){
         return cas_get_route(req, {params: {client: 'logout'}});
     }
-    return proxyRequest(req, ctx, 'GET');
+    return proxyRequest(req, 'GET');
 }
-export async function POST(req: NextRequest, ctx: RouteContext<'/api/[...path]'>) {
-    return proxyRequest(req, ctx, 'POST');
+export async function POST(req: NextRequest) {
+    return proxyRequest(req, 'POST');
 }
-export async function PUT(req: NextRequest, ctx: RouteContext<'/api/[...path]'>) {
-    return proxyRequest(req, ctx, 'PUT');
+export async function PUT(req: NextRequest) {
+    return proxyRequest(req, 'PUT');
 }
-export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/[...path]'>) {
-    return proxyRequest(req, ctx, 'PATCH');
+export async function PATCH(req: NextRequest) {
+    return proxyRequest(req, 'PATCH');
 }
-export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/[...path]'>) {
-    return proxyRequest(req, ctx, 'DELETE');
+export async function DELETE(req: NextRequest) {
+    return proxyRequest(req, 'DELETE');
 }
