@@ -33,6 +33,8 @@ export const metadata: Metadata = {
     },
 };
 
+const base_url = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
 export default async function RootLayout({
     children,
 }: Readonly<{
@@ -44,8 +46,11 @@ export default async function RootLayout({
     // If we are in development allow access to all routes
     if (!user || !await isLoggedIn()) {
         if(process.env.NODE_ENV == "production"){
-            console.log(headersList)
-            if (headersList.get("x-current-path") != '/login') {
+
+            // this prevents infinite redirect loops, its a workaround because once a user is redirected the referer header is set and next time it will not redirect
+            // its dumb but it works
+            if (headersList.get("Referer") != base_url + "/login") {
+                // If the user is not logged in, redirect to the login page
                 redirect('/login')
             }
 
