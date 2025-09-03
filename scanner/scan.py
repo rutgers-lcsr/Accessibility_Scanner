@@ -12,6 +12,9 @@ from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
 from utils.urls import get_full_url, get_netloc, get_site_netloc
 
+
+#TODO 
+# Add try catch around database report transactions to prevent site gettings stuck as scanning
 sites_done: set[str] = set()
 currently_processing: set[str] = set()
 
