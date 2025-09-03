@@ -49,6 +49,9 @@ jobs:
                   NEXT_CAS_CLIENT_SAML_TOLERANCE=${{ vars.NEXT_CAS_CLIENT_SAML_TOLERANCE }}
                   NEXT_CAS_CLIENT_SECRET=${{ secrets.NEXT_CAS_CLIENT_SECRET }}
                   EOF
+            - name: Copy env to accessibility-front
+              run: |
+                  cp .env accessibility-front/.env
 
             - name: build and deploy
               run: |
