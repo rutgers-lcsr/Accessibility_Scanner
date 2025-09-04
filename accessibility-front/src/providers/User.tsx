@@ -4,7 +4,6 @@ import { User } from '@/lib/types/user';
 import "@ant-design/v5-patch-for-react-19";
 import { login } from 'next-cas-client';
 import { createContext, ReactNode, useContext } from 'react';
-import { useAlerts } from './Alerts';
 
 type UserContextType = {
     handlerUserApiRequest: <T>(url: string, options?: RequestInit) => Promise<T>;
@@ -19,26 +18,6 @@ type UserProviderProps = {
 };
 
 export const UserProvider = ({ children,user }: UserProviderProps) => {
-    const { addAlert } = useAlerts();
-    // Set the user if a reload is done
-
-    const refreshLogin = async () => {
-        try {
-            
-            // need to fix this 
-
-            await handleRequest<{ access_token: string }>('/api/auth/refresh/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-            });
-        } catch {
-            addAlert('Failed to refresh login', 'error');
-            login();
-        }
-    };
 
     const handlerUserApiRequest = async function <T>(
         url: string,
@@ -76,9 +55,7 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
                 throw new Error("Unknown Error occured")    
             }
             if (error.response.status === 401) {
-                await refreshLogin();
-                // Need to get new state
-                return await doRequest();
+                login();
             }
             throw error;
         }

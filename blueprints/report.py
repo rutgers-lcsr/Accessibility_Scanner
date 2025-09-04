@@ -28,8 +28,10 @@ def get_reports():
         reports_q = reports_q.filter(Report.url.icontains(f"%{search}%"))
 
     if not current_user or not current_user.profile.is_admin:
-        
         reports_q = reports_q.filter(Report.public)
+    
+    if current_user and not current_user.profile.is_admin:
+        reports_q = reports_q.filter(Report.user_id == current_user.id)
 
     reports = reports_q.paginate(page=page, per_page=limit)
 
@@ -48,6 +50,10 @@ def get_report_by_id(report_id):
     if not current_user or not current_user.profile.is_admin:
         if not report.public:
             return jsonify({'error': 'Unauthorized'}), 403
+
+    if not report.user_id == current_user.id and not current_user.profile.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+
     return jsonify(report.to_dict()), 200
 
 @report_bp.route('/<int:report_id>/script/', methods=['GET'])
@@ -57,12 +63,8 @@ def get_report_script(report_id):
     if not report:
         return jsonify({'error': 'Report not found'}), 404
 
-        
     violation = report.report.get('violations', [])
-
-
     js_code = report_to_js(violation)
-
 
     return Response(js_code, mimetype='text/javascript')
 
@@ -76,6 +78,10 @@ def get_report_photo(report_id):
     if not current_user or not current_user.profile.is_admin:
         if not report.public:
             return jsonify({'error': 'Unauthorized'}), 403
+
+
+    if not report.user_id == current_user.id and not current_user.profile.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
 
     image = Image.open(io.BytesIO(report.photo))
 

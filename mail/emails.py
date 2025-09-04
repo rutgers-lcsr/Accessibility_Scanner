@@ -1,8 +1,11 @@
+from operator import or_
 from flask import Flask, render_template
 from flask_mail import Message
 from config import CLIENT_URL, DEBUG, JWT_SECRET_KEY, SITE_ADMINS, TESTING
 from mail import mail
 from models.report import Report
+from models.user import User
+from models import db
 from models.website import Website
 from datetime import datetime
 
@@ -34,8 +37,14 @@ class AdminNewWebsiteEmail(AccessEmails):
         super().__init__()
 
     def send(self):
+        admins = []
+        for admin in SITE_ADMINS:
+            user = db.session.query(User).filter(or_(User.username == admin, User.email == admin)).first()
+            if user:
+                admins.append(user)
+
         msg = Message("New Website Added",
-                      recipients=SITE_ADMINS)
+                      recipients=[admin.email for admin in admins])
 
         msg.html = render_template("emails/admin_new_website.html", website=self.website, client_url=self.client_url)
         self.msg = msg

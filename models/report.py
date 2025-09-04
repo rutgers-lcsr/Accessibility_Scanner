@@ -1,6 +1,7 @@
 from datetime import datetime
 from select import select
 from typing import List, TypedDict
+from sqlalchemy import LargeBinary
 from sqlalchemy.dialects.mysql import LONGBLOB
 
 from . import db
@@ -53,7 +54,7 @@ class Report(db.Model):
     videos: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     imgs: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     tabable: Mapped[bool] = db.Column(db.Boolean, nullable=False)
-    photo: Mapped[bytes] = db.Column(LONGBLOB, nullable=True)
+    photo: Mapped[bytes] = db.Column(LargeBinary(2**32 -1), nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -68,6 +69,20 @@ class Report(db.Model):
     @hybrid_property
     def public(self):
         return self.site.public if self.site else False
+
+    @hybrid_property
+    def user_id(self):
+        return self.site.user_id if self.site else None
+
+    @user_id.expression
+    def user_id(cls):
+        from sqlalchemy import select
+        from models.website import Site
+        return (
+            select(Site.user_id)
+            .where(Site.id == cls.site_id)
+            .scalar_subquery()
+        )
 
     @public.expression
     def public(cls):

@@ -1,5 +1,5 @@
 'use client';
-import { APIError, fetcherApi, handleRequest } from '@/lib/api';
+import { APIError, fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
 import { User } from '@/lib/types/user';
 import { Website } from '@/lib/types/website';
@@ -16,7 +16,7 @@ type WebsitesContextType = {
     isLoading: boolean;
     WebsitePage: number;
     WebsiteLimit: number;
-    requestWebsite: (url: string, should_email:boolean) => Promise<Website | null>;
+    requestWebsite: (url: string) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: number) => void;
@@ -43,14 +43,17 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode, user: User 
         router.push(`/websites?id=${id}`);
     };
 
-    const requestWebsite = async (url: string, should_email:boolean) => {
+    const requestWebsite = async (url: string) => {
         try {
-            const data = await handleRequest<Website>(`/api/websites/`, {
+
+            const getter = user ? handlerUserApiRequest<Website> : fetcherApi<Website>;
+
+            const data = await getter(`/api/websites/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ base_url: url, should_email: should_email }),
+                body: JSON.stringify({ base_url: url }),
             });
             addAlert('Website created successfully', 'success');
             mutate();

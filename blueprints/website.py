@@ -1,7 +1,9 @@
+import asyncio
 import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
+from blueprints.scan import conduct_scan_website, loop
 from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail
 from models.report import AxeReportCounts, Report
 from models.website import Domains, Site, Website 
@@ -14,7 +16,7 @@ website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
 @website_bp.route('/', methods=['POST'])
-@jwt_required(optional=True)
+@jwt_required()
 def create_website():
     """
     Create a new website.
@@ -85,12 +87,11 @@ def create_website():
 
         
     # check if user exists
-    if not current_user and should_email:
+    if not current_user:
         return jsonify({'error': 'User is not authenticated'}), 401
 
-    new_website = Website(url=base_url, email=current_user.email)
+    new_website = Website(url=base_url, email=current_user.email, user_id=current_user.id)
     new_website.domain = existing_domain
-    new_website.should_email = should_email and True
     
 
     db.session.add(new_website)
@@ -103,6 +104,10 @@ def create_website():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+    
+    website_url = f"https://{new_website.base_url}"
+
+    asyncio.run_coroutine_threadsafe(conduct_scan_website(website_url), loop)
 
     return jsonify(new_website.to_dict()), 201
 
@@ -329,6 +334,10 @@ def get_websites():
     if not current_user or not current_user.profile.is_admin:
         # make sure that non-admin users can only see public websites
         w_query = w_query.filter(Website.public == True)
+
+    if current_user and not current_user.profile.is_admin:
+        w_query = w_query.filter(Website.user_id == current_user.id)
+
     w = w_query.paginate(page=page, per_page=limit)
 
     return jsonify({
@@ -394,9 +403,12 @@ def get_website_sites(website_id):
     if not website:
         return jsonify({'error': 'Website not found'}), 404
 
+    if current_user:
+        if not current_user.profile.is_admin and website.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
     if not current_user or not current_user.profile.is_admin:
         # make sure that non-admin users can only see public websites
-        print(website.public)
         if not website.public:
             return jsonify({'error': 'Unauthorized'}), 403
 
@@ -430,6 +442,7 @@ def get_website_sites(website_id):
     }), 200
 
 @website_bp.route('/<int:website_id>/', methods=['GET'])
+@jwt_required(optional=True)
 def get_overall_website(website_id):
     """
     Get details for a specific website.
@@ -457,6 +470,10 @@ def get_overall_website(website_id):
     website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
+    
+    if current_user:
+        if not current_user.profile.is_admin and website.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
 
     return jsonify(website.to_dict()), 200
 

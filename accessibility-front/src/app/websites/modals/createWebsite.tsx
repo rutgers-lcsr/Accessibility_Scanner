@@ -2,14 +2,13 @@
 import { User } from '@/lib/types/user';
 import { useWebsites } from '@/providers/Websites';
 import '@ant-design/v5-patch-for-react-19';
-import { Button, Checkbox, Divider, Form, Input, Modal, Select, Space } from 'antd';
+import { Button, Form, Input, Modal, Select } from 'antd';
 import React, { useState } from 'react';
 
 const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
     const { requestWebsite } = useWebsites();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form] = Form.useForm();
-    const [shouldEmail, setShouldEmail] = useState(false);
 
     const showModal = () => {
         setIsModalOpen(true);
@@ -18,7 +17,7 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            await requestWebsite(values.protocol + values.websiteName, values.should_email);
+            await requestWebsite(values.protocol + values.websiteName);
 
             form.resetFields();
             setIsModalOpen(false);
@@ -43,7 +42,7 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
                 <Form
                     form={form}
                     layout="vertical"
-                    initialValues={{ protocol: 'https://', should_email: false }}
+                    initialValues={{ protocol: 'https://' }}
                 >
                     <Form.Item
                         label="Website Url"
@@ -60,44 +59,6 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
                             }
                             placeholder="cs.rutgers.edu"
                         />
-                    </Form.Item>
-                    <Divider />
-                    <Form.Item label="Notifications" style={{ marginBottom: 0 }}>
-                        <Space direction="vertical" size="small">
-                            <Form.Item name="should_email" valuePropName="checked" noStyle>
-                                <Checkbox onChange={(e) => setShouldEmail(e.target.checked)}>
-                                    Email me updates
-                                </Checkbox>
-                            </Form.Item>
-                            {/* <Form.Item
-                                name="email"
-                                style={{ marginBottom: 0 }}
-                                rules={[
-                                    ({ getFieldValue }) => ({
-                                        validator(_, value) {
-                                            if (!getFieldValue('should_email'))
-                                                return Promise.resolve();
-                                            if (!value)
-                                                return Promise.reject(
-                                                    new Error('Please enter your email')
-                                                );
-                                            if (!/^\S+@\S+\.\S+$/.test(value))
-                                                return Promise.reject(
-                                                    new Error('Invalid email address')
-                                                );
-                                            return Promise.resolve();
-                                        },
-                                    }),
-                                ]}
-                                hidden={!shouldEmail}
-                            >
-                                <Input
-                                    type="email"
-                                    placeholder="netid@rutgers.edu"
-                                    disabled={!shouldEmail}
-                                />
-                            </Form.Item> */}
-                        </Space>
                     </Form.Item>
                 </Form>
             </Modal>

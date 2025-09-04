@@ -45,7 +45,18 @@ class Site(db.Model):
         }
         return report
 
+    @hybrid_property
+    def user_id(self) -> int | None:
+        return self.website.user_id if self.website else None
 
+    @user_id.expression
+    def user_id(cls):
+        from sqlalchemy import select
+        return (
+            select(Website.user_id)
+            .where(Website.id == cls.website_id)
+            .scalar_subquery()
+        )
 
     @hybrid_property
     def public(self) -> bool:
@@ -117,6 +128,7 @@ class Website(db.Model):
     # Whether the website reports are public 
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -169,9 +181,10 @@ class Website(db.Model):
             'updated_at': self.updated_at.isoformat()
         }
 
-    def __init__(self, url, email=None):
+    def __init__(self, url, email=None, user_id=None):
         self.base_url =  get_netloc(url)
         self.email = email
+        self.user_id = user_id
 
     def __repr__(self):
         return f'<Website {self.base_url}>'
