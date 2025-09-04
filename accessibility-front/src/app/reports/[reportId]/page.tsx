@@ -17,6 +17,7 @@ import { User } from '@/lib/types/user';
 import { Card, Image } from 'antd';
 import { getCurrentUser } from 'next-cas-client/app';
 import HeaderLink from './components/HeaderLink';
+import SiteIframe from './components/SiteIframe';
 
 interface Props {
     reportId: string;
@@ -144,6 +145,9 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                 <Card>
                     <div className="mb-4 max-h-[300px] overflow-auto">
                         <Image src={report_photo_url} alt="Report Photo" className="rounded-lg" />
+                    </div>
+                    <div className="mb-4 rounded-lg bg-blue-50 p-4">
+                       <SiteIframe url={report.url} />
                     </div>
 
                     <div>
