@@ -150,7 +150,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         <h2 className="mb-4 text-2xl font-semibold">Inject Script</h2>
                         <p className="mb-2">
                             To view the accessibility issues directly on the webpage, inject the
-                            following script into the browser console while on the page you want to
+                            following script into the browser devtools <a href="https://developer.chrome.com/docs/devtools/console/" target="_blank" rel="noopener noreferrer">console</a> while on the page you want to
                             audit:
                         </p>
                     </div>

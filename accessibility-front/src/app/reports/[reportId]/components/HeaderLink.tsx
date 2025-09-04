@@ -1,27 +1,34 @@
 'use client';
 import { Button } from 'antd';
-import { useRouter } from 'next/navigation';
 interface Props {
     url: string;
 }
 
 export default function HeaderLink({ url }: Props) {
-    const router = useRouter();
+
+    const openLink = () => {
+        window.open(url, '_blank');
+    };
 
     return (
         <Button
             type="link"
             size="large"
-            onClick={() => router.push(url)}
+            onAuxClick={openLink}
+            onClick={openLink}
             style={{
                 color: 'inherit',
                 fontSize: 'inherit',
                 textWrap: 'wrap',
                 padding: 0,
                 margin: 0,
+                textDecoration: 'underline',
+                transition: 'color 0.3s',
+                
+
             }}
         >
-            {url}
+            {url.replace(/(^\w+:|^)\/\//, '')}
         </Button>
     );
 }

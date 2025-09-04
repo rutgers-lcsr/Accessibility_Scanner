@@ -1,4 +1,5 @@
 "use client"
+import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
 import { User } from '@/lib/types/user';
@@ -105,23 +106,13 @@ const Website = ({ websiteId, user }: Props) => {
         },
     ];
 
-    const handleWebsiteOpen = () => {
-        window.open('https://' + websiteReport.base_url);
-    };
 
     return (
         <div>
             <header className="mb-8">
                 <h1 className="mb-2 text-3xl font-extrabold">
                     Website Report for{' '}
-                    <span
-                        role="link"
-                        onAuxClick={handleWebsiteOpen}
-                        onClick={handleWebsiteOpen}
-                        className="cursor-pointer text-blue-700"
-                    >
-                        {websiteReport.base_url}
-                    </span>
+                    <HeaderLink url={`https://${websiteReport.base_url}`} />
                 </h1>
                 {user && user.is_admin && <AdminWebsiteItems website={websiteReport} mutate={mutate} />}
                 <h2 className="mb-4 text-lg text-gray-500">
