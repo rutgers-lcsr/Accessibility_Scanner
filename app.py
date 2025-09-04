@@ -1,6 +1,7 @@
 from multiprocessing import Process
 from flask import Flask
 from flask_cors import CORS
+from flask_migrate import Migrate
 import jwt
 from sqlalchemy import inspect
 from models import db
@@ -39,6 +40,7 @@ def create_app():
 
     mail.init_app(app)
     db.init_app(app)
+    migrate = Migrate(app, db)
     jwt.init_app(app)
     app.static_folder = 'static'
 

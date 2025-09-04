@@ -7,6 +7,7 @@ from models.report import Report
 from models.user import User
 from models import db
 from models.website import Website
+from models.user import Profile
 from datetime import datetime
 
 from scanner.log import log_message
@@ -37,14 +38,10 @@ class AdminNewWebsiteEmail(AccessEmails):
         super().__init__()
 
     def send(self):
-        admins = []
-        for admin in SITE_ADMINS:
-            user = db.session.query(User).filter(or_(User.username == admin, User.email == admin)).first()
-            if user:
-                admins.append(user)
+        adminsUsers = db.session.query(User).join(User.profile).filter(User.is_active==True, Profile.is_admin==True).all()
 
         msg = Message("New Website Added",
-                      recipients=[admin.email for admin in admins])
+                      recipients=[admin.email for admin in adminsUsers])
 
         msg.html = render_template("emails/admin_new_website.html", website=self.website, client_url=self.client_url)
         self.msg = msg

@@ -58,39 +58,46 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
     base_url = get_netloc(site_url)
     website_url = get_full_url(site_url)
     with app.app_context():
-        site = Site.query.filter_by(url=website_url).first()
-        if site is None:
-            site = Site(url=website_url, website_id=web.id)    
-        site.scanning = True
-        db.session.add(site)
-        db.session.commit()
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
-            log_message(f"Generating report for {website_url}", 'info')
-            report = await generate_report(browser, website=website_url)
-            await browser.close()
-
-            web = Website.query.filter_by(base_url=base_url).first()
-            if web is None:
-                web = Website(url=base_url)
-                db.session.add(web)
-
+        try:
             site = Site.query.filter_by(url=website_url).first()
             if site is None:
                 site = Site(url=website_url, website_id=web.id)
-            else: 
-                # make sure that the site is associated with the correct website
-                if site.website_id != web.id:
-                    site.website_id = web.id
-            report = Report(report, site_id=site.id)
-            site.reports.append(report)
-            site.last_scanned = db.func.current_timestamp()
-            site.scanning = False
-            db.session.add(report)
+            site.scanning = True
             db.session.add(site)
             db.session.commit()
-            
-        return report
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
+                log_message(f"Generating report for {website_url}", 'info')
+                report = await generate_report(browser, website=website_url)
+                await browser.close()
+
+                web = Website.query.filter_by(base_url=base_url).first()
+                if web is None:
+                    web = Website(url=base_url)
+                    db.session.add(web)
+
+                site = Site.query.filter_by(url=website_url).first()
+                if site is None:
+                    site = Site(url=website_url, website_id=web.id)
+                else: 
+                    # make sure that the site is associated with the correct website
+                    if site.website_id != web.id:
+                        site.website_id = web.id
+                report = Report(report, site_id=site.id)
+                site.reports.append(report)
+                site.last_scanned = db.func.current_timestamp()
+                site.scanning = False
+                db.session.add(report)
+                db.session.add(site)
+                db.session.commit()
+                
+            return report
+        finally:
+            site = Site.query.filter_by(url=website_url).first()
+            if site:
+                site.scanning = False
+                db.session.add(site)
+                db.session.commit()
 
 async def generate_reports(website: str = "https://resources.cs.rutgers.edu") -> List[AccessibilityReport]:
     
@@ -113,80 +120,84 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         db.session.add(web)
         db.session.commit()
             
-    
+    try:
+        accessibility = check_url(website)
+        if not accessibility:
+            log_message(f"Website {website} is not accessible, aborting scan", 'error')
+            return []
 
-    accessibility = check_url(website)
-    if not accessibility:
-        log_message(f"Website {website} is not accessible, aborting scan", 'error')
-        return []
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True,args=['--no-sandbox', '--disable-setuid-sandbox'],)
+            q = ListQueue()
+            await q.put(website)
+            # Launch N workers
+            num_workers = 10
+            workers = [
+                asyncio.create_task(process_website(i, browser, q, results,sites_done, currently_processing))
+                for i in range(num_workers)
+            ]
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True,args=['--no-sandbox', '--disable-setuid-sandbox'],)
-        q = ListQueue()
-        await q.put(website)
-        # Launch N workers
-        num_workers = 10
-        workers = [
-            asyncio.create_task(process_website(i, browser, q, results,sites_done, currently_processing))
-            for i in range(num_workers)
-        ]
+            # Wait until all items are processed
+            await q.join()
 
-        # Wait until all items are processed
-        await q.join()
-
-        # Stop workers
-        for _ in range(num_workers):
-            await q.put(None)
-        await asyncio.gather(*workers)
+            # Stop workers
+            for _ in range(num_workers):
+                await q.put(None)
+            await asyncio.gather(*workers)
+            
+        # save reports to database
+        with app.app_context():
+            # check if website exists
+            
+            web = Website.query.filter_by(base_url=base_url).first()
+            if web is None:
+                web = Website(url=website)
+                web.active = True
+                web.scanning = False
+                db.session.add(web)
         
-    # save reports to database
-    with app.app_context():
-        # check if website exists
-        
-        web = Website.query.filter_by(base_url=base_url).first()
-        if web is None:
-            web = Website(url=website)
-            web.active = True
-            web.scanning = False
-            db.session.add(web)
-    
-        log_message(f"Storing {len(results)} reports for {website}", 'info')
-        if not web.domain_id:
-            log_message(f"Warning website doesnt have an associated domain", 'warning')
+            log_message(f"Storing {len(results)} reports for {website}", 'info')
+            if not web.domain_id:
+                log_message(f"Warning website doesnt have an associated domain", 'warning')
 
-        sites = []
+            sites = []
 
-        for site_reports in results:
-            # check if site exists if not create one
-            site = db.session.query(Site).filter_by(url=site_reports['url']).first()
-            if site is None:
-                site = Site(url=site_reports['url'], website_id=web.id)
-                sites.append(site)
-            else: 
-                if site.website_id != web.id:
-                    site.website_id = web.id
-            report = Report(site_reports, site_id=site.id)
+            for site_reports in results:
+                # check if site exists if not create one
+                site = db.session.query(Site).filter_by(url=site_reports['url']).first()
+                if site is None:
+                    site = Site(url=site_reports['url'], website_id=web.id)
+                    sites.append(site)
+                else: 
+                    if site.website_id != web.id:
+                        site.website_id = web.id
+                report = Report(site_reports, site_id=site.id)
+
+                
+                site.reports.append(report)
+                site.last_scanned = db.func.current_timestamp()
+                db.session.add(report)
+                db.session.add(site)
 
             
-            site.reports.append(report)
-            site.last_scanned = db.func.current_timestamp()
-            db.session.add(report)
-            db.session.add(site)
+            web.last_scanned = db.func.current_timestamp()
+            # add sites to website if site didnt exist
+            web.sites.extend(sites)
+            web.scanning = False
+            db.session.add(web)
+            db.session.commit()        
+            
+            website = db.session.get(Website, web.id)
 
-        
-        web.last_scanned = db.func.current_timestamp()
-        # add sites to website if site didnt exist
-        web.sites.extend(sites)
-        web.scanning = False
-        db.session.add(web)
-        db.session.commit()        
-        
-        website = db.session.get(Website, web.id)
-
-        ScanFinishedEmail(website).send()
-
-    return results
-
+            ScanFinishedEmail(website).send()
+            return results
+    finally:
+        with app.app_context():
+            web = Website.query.filter_by(base_url=base_url).first()
+            if web:
+                web.scanning = False
+                db.session.add(web)
+                db.session.commit()
 def run_scan_site(site :str ="https://resources.cs.rutgers.edu"):
     asyncio.run(generate_single_site_report(site))
 
