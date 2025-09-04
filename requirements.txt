@@ -13,3 +13,4 @@ schedule
 gunicorn
 flasgger
 mariadb
+Flask_Migrate
