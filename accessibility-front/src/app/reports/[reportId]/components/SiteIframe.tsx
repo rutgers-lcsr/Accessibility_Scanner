@@ -2,39 +2,40 @@
 
 import { useEffect, useRef } from "react";
 
+
 type Props = {
   url: string
-  script?: string
 }
 
-function SiteIframe({ url, script }: Props) {
-    const iframeRef = useRef<HTMLIFrameElement | null>(null);
+function SiteIframe({ url }: Props) {
 
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-    useEffect(() => {
-        if (iframeRef.current) {
-            const handleLoad = () => {
-                const iframe = iframeRef.current;
-                if (!iframe) return;
-                const doc = iframe?.contentDocument || iframe.contentWindow?.document;
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check Ctrl + Shift + K
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "k") {
+        iframeRef.current?.childNodes.forEach((node) => {
+          if (node instanceof HTMLElement) {
+            node.focus();
+          }
+        });
+        iframeRef.current?.contentWindow?.focus();
+        iframeRef.current?.style.setProperty("outline", "2px solid blue");
+        console.log("Ctrl + Shift + K pressed");
+        console.log(iframeRef.current);
 
-                if (doc) {
-                    const accessScriptElement = doc.createElement("script");
-                    accessScriptElement.src = "https://localhost:3000/api/reports/1/script/";
-                    doc.body.appendChild(accessScriptElement);
-                }
-                };
+      }
+      console.log(event.ctrlKey, event.shiftKey, event.key);
+    };
 
-            iframeRef.current.addEventListener("load", handleLoad);
-            return () => {
-                iframeRef.current?.removeEventListener("load", handleLoad);
-            };
-        }
-    }, [url, script]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <div>
-      <iframe ref={iframeRef} src={url} title="Website Preview" className="h-96 w-full rounded-lg border" security="restricted"/>
+       <iframe tabIndex={-1} ref={iframeRef} src={url} title="Website Preview" className="w-full min-h-[500px]"/>
     </div>
   )
 }

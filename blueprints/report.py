@@ -64,7 +64,7 @@ def get_report_script(report_id):
         return jsonify({'error': 'Report not found'}), 404
 
     violation = report.report.get('violations', [])
-    js_code = report_to_js(violation)
+    js_code = report_to_js(violation, report.url)
 
     return Response(js_code, mimetype='text/javascript')
 

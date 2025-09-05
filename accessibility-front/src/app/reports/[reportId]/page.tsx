@@ -64,6 +64,10 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
 
     const report_photo_url = `/api/reports/${reportId}/photo/`;
 
+
+
+
+
     return (
         <Content>
             <Content role="main" className="mb-2">
@@ -143,19 +147,18 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
             </Content>
             <Content className="mb-2">
                 <Card>
-                    <div className="mb-4 max-h-[300px] overflow-auto">
-                        <Image src={report_photo_url} alt="Report Photo" className="rounded-lg" />
+                    <h1 className="mb-4 text-2xl font-semibold">Website Preview</h1>
+                    <div className='mb-4 rounded-lg border max-h-[500px] overflow-auto w-full hover:shadow-lg transition-shadow'>
+                        <SiteIframe url={report.url} />
+                        {/* <iframe src={report.url} title="Website Preview" className="w-full min-h-[500px]"/> */}
                     </div>
-                    <div className="mb-4 rounded-lg bg-blue-50 p-4">
-                       <SiteIframe url={report.url} />
-                    </div>
-
                     <div>
                         <h2 className="mb-4 text-2xl font-semibold">Inject Script</h2>
                         <p className="mb-2">
-                            To view the accessibility issues directly on the webpage, inject the
-                            following script into the browser devtools <a href="https://developer.chrome.com/docs/devtools/console/" target="_blank" rel="noopener noreferrer">console</a> while on the page you want to
-                            audit:
+                            To highlight accessibility issues on the webpage, copy and paste the script below into your browser's <a href="https://developer.chrome.com/docs/devtools/console/" target="_blank" rel="noopener noreferrer">DevTools Console</a>.<br />
+                            <span className="block mt-1 text-gray-500 text-sm">
+                                Tip: Open DevTools with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd> (or <kbd>F12</kbd>), then go to the Console tab. Make sure the <span className="font-semibold">preview element</span> is focused. You may have to type allow pasting into the console.
+                            </span>
                         </p>
                     </div>
                     <Console
@@ -165,6 +168,15 @@ accessScriptElement.src = '${report_script_full_url}';
 document.body.appendChild(accessScriptElement);`}
                     />
                 </Card>
+                <div className="mt-2">
+                    <Card>
+                        <h2 className="my-4 text-2xl font-semibold">Report Photo</h2>
+                            <div className='max-h-[300px] overflow-auto'>
+                                <Image src={report_photo_url} alt="Report Photo" className="rounded-lg" />
+                            </div>
+                    </Card>
+                </div>
+
 
                 <div className="mt-2">
                     <Card>
@@ -190,5 +202,6 @@ document.body.appendChild(accessScriptElement);`}
         </Content>
     );
 }
+
 
 export default Report;
