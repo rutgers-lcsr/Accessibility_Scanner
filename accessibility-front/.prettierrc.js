@@ -1,6 +1,7 @@
-import { Config } from "prettier";
+import tailwindcssPlugin from 'prettier-plugin-tailwindcss';
 
-const config: Config =  {
+
+const config = {
     htmlWhitespaceSensitivity: 'strict',
     semi: true, // always add semicolons
     singleQuote: true, // use single quotes instead of double
@@ -11,7 +12,7 @@ const config: Config =  {
     bracketSpacing: true, // add space inside object brackets
     arrowParens: 'always', // always include parens for arrow functions
     endOfLine: 'lf', // enforce LF line endings
-    plugins: [require.resolve('prettier-plugin-tailwindcss'), require.resolve('prettier-plugin-organize-imports')], // if using Tailwind
+    plugins: [tailwindcssPlugin], // if using Tailwind
 
 };
 
