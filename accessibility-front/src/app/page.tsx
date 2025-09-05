@@ -1,4 +1,5 @@
 'use client';
+import ResourceCard from '@/components/Resource';
 import { Card, Divider, List, Typography } from 'antd';
 import { Content, Header } from 'antd/es/layout/layout';
 import Head from 'next/head';
@@ -10,7 +11,7 @@ export default function Home() {
                 <title>LCSR Accessibility Audit Tool</title>
             </Head>
             <Header />
-            <Content className="mx-auto max-w-3xl p-6" role="main">
+            <Content className="mx-auto p-6" role="main">
                 <Card variant="borderless" style={{ marginTop: 24 }}>
                     <Typography.Title level={2}>CS Accessibility Audit Tool</Typography.Title>
                     <Typography.Paragraph>
@@ -31,15 +32,36 @@ export default function Home() {
                     />
                     <Divider />
                     <Typography.Title level={4}>Support & Resources</Typography.Title>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 max-w-4xl">
+                        <ResourceCard
+                            title="Rutgers Accessibility website"
+                            description="University-wide accessibility policies, training, and guides."
+                            link="https://accessibility.rutgers.edu/"
+                        />
+                        <ResourceCard
+                            title="Canvas Accessibility Resources"
+                            description="Resources and guidelines for making Canvas courses accessible."
+                            link="https://canvas.rutgers.edu/canvas-help/accessibility/"
+                        />
+                        <ResourceCard
+                            title="Rutgers Digital Accessibility Course Content Standards"
+                            description="Minimum Accessibility Standards at the university."
+                            link="https://it.rutgers.edu/digital-accessibility/course-content-bronze/"
+                        />
+                        <ResourceCard
+                            title="SensusAccess"
+                            description="Tool to convert documents into accessible formats."
+                            link="https://it.rutgers.edu/digital-accessibility/knowledgebase/sensusaccess/"
+                        />
+                    </div>
+                    <Divider />
+                    
+                    <Typography.Title level={4}>Additional Help</Typography.Title>
                     <Typography.Paragraph>
-                        For technical help, email{' '}
-                        <a href="mailto:help@cs.rutgers.edu">help@cs.rutgers.edu</a>.<br />
-                        For university-wide accessibility policies, training, and guides, visit the{' '}
-                        <a href="https://accessibility.rutgers.edu/">
-                            Rutgers Accessibility website
-                        </a>
-                        .
+                        For technical assistance, contact the LCSR at{' '}
+                        <a href="mailto:help@cs.rutgers.edu">help@cs.rutgers.edu</a>.
                     </Typography.Paragraph>
+                    
                 </Card>
             </Content>
         </>

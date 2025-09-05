@@ -112,7 +112,7 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     with app.app_context():
         
         # Check if website exists if not create one, and set scanning to true
-        web = Website.query.filter_by(base_url=base_url).first()
+        web = Website.query.filter_by(entry_url=website).first()
         if web is None:
             web = Website(url=website)
             web.active = True
