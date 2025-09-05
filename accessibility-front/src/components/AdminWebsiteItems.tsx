@@ -251,7 +251,7 @@ function AdminWebsiteItems({ website, mutate }: Props) {
                 <div className="">
                     <Button
                         type={website.public ? 'default' : 'primary'}
-                        loading={loadingShouldEmail}
+                        loading={loadingPublic}
                         onClick={() => handleChangePublic(!website.public)}
                     >
                         {website.public ? 'Disable Public Access' : 'Enable Public Access'}

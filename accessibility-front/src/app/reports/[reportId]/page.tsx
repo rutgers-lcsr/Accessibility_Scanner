@@ -19,13 +19,8 @@ import { getCurrentUser } from 'next-cas-client/app';
 import HeaderLink from './components/HeaderLink';
 import SiteIframe from './components/SiteIframe';
 
-interface Props {
-    reportId: string;
-}
-
 // The reason this is a server component and the rest of them are not, is that all of them should have been really :0
 export const getReport = async (reportId: string) => {
-    const headerList = await headers();
     // need to forward the request as if we are the user
     // Theres an isssue with headers for some reason out of out control. the type is messed up
 
@@ -155,7 +150,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                     <div>
                         <h2 className="mb-4 text-2xl font-semibold">Inject Script</h2>
                         <p className="mb-2">
-                            To highlight accessibility issues on the webpage, copy and paste the script below into your browser's <a href="https://developer.chrome.com/docs/devtools/console/" target="_blank" rel="noopener noreferrer">DevTools Console</a>.<br />
+                            To highlight accessibility issues on the webpage, copy and paste the script below into your browser&apos;s <a href="https://developer.chrome.com/docs/devtools/console/" target="_blank" rel="noopener noreferrer">DevTools Console</a>.<br />
                             <span className="block mt-1 text-gray-500 text-sm">
                                 Tip: Open DevTools with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd> (or <kbd>F12</kbd>), then go to the Console tab. Make sure the <span className="font-semibold">preview element</span> is focused. You may have to type allow pasting into the console.
                             </span>

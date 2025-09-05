@@ -47,7 +47,7 @@ async function proxyRequest(req: NextRequest, method: string) {
             status: res.status,
             headers: res.headers,
         });
-    }catch (error) {
+    }catch {
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
