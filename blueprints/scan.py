@@ -62,13 +62,13 @@ def scan_website():
             website = db.session.get(Website, website_id)
             if not website:
                 return {"error": "Invalid website URL"}, 400
-            website_url = f"https://{website.base_url}"
+            
 
             # Check if scan is active
             if website.scanning:
                 return {"error": "Scan already in progress"}, 409
 
-            asyncio.run_coroutine_threadsafe(conduct_scan_website(website_url), loop)
+            asyncio.run_coroutine_threadsafe(conduct_scan_website(website.url), loop)
             return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status/?website={website_id}"}), 202
 
         if site:

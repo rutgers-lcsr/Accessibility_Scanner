@@ -58,6 +58,7 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
                                 </Form.Item>
                             }
                             placeholder="cs.rutgers.edu"
+                            onPressEnter={handleSubmit}
                         />
                     </Form.Item>
                 </Form>

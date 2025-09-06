@@ -126,7 +126,7 @@ var header = `****** Accessibility Scanner Report Script ******`
 console.log(header)
 
 const currentUrl = window.location.href;
-var accesslog = (message, level = "info", args = []) => {{
+var accesslog = (message, level = "info", ...args) => {{
     console.log(`[Access] [${{level}}]: ${{message}}`, ...args);
 }};
 if(currentUrl.includes(`{report_url}`)) {{

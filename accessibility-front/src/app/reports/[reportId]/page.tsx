@@ -143,7 +143,16 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
             <Content className="mb-2">
                 <Card>
                     <h1 className="mb-4 text-2xl font-semibold">Website Preview</h1>
-                    <div className='mb-4 rounded-lg border max-h-[500px] overflow-auto w-full hover:shadow-lg transition-shadow'>
+                    <div className='mb-4 rounded-lg border max-h-[500px] overflow-auto w-full hover:shadow-lg transition-shadow relative'>
+                        <div className='right-1 top-0 p-2 absolute'>
+                            <Console
+                        label="Accessibility Report Script"
+                        command={`var accessScriptElement = document.createElement('script');
+accessScriptElement.src = '${report_script_full_url}';
+document.body.appendChild(accessScriptElement);`}
+mini
+                    />
+                        </div>
                         <SiteIframe url={report.url} />
                         {/* <iframe src={report.url} title="Website Preview" className="w-full min-h-[500px]"/> */}
                     </div>
@@ -173,7 +182,7 @@ document.body.appendChild(accessScriptElement);`}
                 </div>
 
 
-                <div className="mt-2">
+              {report.report.violations.length > 0 &&  <div className="mt-2">
                     <Card>
                         <div>
                             <h2 className="mb-4 text-2xl font-semibold">Accessibility Issues</h2>
@@ -190,7 +199,7 @@ document.body.appendChild(accessScriptElement);`}
                             ))}
                         </div>
                     </Card>
-                </div>
+                </div>}
             </Content>
 
             {/* <pre>{JSON.stringify(report, null, 2)}</pre> */}

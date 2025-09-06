@@ -7,6 +7,7 @@ from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
 from models.report import AxeReportCounts, Report, ReportMinimized
+from models.user import User
 from scanner.accessibility.ace import AxeReportKeys
 from utils.urls import get_netloc, is_valid_url
 
@@ -21,14 +22,21 @@ class SiteDict(TypedDict):
     created_at: str
     updated_at: str
 
+Site_Website_Assoc = db.Table(
+    'site_website_assoc',
+    db.Column('site_id', db.Integer, db.ForeignKey('site.id'), primary_key=True),
+    db.Column('website_id', db.Integer, db.ForeignKey('website.id'), primary_key=True)
+)
+
+
 class Site(db.Model):
     __tablename__ = 'site'
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     url: Mapped[str] = db.Column(db.String(500), nullable=False)
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
-    website_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('website.id'))
-    reports: Mapped[List[Report]] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
+    websites: Mapped[List['Website']] = db.relationship('Website', secondary=Site_Website_Assoc, back_populates='sites', lazy='dynamic')
+    reports: Mapped[List['Report']] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
@@ -47,7 +55,7 @@ class Site(db.Model):
 
     @hybrid_property
     def user_id(self) -> int | None:
-        return self.website.user_id if self.website else None
+        return self.websites
 
     @user_id.expression
     def user_id(cls):
@@ -80,7 +88,7 @@ class Site(db.Model):
             'id': self.id,
             'url': self.url,
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
-            'website_id': self.website_id,
+            'websites': [website.id for website in self.websites],
             'reports': [{
                 'id': report.id,
                 'report_counts': report.report_counts,
@@ -93,11 +101,19 @@ class Site(db.Model):
             'updated_at': self.updated_at.isoformat()
         }
 
-    def __init__(self, url, website_id):
+    def __init__(self, url, website:'Website' =None):
         if not is_valid_url(url):
             raise ValueError("Invalid URL")
+
+        self_check = db.session.query(Site).filter_by(url=url).first()
+        if self_check:
+            raise ValueError("Site already exists")
+
         self.url = url
-        self.website_id = website_id
+        if website:
+            if website not in self.websites:
+                self.websites.append(website)
+        
 
 class WebsiteDict(TypedDict,total=False):
     id: int
@@ -115,15 +131,13 @@ class WebsiteDict(TypedDict,total=False):
 class Website(db.Model):
     __tablename__ = 'website'
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    base_url: Mapped[str] = db.Column(db.String(255), nullable=False)
-    domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'),)
-    # domain: Mapped['Domains'] = db.relationship('Domains', backref='websites', lazy=True)
-    sites: Mapped[List['Site']] = db.relationship('Site', backref='website', lazy='dynamic', cascade="all, delete-orphan")
+    url: Mapped[str] = db.Column(db.String(500), nullable=True)
+    domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=False)
+    sites: Mapped[List['Site']] = db.relationship('Site', secondary=Site_Website_Assoc, back_populates='websites', lazy='dynamic')
     last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
     # Rate limiting the automatic scanning, in days
     rate_limit: Mapped[int] = db.Column(db.Integer, default=30)
     active: Mapped[bool] = db.Column(db.Boolean, default=False)
-    email: Mapped[str] = db.Column(db.String(255), nullable=True)
     should_email: Mapped[bool] = db.Column(db.Boolean, default=True)
     # Whether the website reports are public 
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -133,14 +147,6 @@ class Website(db.Model):
     updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
 
-    @hybrid_method
-    def is_active(self) -> bool:
-        # website is active if a domain doesnt exist and the website is active, or if a domain exists and is active
-        return (self.domain and self.domain.active and self.active) or (not self.domain and self.active)
-
-    @is_active.expression
-    def is_active(cls):
-        return (cls.domain.has(Domains.active == True) & cls.active) | (cls.domain == None & cls.active)
 
     @hybrid_method
     def get_report_counts(self) -> AxeReportCounts | None:
@@ -167,41 +173,133 @@ class Website(db.Model):
     def to_dict(self)-> WebsiteDict:
         return {
             'id': self.id,
-            'base_url': self.base_url,
+            'url': self.url,
             'sites': [site.id for site in self.sites.with_entities(Site.id).all()],
             'domain_id': self.domain_id,
-            'email': self.email,
+            'email': self.user.email,
             'should_email': self.should_email,
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'report_counts': self.get_report_counts(),
-            'active': self.is_active(),
+            'active': self.active,
             'rate_limit': self.rate_limit,
             'public': self.public,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
 
-    def __init__(self, url, email=None, user_id=None):
-        self.base_url =  get_netloc(url)
-        self.email = email
+    def __init__(self, url:str, user_id:int=None):
+        if not is_valid_url(url):
+            raise ValueError("Invalid URL")
+
+        # check if website exists
+        website_check = db.session.query(Website).filter_by(url=url).first()
+        if website_check:
+            raise ValueError("Website already exists")
+        
+        # check if user exists
+        user_check = db.session.query(User).filter_by(id=user_id).first()
+        if not user_check:
+            raise ValueError("User does not exist")
+
+        website_domain = get_netloc(url)
+        # make sure a domain exist that is active
+        parent_domain = (
+            db.session.query(Domain)
+            .filter(func.lower(func.trim(website_domain)).endswith(func.lower(func.trim(Domain.domain))))
+            .filter(Domain.active == True)
+            .order_by(func.length(Domain.domain).desc())
+            .first()
+        )
+        if not parent_domain:
+            raise ValueError("No active parent domain found, an administrator must add it first")
+
+        # find associated subdomain if it exists 
+        subdomain_obj = db.session.query(Domain).filter_by(domain=website_domain).first()
+        if subdomain_obj is None:
+            # create a subdomain if it doesnt exist
+            subdomain_obj = Domain(domain=website_domain)
+            db.session.add(subdomain_obj)
+
+        self.url = url
         self.user_id = user_id
+        self.domain = subdomain_obj
+
+
+    def delete(self, delete_domain: bool = True):
+
+        for site in self.sites:
+            websites = site.websites.all()
+            if len(websites) <= 1:
+                db.session.delete(site)
+                Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == site.id)
+            else:
+                site.websites.remove(self)
+                db.session.add(site)
+
+        if delete_domain and len(self.domain.websites) <= 1:
+            self.domain.delete()
+
+        Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id)
+
+        db.session.delete(self)
+        db.session.commit()
 
     def __repr__(self):
-        return f'<Website {self.base_url}>'
+        return f'<Website {self.url}>'
 
 
 # Domains can only be created by the admins
-class Domains(db.Model):
+class Domain(db.Model):
     __tablename__ = 'domains'
     id = db.Column(db.Integer, primary_key=True)
-    domain = db.Column(db.String(200), nullable=False)
-    parent_id = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=True)
-    parent = db.relationship('Domains', remote_side=[id], backref='subdomains', lazy=True, post_update=True)
-    websites = db.relationship('Website', backref='domain', lazy=True, cascade="all, delete-orphan")
-    active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    parent_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=True)
+    parent: Mapped['Domain'] = db.relationship('Domain', remote_side=[id], backref='children', lazy=True, post_update=True)
+    domain: Mapped[str] = db.Column(db.String(200), nullable=False)
+    websites: Mapped[List['Website']] = db.relationship('Website', backref='domain', lazy=True, cascade="all, delete-orphan")
+    active: Mapped[bool] = db.Column(db.Boolean, default=True)
+    created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+
+    def __init__(self, domain:str):
+        if not is_valid_url(f"http://{domain}"):
+            raise ValueError("Invalid domain")
+
+
+        domain_check = db.session.query(Domain).filter_by(domain=domain).first()
+        if domain_check:
+            raise ValueError("Domain already exists")
+
+        subdomains = db.session.query(Domain).filter(Domain.domain.endswith(domain)).all()
+        if len(subdomains) > 0:
+            # all these domains need to be made into subdomains
+            for subdomain in subdomains:
+                if subdomain.parent and len(subdomain.parent.domain) > len(domain):
+                    # if the parent domain is longer than the current domain, skip it
+                    # that means the parent domain is a subdomain of the current domain
+                    continue
+
+                subdomain.parent = self
+                db.session.add(subdomain)                 
+
+        self.domain = domain
+
+        # find parent
+        domains = db.session.query(Domain).filter(func.cast(domain, db.String).contains(Domain.domain), Domain.domain != domain).order_by(func.length(Domain.domain).desc()).first()
+        if domains:
+            if domains.domain != domain:
+                self.parent = domains
     
+    def delete(self):
+        if self.parent:
+            for child in self.children:
+                child.parent = self.parent
+                db.session.add(child)
+        for website in self.websites:
+            website.delete(delete_domain=False)
+        db.session.delete(self)
+        db.session.commit()
+
     @hybrid_method
     def part_of_domain(self, url):
         try:
@@ -211,11 +309,20 @@ class Domains(db.Model):
        
         return netloc.endswith(self.domain)
 
+    def deactivate(self):
+        self.active = False
+        for website in self.websites:
+            website.deactivate()
+        for child in self.children:
+            child.deactivate()
+        db.session.commit()
+
     def to_dict(self):
         return {
             'id': self.id,
             'domain': self.domain,
             'parent': self.parent.to_dict() if self.parent else None,
+            'websites': [website.id for website in self.websites],
             'active': self.active,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()

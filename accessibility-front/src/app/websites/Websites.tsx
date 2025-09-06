@@ -14,8 +14,8 @@ type Props = {
 const columns = [
     {
         title: 'URL',
-        dataIndex: 'base_url',
-        key: 'base_url',
+        dataIndex: 'url',
+        key: 'url',
         render: (text: string, record: WebsiteType) => (
             <a href={`/websites/${record.id}`}>{text}</a>
         ),
