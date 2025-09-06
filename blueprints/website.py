@@ -300,15 +300,12 @@ def get_websites():
         .group_by(Report.site_id)
         .subquery()
     )
-    site_subq = (
-        db.session.query(Site.id).join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Site.id).filter(Site_Website_Assoc.c.website_id == Website.id).scalar_subquery()
-    )
-
 
     # Query all websites, left join to sites and reports (so websites with no sites/reports are included)
     w_query = (
         db.session.query(Website)
-        .outerjoin(Site, site_subq)
+        .outerjoin(Site_Website_Assoc, Site_Website_Assoc.c.website_id == Website.id)
+        .outerjoin(Site, Site.id == Site_Website_Assoc.c.site_id)
         .outerjoin(Report, Report.site_id == Site.id)
         .outerjoin(
             latest_report_subq,
