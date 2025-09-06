@@ -146,7 +146,19 @@ export async function GET(req: NextRequest) {
     const { renderToString } = await import('react-dom/server');
 
     try {
-        const response = await fetch(url);
+        const requestHeaders = new Headers();
+        requestHeaders.set('User-Agent', req.headers.get('User-Agent') || 'Mozilla/5.0');
+        requestHeaders.set(
+            'Accept-Language',
+            req.headers.get('Accept-Language') || 'en-US,en;q=0.9'
+        );
+        requestHeaders.set('Accept', req.headers.get('Accept') || '*/*');
+        requestHeaders.set('Origin', req.headers.get('Origin') || url);
+
+        const response = await fetch(url, {
+            headers: requestHeaders,
+            redirect: 'follow',
+        });
 
         if (!response.ok) {
             return new NextResponse(renderToString(proxyError(response.status)), {
