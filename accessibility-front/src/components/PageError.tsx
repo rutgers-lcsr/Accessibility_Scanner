@@ -28,5 +28,4 @@ const PageError: React.FC<PageErrorProps> = ({
         }
     />
 );
-
 export default PageError;

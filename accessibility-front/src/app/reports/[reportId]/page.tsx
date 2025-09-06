@@ -13,9 +13,11 @@ import { headers } from 'next/headers';
 import AdminReportItems from '@/components/AdminReportItems';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
+import PageLoading from '@/components/PageLoading';
 import { User } from '@/lib/types/user';
 import { Card, Image } from 'antd';
 import { getCurrentUser } from 'next-cas-client/app';
+import { Suspense } from 'react';
 import HeaderLink from './components/HeaderLink';
 import SiteIframe from './components/SiteIframe';
 
@@ -24,12 +26,12 @@ export const getReport = async (reportId: string) => {
     // need to forward the request as if we are the user
     // Theres an isssue with headers for some reason out of out control. the type is messed up
 
-    const user = await getCurrentUser<User>()
+    const user = await getCurrentUser<User>();
 
     const options = {
         headers: user && {
-            'Authorization': `Bearer ${user.access_token || ''}`
-        }
+            Authorization: `Bearer ${user.access_token || ''}`,
+        },
     };
 
     const response = await fetch(
@@ -58,10 +60,6 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const report_script_full_url = `https://${host}/api/reports/${reportId}/script/`;
 
     const report_photo_url = `/api/reports/${reportId}/photo/`;
-
-
-
-
 
     return (
         <Content>
@@ -143,25 +141,47 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
             <Content className="mb-2">
                 <Card>
                     <h1 className="mb-4 text-2xl font-semibold">Website Preview</h1>
-                    <div className='mb-4 rounded-lg border max-h-[500px] overflow-auto w-full hover:shadow-lg transition-shadow relative'>
-                        <div className='right-1 top-0 p-2 absolute'>
+                    <div className="mb-4 rounded-lg border max-h-[700px] overflow-auto w-full hover:shadow-lg transition-shadow relative">
+                        <div className="right-1 top-0 p-2 absolute">
                             <Console
-                        label="Accessibility Report Script"
-                        command={`var accessScriptElement = document.createElement('script');
+                                label="Accessibility Report Script"
+                                command={`var accessScriptElement = document.createElement('script');
 accessScriptElement.src = '${report_script_full_url}';
 document.body.appendChild(accessScriptElement);`}
-mini
-                    />
+                                mini
+                            />
                         </div>
-                        <SiteIframe url={report.url} />
-                        {/* <iframe src={report.url} title="Website Preview" className="w-full min-h-[500px]"/> */}
+                        <Suspense
+                            fallback={
+                                <div className="h-[500px] flex items-center justify-center">
+                                    <PageLoading />
+                                </div>
+                            }
+                        >
+                            <SiteIframe
+                                url={'/proxy?url=' + report.url + '&reportId=' + report.id}
+                            />
+                        </Suspense>
                     </div>
                     <div>
                         <h2 className="mb-4 text-2xl font-semibold">Inject Script</h2>
                         <p className="mb-2">
-                            To highlight accessibility issues on the webpage, copy and paste the script below into your browser&apos;s <a href="https://developer.chrome.com/docs/devtools/console/" target="_blank" rel="noopener noreferrer">DevTools Console</a>.<br />
+                            To highlight accessibility issues on the webpage, go to the webpage and
+                            copy and paste the script below into your browser&apos;s{' '}
+                            <a
+                                href="https://developer.chrome.com/docs/devtools/console/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                DevTools Console
+                            </a>
+                            .<br />
                             <span className="block mt-1 text-gray-500 text-sm">
-                                Tip: Open DevTools with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>K</kbd> (or <kbd>F12</kbd>), then go to the Console tab. Make sure the <span className="font-semibold">preview element</span> is focused. You may have to type allow pasting into the console.
+                                Tip: Open DevTools with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> +{' '}
+                                <kbd>K</kbd> (or <kbd>F12</kbd>), then go to the Console tab. You
+                                may have to type{' '}
+                                <span className="font-semibold">allow pasting</span> into the
+                                console.
                             </span>
                         </p>
                     </div>
@@ -175,37 +195,43 @@ document.body.appendChild(accessScriptElement);`}
                 <div className="mt-2">
                     <Card>
                         <h2 className="my-4 text-2xl font-semibold">Report Photo</h2>
-                            <div className='max-h-[300px] overflow-auto'>
-                                <Image src={report_photo_url} alt="Report Photo" className="rounded-lg" />
-                            </div>
+                        <div className="max-h-[300px] overflow-auto">
+                            <Image
+                                src={report_photo_url}
+                                alt="Report Photo"
+                                className="rounded-lg"
+                            />
+                        </div>
                     </Card>
                 </div>
 
-
-              {report.report.violations.length > 0 &&  <div className="mt-2">
-                    <Card>
-                        <div>
-                            <h2 className="mb-4 text-2xl font-semibold">Accessibility Issues</h2>
-                            <p className="mb-2">
-                                The following accessibility issues were found on the page:
-                            </p>
-                        </div>
-                        <div className="mt-4">
-                            {report.report.violations.map((violation, index) => (
-                                <AuditAccessibilityItem
-                                    key={index}
-                                    accessibilityResult={violation}
-                                />
-                            ))}
-                        </div>
-                    </Card>
-                </div>}
+                {report.report.violations.length > 0 && (
+                    <div className="mt-2">
+                        <Card>
+                            <div>
+                                <h2 className="mb-4 text-2xl font-semibold">
+                                    Accessibility Issues
+                                </h2>
+                                <p className="mb-2">
+                                    The following accessibility issues were found on the page:
+                                </p>
+                            </div>
+                            <div className="mt-4">
+                                {report.report.violations.map((violation, index) => (
+                                    <AuditAccessibilityItem
+                                        key={index}
+                                        accessibilityResult={violation}
+                                    />
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+                )}
             </Content>
 
             {/* <pre>{JSON.stringify(report, null, 2)}</pre> */}
         </Content>
     );
 }
-
 
 export default Report;
