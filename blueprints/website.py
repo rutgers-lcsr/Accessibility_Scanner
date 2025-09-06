@@ -322,7 +322,7 @@ def get_websites():
         .distinct()
     )
     if search:
-        w_query = w_query.filter(Website.base_url.icontains(f"%{search}%"))
+        w_query = w_query.filter(Website.url.icontains(f"%{search}%"))
 
     if not current_user or not current_user.profile.is_admin:
         # make sure that non-admin users can only see public websites

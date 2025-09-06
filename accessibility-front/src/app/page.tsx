@@ -23,8 +23,9 @@ export default function Home() {
                     <Typography.Title level={4}>How to Use</Typography.Title>
                     <List
                         dataSource={[
-                            'Add or request a CS department website for audit using the menu.',
-                            'An Admin will review the request and initiate the audit process.',
+                            'Request a website.',
+                            'An administrator will review the request and initiate the audit process.',
+                            'You will receive an email with a link to the audit report once it is complete.',
                             'Fix issues flagged in the report.',
                             'Contact CS support for technical help or questions.',
                         ]}

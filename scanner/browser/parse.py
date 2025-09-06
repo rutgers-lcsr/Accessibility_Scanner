@@ -19,7 +19,7 @@ def get_link_js(website):
                 return '{website}' + l;
             }}
             return l;
-        }}).filter(l => !/(.png|.jpg|.jpeg|.gif|.svg|.zip|.mp4|.webm|.pdf|.doc|.docx|.xls|.xlsx)$/.test(l))
+        }}).filter(l => !/(.png|.jpg|.jpeg|.gif|.svg|.zip|.mp4|.webm|.pdf|.doc|.docx|.xls|.xlsx|.pptx|.ppt|.yaml|.yml)$/.test(l))
         return links;
 }}"""
 
