@@ -6,11 +6,13 @@ from authentication.login import  admin_required
 from blueprints.scan import conduct_scan_website, loop
 from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail
 from models.report import AxeReportCounts, Report
-from models.website import Domains, Site, Website 
+from models.user import User
+from models.website import Domain, Site, Site_Website_Assoc, Website 
 from models import db
 from scanner.accessibility.ace import AxeReportKeys
-from sqlalchemy import case, func
+from sqlalchemy import case, desc, func
 
+from scanner.utils.service import check_url
 from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
@@ -63,39 +65,23 @@ def create_website():
     # Check if valid URL
     if not is_valid_url(base_url):
         return jsonify({'error': 'The provided URL is invalid'}), 400
-
-    website_netloc = get_netloc(base_url)
-    all_domains = db.session.query(Domains).filter(Domains.active == True).all()
-    best_match = None
-    max_len = 0
-    for domain in all_domains:
-        if website_netloc.endswith(domain.domain) and len(domain.domain) > max_len:
-            best_match = domain
-            max_len = len(domain.domain)
-    existing_domain = best_match
-
-    if not existing_domain:
-        return jsonify({'error': 'Domain is not found or is inactive'}), 400
-
-    if not existing_domain.active:
-        return jsonify({'error': 'The domain of the website your requested is not active, please contact the admins if you believe this is a problem'}), 400
-    
-    # check if website already exists
-    existing_website = db.session.query(Website).filter(Website.base_url == website_netloc).first()
-    if existing_website:
-        return jsonify({'error': 'Website already exists'}), 400
-
         
     # check if user exists
     if not current_user:
         return jsonify({'error': 'User is not authenticated'}), 401
+    try:
+        is_accessible = check_url(base_url)
+        if not is_accessible:
+            return jsonify({'error': 'The provided URL is not accessible'}), 400
 
-    new_website = Website(url=base_url, email=current_user.email, user_id=current_user.id)
-    new_website.domain = existing_domain
-    
+        new_website = Website(url=base_url, user_id=current_user.id)
 
-    db.session.add(new_website)
-    db.session.commit()
+        db.session.add(new_website)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
     try:
         if should_email and 'email' in data:
             NewWebsiteEmail(new_website).send()
@@ -104,10 +90,8 @@ def create_website():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-    
-    website_url = f"https://{new_website.base_url}"
 
-    asyncio.run_coroutine_threadsafe(conduct_scan_website(website_url), loop)
+    asyncio.run_coroutine_threadsafe(conduct_scan_website(new_website.url), loop)
 
     return jsonify(new_website.to_dict()), 201
 
@@ -181,7 +165,7 @@ def update_website(website_id):
         website.last_scanned = data['last_scanned']
 
     if 'active' in data:
-        domain = db.session.get(Domains, website.domain_id)
+        domain = db.session.get(Domain, website.domain_id)
         # scanner can add websites without a domain. this is because if a manual scan was made its not obvious what the parent domain might be.
         # some websites will be www.example.com, but some might be org.example.com, and its not always clear what the parent domain is.
         # if the domain is not found, we just use the website itself
@@ -200,7 +184,12 @@ def update_website(website_id):
         if not re.match(regex, email):
             return jsonify({'error': 'Invalid email format'}), 400
         # Email user that they have been added
-        website.email = data['email']
+        user = db.session.query(User).filter_by(email=email).first()
+        if not user:
+            # since admins can only change email, assume they are the user
+            user = User(email=email, username=email.split('@')[0])
+            db.session.add(user)
+        website.user_id = user.id
 
     if 'should_email' in data:
         website.should_email = data['should_email'] and True
@@ -311,11 +300,15 @@ def get_websites():
         .group_by(Report.site_id)
         .subquery()
     )
+    site_subq = (
+        db.session.query(Site.id).join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Site.id).filter(Site_Website_Assoc.c.website_id == Website.id).scalar_subquery()
+    )
+
 
     # Query all websites, left join to sites and reports (so websites with no sites/reports are included)
     w_query = (
         db.session.query(Website)
-        .outerjoin(Site, Site.website_id == Website.id)
+        .outerjoin(Site, site_subq)
         .outerjoin(Report, Report.site_id == Site.id)
         .outerjoin(
             latest_report_subq,
@@ -339,6 +332,7 @@ def get_websites():
         w_query = w_query.filter(Website.user_id == current_user.id)
 
     w = w_query.paginate(page=page, per_page=limit)
+
 
     return jsonify({
         'count': w.total,
@@ -420,17 +414,18 @@ def get_website_sites(website_id):
         .group_by(Report.site_id)
         .subquery()
     )
-
+    site_subq = (
+        db.session.query(Site.id).join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Site.id).filter(Site_Website_Assoc.c.website_id == website_id).subquery()
+    )
     # Join sites to their most recent report and order by violations
     sites_query = (
-        db.session.query(Site)
+        db.session.query(Site).where(Site.id.in_(site_subq.select()))
         .join(Report, (Report.site_id == Site.id))
         .join(
             latest_report_subq,
             (latest_report_subq.c.site_id == Report.site_id) &
             (latest_report_subq.c.max_timestamp == Report.timestamp)
         )
-        .filter(Site.website_id == website_id)
         .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc())
     )
 
@@ -512,7 +507,5 @@ def delete_website(website_id):
         return jsonify({'error': 'Website not found'}), 404
 
     # Add Deleteing website email
-
-    db.session.delete(website)
-    db.session.commit()
+    website.delete()
     return jsonify({'message': 'Website deleted successfully'}), 200

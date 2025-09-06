@@ -69,11 +69,11 @@ class ScanFinishedEmail(AccessEmails):
         super().__init__()
 
     def send(self):
-        if not self.website.should_email or not self.website.email:
+        if not self.website.should_email or not self.website.user.email:
             return
 
         msg = Message("Accessibility Scan Finished",
-                      recipients=[self.website.email])
+                      recipients=[self.website.user.email])
 
         msg.html = render_template("emails/scan_finished.html", website=self.website.to_dict(), client_url=self.client_url, scan=self.report_counts, timestamp=datetime.now().isoformat())
 

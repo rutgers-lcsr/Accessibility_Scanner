@@ -15,7 +15,7 @@ import time
 import schedule
 import threading
 
-process_q = queue.Queue()
+process_q: queue.Queue[Website] = queue.Queue()
 
 
 def process_queue():
@@ -35,13 +35,12 @@ def process_queue():
 
     while not process_q.empty():
         website = process_q.get()
-        website_url = f'https://{website.base_url}'
         
         if DEBUG:
-            print(f"Processing website for scan: {website_url}")
+            print(f"Processing website for scan: {website.url}")
             continue
         
-        p = Process(target=run_scan, args=(website_url,))
+        p = Process(target=run_scan, args=(website.url,))
         p.start()
         p.join()
     

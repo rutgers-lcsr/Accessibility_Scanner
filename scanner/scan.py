@@ -55,34 +55,23 @@ async def process_website(name: int, browser, queue: ListQueue, results: List[Ac
 
 async def generate_single_site_report(site_url:str) -> AccessibilityReport:
     app = create_app()
-    base_url = get_netloc(site_url)
     website_url = get_full_url(site_url)
     with app.app_context():
         try:
             site = Site.query.filter_by(url=website_url).first()
             if site is None:
-                site = Site(url=website_url, website_id=web.id)
+                raise ValueError("Site not found")
             site.scanning = True
             db.session.add(site)
             db.session.commit()
+
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
                 log_message(f"Generating report for {website_url}", 'info')
                 report = await generate_report(browser, website=website_url)
                 await browser.close()
 
-                web = Website.query.filter_by(base_url=base_url).first()
-                if web is None:
-                    web = Website(url=base_url)
-                    db.session.add(web)
-
                 site = Site.query.filter_by(url=website_url).first()
-                if site is None:
-                    site = Site(url=website_url, website_id=web.id)
-                else: 
-                    # make sure that the site is associated with the correct website
-                    if site.website_id != web.id:
-                        site.website_id = web.id
                 report = Report(report, site_id=site.id)
                 site.reports.append(report)
                 site.last_scanned = db.func.current_timestamp()
@@ -107,12 +96,11 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
     sites_done = set()
     currently_processing = set()
     app = create_app()
-    base_url = get_netloc(website)
 
     with app.app_context():
         
         # Check if website exists if not create one, and set scanning to true
-        web = Website.query.filter_by(entry_url=website).first()
+        web = Website.query.filter_by(url=website).first()
         if web is None:
             web = Website(url=website)
             web.active = True
@@ -148,8 +136,8 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
         # save reports to database
         with app.app_context():
             # check if website exists
-            
-            web = Website.query.filter_by(base_url=base_url).first()
+
+            web = db.session.query(Website).filter_by(url=website).first()
             if web is None:
                 web = Website(url=website)
                 web.active = True
@@ -160,44 +148,44 @@ async def generate_reports(website: str = "https://resources.cs.rutgers.edu") ->
             if not web.domain_id:
                 log_message(f"Warning website doesnt have an associated domain", 'warning')
 
-            sites = []
+            with db.session.no_autoflush:
+                for site_reports in results:
+                    # check if site exists if not create one
+                    site = db.session.query(Site).filter_by(url=site_reports['url']).first()
+                    if site is None:
+                        site = Site(url=site_reports['url'], website=web)
+                        db.session.add(site)
+                        db.session.flush()
+                    else:
+                        if site not in web.sites:
+                            print(f"Adding site {site.id} to website {web.id}")
+                            web.sites.append(site)
+                    report = Report(site_reports, site_id=site.id)
 
-            for site_reports in results:
-                # check if site exists if not create one
-                site = db.session.query(Site).filter_by(url=site_reports['url']).first()
-                if site is None:
-                    site = Site(url=site_reports['url'], website_id=web.id)
-                    sites.append(site)
-                else: 
-                    if site.website_id != web.id:
-                        site.website_id = web.id
-                report = Report(site_reports, site_id=site.id)
-
-                
-                site.reports.append(report)
-                site.last_scanned = db.func.current_timestamp()
-                db.session.add(report)
-                db.session.add(site)
+                    
+                    site.reports.append(report)
+                    site.last_scanned = db.func.current_timestamp()
+                    db.session.add(report)
+                    db.session.add(site)
 
             
             web.last_scanned = db.func.current_timestamp()
-            # add sites to website if site didnt exist
-            web.sites.extend(sites)
             web.scanning = False
             db.session.add(web)
             db.session.commit()        
             
-            website = db.session.get(Website, web.id)
+            website_doc = db.session.get(Website, web.id)
 
-            ScanFinishedEmail(website).send()
+            ScanFinishedEmail(website_doc).send()
             return results
     finally:
         with app.app_context():
-            web = Website.query.filter_by(base_url=base_url).first()
+            web = db.session.query(Website).filter_by(url=website).first()
             if web:
                 web.scanning = False
                 db.session.add(web)
                 db.session.commit()
+
 def run_scan_site(site :str ="https://resources.cs.rutgers.edu"):
     asyncio.run(generate_single_site_report(site))
 

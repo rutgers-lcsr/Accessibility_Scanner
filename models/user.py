@@ -7,7 +7,8 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
-    # password is nullable because users can login using cas 
+    websites = db.relationship('Website', backref='user', lazy=True)
+    # password is nullable because users can login using cas
     password = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())

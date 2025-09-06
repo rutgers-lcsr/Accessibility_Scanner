@@ -2,7 +2,7 @@ import { AxeReportCounts, AxeReportKeys, ReportMinimized } from './axe';
 
 export type Website = {
     id: number;
-    base_url: string;
+    url: string;
     email: string;
     should_email: boolean;
     create_at: string;

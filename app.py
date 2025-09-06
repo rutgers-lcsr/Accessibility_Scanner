@@ -16,7 +16,7 @@ def init_admin(app):
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
 
     with app.app_context():
-        user = User.query.filter_by(email=admin_user).first()
+        user = db.session.query(User).filter_by(email=admin_user).first()
         if not user:
             try:
                 user = User(username=admin_user, email=admin_user)
