@@ -7,7 +7,6 @@ const casUrl = process.env.NEXT_PUBLIC_CAS_URL as string;
 
 export async function middleware(request: NextRequest) {
     const user = await getCurrentUser();
-    console.log("from middleware", request.url)
     if (!user && process.env.NODE_ENV === 'production') {
         return NextResponse.redirect(new URL(`${casUrl}/login?service=${encodeURIComponent(`${baseUrl}/api/cas/login`)}`, request.url))
     }

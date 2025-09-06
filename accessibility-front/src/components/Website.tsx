@@ -112,7 +112,7 @@ const Website = ({ websiteId, user }: Props) => {
             <header className="mb-8">
                 <h1 className="mb-2 text-3xl font-extrabold">
                     Website Report for{' '}
-                    <HeaderLink url={`https://${websiteReport.url}`} />
+                    <HeaderLink url={`${websiteReport.url}`} />
                 </h1>
                 {user && user.is_admin && <AdminWebsiteItems website={websiteReport} mutate={mutate} />}
                 <h2 className="mb-4 text-lg text-gray-500">
