@@ -183,7 +183,22 @@ function AdminWebsiteItems({ website, mutate }: Props) {
         }
         setLoadingPublic(false);
     };
-
+    const handleSendEmailUpdate = async () => {
+        setLoadingEmail(true);
+        try {
+            await handlerUserApiRequest<Website>(`/api/websites/email/${website.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+            });
+            addAlert('Email sent successfully', 'success');
+        } catch {
+            addAlert('Failed to send email', 'error');
+        }
+        setLoadingEmail(false);
+    };
     const handleDelete = async () => {
         setLoadingDelete(true);
         try {
@@ -245,6 +260,9 @@ function AdminWebsiteItems({ website, mutate }: Props) {
                         onClick={() => handleShouldEmailChange(!website.should_email)}
                     >
                         {website.should_email ? 'Disable Email Notify' : 'Enable Email Notify'}
+                    </Button>
+                    <Button onClick={handleSendEmailUpdate} loading={loadingEmail}>
+                        Resend Latest Report Email
                     </Button>
                 </div>
 

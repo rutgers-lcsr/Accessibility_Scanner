@@ -1,19 +1,21 @@
+from typing import List
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method
-
+from sqlalchemy.orm import Mapped
+from datetime import datetime
 class User(db.Model):
     __tablename__ = 'users'
 
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(255), unique=True, nullable=False)
-    email = db.Column(db.String(255), unique=True, nullable=False)
-    websites = db.relationship('Website', backref='user', lazy=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    username: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
+    email: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
+    websites: Mapped[List['Website']] = db.relationship('Website', back_populates='user', lazy=True)
     # password is nullable because users can login using cas
-    password = db.Column(db.String(255), nullable=True)
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-    updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    profile = db.relationship('Profile', backref='user', lazy=True, uselist=False)
+    password: Mapped[str] = db.Column(db.String(255), nullable=True)
+    is_active: Mapped[bool] = db.Column(db.Boolean, default=True)
+    created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    profile: Mapped['Profile'] = db.relationship('Profile', backref='user', lazy=True, uselist=False)
 
     @hybrid_method
     def get_id(self):

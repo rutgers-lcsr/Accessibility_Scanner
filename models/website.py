@@ -1,7 +1,6 @@
 
-import datetime
+from datetime import datetime
 from typing import List, TypedDict
-
 from sqlalchemy import func
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
@@ -34,13 +33,13 @@ class Site(db.Model):
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     url: Mapped[str] = db.Column(db.String(500), nullable=False)
-    last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
+    last_scanned: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     websites: Mapped[List['Website']] = db.relationship('Website', secondary=Site_Website_Assoc, back_populates='sites', lazy='dynamic')
     reports: Mapped[List['Report']] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
-    created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
-    updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     @hybrid_method
     def get_recent_report(self) -> ReportMinimized | None:
@@ -120,13 +119,13 @@ class WebsiteDict(TypedDict,total=False):
     base_url: str
     domain_id: int
     sites: List[int]
-    last_scanned: datetime.datetime | None
+    last_scanned: datetime | None
     report_counts: dict[AxeReportKeys, AxeReportCounts]
     active: bool
     rate_limit: int
     public: bool
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
+    created_at: datetime
+    updated_at: datetime
 
 class Website(db.Model):
     __tablename__ = 'website'
@@ -134,7 +133,7 @@ class Website(db.Model):
     url: Mapped[str] = db.Column(db.String(500), nullable=True)
     domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=False)
     sites: Mapped[List['Site']] = db.relationship('Site', secondary=Site_Website_Assoc, back_populates='websites', lazy='dynamic')
-    last_scanned: Mapped[datetime.datetime] = db.Column(db.DateTime, nullable=True)
+    last_scanned: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     # Rate limiting the automatic scanning, in days
     rate_limit: Mapped[int] = db.Column(db.Integer, default=30)
     active: Mapped[bool] = db.Column(db.Boolean, default=False)
@@ -143,8 +142,9 @@ class Website(db.Model):
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
-    updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    user: Mapped['User'] = db.relationship('User', back_populates='websites', lazy=True)
+    created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
 
 
@@ -176,7 +176,7 @@ class Website(db.Model):
             'url': self.url,
             'sites': [site.id for site in self.sites.with_entities(Site.id).all()],
             'domain_id': self.domain_id,
-            'email': self.user.email,
+            'email': self.user.email or None if self.user else None,
             'should_email': self.should_email,
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'report_counts': self.get_report_counts(),
@@ -257,8 +257,8 @@ class Domain(db.Model):
     domain: Mapped[str] = db.Column(db.String(200), nullable=False)
     websites: Mapped[List['Website']] = db.relationship('Website', backref='domain', lazy=True, cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
-    created_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
-    updated_at: Mapped[datetime.datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
 
     def __init__(self, domain:str):

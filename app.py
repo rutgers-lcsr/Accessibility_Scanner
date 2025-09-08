@@ -64,6 +64,21 @@ def create_app():
         inspector = inspect(db.engine)
         # force schema default to db.engine.url.database
         db.metadata.create_all(bind=db.engine, checkfirst=True)
+
+
+    # set up datetime format for j2 templates
+    @app.template_filter('datetimeformat')
+    def datetimeformat(value: str, format='%b %d, %Y %I:%M %p'):
+        """Format an ISO date string into a more human-readable format, e.g., 'Jun 10, 2024 03:45 PM'."""
+        from datetime import datetime
+        try:
+            dt = datetime.fromisoformat(value)
+            return dt.strftime(format)
+        except Exception:
+            return value  # Return original if formatting fails
+
+
+
     return app
 
 def init_scanner():

@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
 from blueprints.scan import conduct_scan_website, loop
-from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail
+from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail, ScanFinishedEmail
 from models.report import AxeReportCounts, Report
 from models.user import User
 from models.website import Domain, Site, Site_Website_Assoc, Website 
@@ -94,6 +94,60 @@ def create_website():
     asyncio.run_coroutine_threadsafe(conduct_scan_website(new_website.url), loop)
 
     return jsonify(new_website.to_dict()), 201
+@website_bp.route('/email/<int:website_id>/', methods=['POST'])
+@admin_required
+def email_website_report(website_id):
+    """
+    Send a website report via email.
+    ---
+    tags:
+        - Websites
+    parameters:
+        - in: path
+            name: website_id
+            required: true
+            type: integer
+        - in: body
+            name: email
+            required: false
+            schema:
+                type: object
+                properties:
+                    email:
+                        type: string
+    responses:
+        200:
+            description: Email sent successfully
+            schema:
+                type: object
+                properties:
+                    message:
+                        type: string
+        404:
+            description: Website not found
+            schema:
+                type: object
+                properties:
+                    error:
+                        type: string
+        500:
+            description: Error sending email
+            schema:
+                type: object
+                properties:
+                    error:
+                        type: string
+    """
+    website = db.session.get(Website, website_id)
+    data = request.get_json()
+    email = data.get('email', None) if data else None
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    try:
+        ScanFinishedEmail(website).send(email=email, force=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    return jsonify({'message': 'Email sent successfully'}), 200
 
 @website_bp.route('/<int:website_id>/', methods=['PATCH'])
 @admin_required
@@ -189,7 +243,7 @@ def update_website(website_id):
             # since admins can only change email, assume they are the user
             user = User(email=email, username=email.split('@')[0])
             db.session.add(user)
-        website.user_id = user.id
+        website.user = user
 
     if 'should_email' in data:
         website.should_email = data['should_email'] and True

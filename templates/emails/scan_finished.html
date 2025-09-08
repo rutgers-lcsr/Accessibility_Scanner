@@ -1,42 +1,42 @@
 {% extends "emails/base_template.html" %}
 {% block content %}
-    <h1>Accessibility Scan Complete</h1>
-    <p>Hello,</p>
-    <p>
-        Your website <strong><a href="https://{{ website.base_url }}">{{ website.base_url }}</a></strong> has finished its accessibility scan.
-    </p>
-    <p>
-        <strong>Scan Summary:</strong>
-    </p>
-    <ul>
-        <li>
-            <strong>Date:</strong> {{ timestamp }}
-        </li>
-        <li>
-            <strong>Total Violations:</strong> {{ scan.violations.total }}
-        </li>
-        <li>
-            <strong>Critical:</strong> {{ scan.violations.critical }}
-        </li>
-        <li>
-            <strong>Serious:</strong> {{ scan.violations.serious }}
-        </li>
-        <li>
-            <strong>Moderate:</strong> {{ scan.violations.moderate }}
-        </li>
-        <li>
-            <strong>Minor:</strong> {{ scan.violations.minor }}
-        </li>
-    </ul>
-    <p>
-        You can view the full report and recommendations here:
-        <a class="btn" href="{{ client_url }}/websites?id={{ website.id }}">View Full Report</a>
-    </p>
-    <p>
-        For more information on accessibility standards, visit
-        <a href="https://www.w3.org/WAI/standards-guidelines/wcag/">WCAG 2.1AA</a>.
-        <br>
-        or visit <a href="https://accessibility.rutgers.edu/">Accessibility Rutgers</a> for university recommendations.
-    </p>
-    <p>If you have questions or need help, reply to this email or contact the Rutgers LCSR team.</p>
+<h1>Accessibility Scan Complete</h1>
+<p>Hello,</p>
+<p>
+    Your website <strong><a href="{{ website.url }}">{{ website.url }}</a></strong> has finished its accessibility scan.
+</p>
+<p>
+    <strong>Scan Summary:</strong>
+</p>
+<ul>
+    <li>
+        <strong>Date:</strong> {{ timestamp | datetimeformat }}
+    </li>
+    <li>
+        <strong>Total Violations:</strong> {{ scan.violations.total }}
+    </li>
+    <li>
+        <strong>Critical:</strong> {{ scan.violations.critical }}
+    </li>
+    <li>
+        <strong>Serious:</strong> {{ scan.violations.serious }}
+    </li>
+    <li>
+        <strong>Moderate:</strong> {{ scan.violations.moderate }}
+    </li>
+    <li>
+        <strong>Minor:</strong> {{ scan.violations.minor }}
+    </li>
+</ul>
+<p>
+    You can view the full report and recommendations here:
+    <a class="btn" href="{{ client_url }}/websites/{{ website.id }}">View Full Report</a>
+</p>
+<p>
+    For more information on accessibility standards, visit
+    <a href="https://www.w3.org/WAI/standards-guidelines/wcag/">WCAG 2.1AA</a>.
+    <br>
+    or visit <a href="https://accessibility.rutgers.edu/">Accessibility Rutgers</a> for university recommendations.
+</p>
+<p>If you have questions or need help, reply to this email or contact the Rutgers LCSR team.</p>
 {% endblock content %}

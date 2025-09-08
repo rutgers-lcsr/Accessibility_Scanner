@@ -1,7 +1,7 @@
 from operator import or_
 from flask import Flask, render_template
 from flask_mail import Message
-from config import CLIENT_URL, DEBUG, JWT_SECRET_KEY, SITE_ADMINS, TESTING
+from config import CLIENT_URL, TESTING
 from mail import mail
 from models.report import Report
 from models.user import User
@@ -25,6 +25,7 @@ class AccessEmails():
             print("Email content:")
             print("Subject:", self.msg.subject)
             print("To:", self.msg.recipients)
+            log_message(f"Message was not sent", 'info')
             # print("Body:", self.msg.html)
         try:
             mail.send(self.msg)
@@ -68,8 +69,12 @@ class ScanFinishedEmail(AccessEmails):
         self.report_counts = website.get_report_counts()
         super().__init__()
 
-    def send(self):
-        if not self.website.should_email or not self.website.user.email:
+    def send(self, email=None, force=False):
+        if not force and not self.website.should_email:
+            return
+
+        if not email and not self.website.user or not self.website.user.email:
+            log_message(f"Website {self.website.id} has no associated user email to send scan finished notification.", 'warning')
             return
 
         msg = Message("Accessibility Scan Finished",
