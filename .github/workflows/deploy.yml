@@ -58,6 +58,10 @@ jobs:
                   docker compose -f docker-compose.yml build
                   docker compose -f docker-compose.yml up -d --remove-orphans
 
+            - name: restart nginx
+              run: |
+                  docker restart a11y_nginx
+
             - name: Remove docker artifacts
               run: |
                   docker system prune -f
