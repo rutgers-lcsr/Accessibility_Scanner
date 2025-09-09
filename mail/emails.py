@@ -29,6 +29,7 @@ class AccessEmails():
             # print("Body:", self.msg.html)
         try:
             mail.send(self.msg)
+            log_message(f"Email sent to {self.msg.recipients}", 'info')
         except Exception as e:
             log_message(f"Error sending email: {e}", 'error')
 
