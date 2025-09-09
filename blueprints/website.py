@@ -145,9 +145,9 @@ def email_website_report(website_id):
         return jsonify({'error': 'Website not found'}), 404
     try:
         ScanFinishedEmail(website).send(email=email, force=True)
+        return jsonify({'message': 'Email sent successfully'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    return jsonify({'message': 'Email sent successfully'}), 200
 
 @website_bp.route('/<int:website_id>/', methods=['PATCH'])
 @admin_required
