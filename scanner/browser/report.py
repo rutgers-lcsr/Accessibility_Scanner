@@ -28,43 +28,48 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         page = await context.new_page()
         await page.goto(website)
         await page.wait_for_load_state()
+        await page.wait_for_timeout(1000)  # Wait for a second to ensure the page is fully loaded
     except Exception as e:
         return {"error": str(e)}
 
-    base_url = get_website_url(page.url)
-    report = await get_accessibility_report(page)
+    try:
+        base_url = get_website_url(page.url)
+        report = await get_accessibility_report(page)
 
-    links = await get_links(page)
+        links = await get_links(page)
 
-    videos = await get_videos(page)
-    
-    imgs = await get_imgs(page)
+        videos = await get_videos(page)
+        
+        imgs = await get_imgs(page)
 
-    tabable = await is_page_tabbable(page)
-    has_video = await page.evaluate("() => { return !!document.querySelector('video'); }")
-    has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
+        tabable = await is_page_tabbable(page)
+        has_video = await page.evaluate("() => { return !!document.querySelector('video'); }")
+        has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
 
-    timestamp = time.time()
+        timestamp = time.time()
 
 
-    js_report = report_to_js(report['violations'], page.url)
+        js_report = report_to_js(report['violations'], page.url)
 
-    context = await page.evaluate(f"(function () {{ {js_report} }})()")
-    
-    photo = await page.screenshot(full_page=True)
+        context = await page.evaluate(f"(function () {{ {js_report} }})()")
+        
+        photo = await page.screenshot(full_page=True)
 
-    await page.close()
-    # Process the report as needed
-    return {
-        'url': website,
-        'base_url': base_url,
-        'report': report,
-        'links': links,
-        'videos': videos,
-        'imgs': imgs,
-        'tabable': tabable,
-        'has_video': has_video,
-        'has_img': has_img,
-        'timestamp': timestamp,
-        'photo': photo
-    }
+        await page.close()
+        # Process the report as needed
+        return {
+            'url': website,
+            'base_url': base_url,
+            'report': report,
+            'links': links,
+            'videos': videos,
+            'imgs': imgs,
+            'tabable': tabable,
+            'has_video': has_video,
+            'has_img': has_img,
+            'timestamp': timestamp,
+            'photo': photo
+        }
+    except Exception as e:
+        await page.close()
+        return {"error": str(e)}

@@ -44,6 +44,8 @@ async def process_website(name: int, browser, queue: ListQueue, results: List[Ac
                         
                                     
                 results.append(res)
+        except Exception as e:
+            log_message(f"[Worker {name}] Exception for {site}: {str(e)}", 'error')
         finally:
             sites_done.add(site)
             currently_processing.remove(site)
