@@ -141,21 +141,23 @@ class Check(db.Model):
                 db.session.commit()
             
         return js_object
-    
-    
-class RuleChecks(db.Model):
-    __tablename__ = 'rule_checks'
-    rule_id = db.Column(db.Integer, db.ForeignKey('rules.id'), primary_key=True)
-    check_id = db.Column(db.Integer, db.ForeignKey('checks.id'), primary_key=True)
 
-class RuleChecksAll(db.Model):
-    __tablename__ = 'rule_checks_all'
-    rule_id = db.Column(db.Integer, db.ForeignKey('rules.id'), primary_key=True)
-    check_id = db.Column(db.Integer, db.ForeignKey('checks.id'), primary_key=True)
-class RuleChecksNone(db.Model):
-    __tablename__ = 'rule_checks_none'
-    rule_id = db.Column(db.Integer, db.ForeignKey('rules.id'), primary_key=True)
-    check_id = db.Column(db.Integer, db.ForeignKey('checks.id'), primary_key=True)
+
+RuleChecks = db.Table('rule_checks', db.Model.metadata,
+    db.Column('rule_id', db.Integer, db.ForeignKey('rules.id'), primary_key=True),
+    db.Column('check_id', db.Integer, db.ForeignKey('checks.id'), primary_key=True)
+)
+
+RuleChecksAll = db.Table('rule_checks_all', db.Model.metadata,
+    db.Column('rule_id', db.Integer, db.ForeignKey('rules.id'), primary_key=True),
+    db.Column('check_id', db.Integer, db.ForeignKey('checks.id'), primary_key=True)
+)
+
+RuleChecksNone = db.Table('rule_checks_none', db.Model.metadata,
+    db.Column('rule_id', db.Integer, db.ForeignKey('rules.id'), primary_key=True),
+    db.Column('check_id', db.Integer, db.ForeignKey('checks.id'), primary_key=True)
+)   
+
 
 class Rule(db.Model):
     __tablename__ = 'rules'
@@ -172,9 +174,9 @@ class Rule(db.Model):
     help_url: Mapped[str] = db.Column(db.String(255), nullable=True)
     # comma separated list of tags
     tags: Mapped[str] = db.Column(db.Text, nullable=False) 
-    any: Mapped[List[Check]] = db.relationship('Check', secondary='rule_checks', lazy='subquery', backref=db.backref('rules', lazy=True))
-    all: Mapped[List[Check]] = db.relationship('Check', secondary='rule_checks_all', lazy='subquery', backref=db.backref('rules_all', lazy=True))
-    none: Mapped[List[Check]] = db.relationship('Check', secondary='rule_checks_none', lazy='subquery', backref=db.backref('rules_none', lazy=True))
+    any: Mapped[List[Check]] = db.relationship('Check', secondary=RuleChecks, lazy='subquery', backref=db.backref('rules', lazy=True))
+    all: Mapped[List[Check]] = db.relationship('Check', secondary=RuleChecksAll, lazy='subquery', backref=db.backref('rules_all', lazy=True))
+    none: Mapped[List[Check]] = db.relationship('Check', secondary=RuleChecksNone, lazy='subquery', backref=db.backref('rules_none', lazy=True))
     impact: Mapped[impact_levels] = db.Column(db.String(10), nullable=False, default="minor")
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
