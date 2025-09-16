@@ -1,6 +1,6 @@
 import asyncio
 import re
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
 from blueprints.scan import conduct_scan_website, loop
@@ -250,6 +250,23 @@ def update_website(website_id):
 
     if 'public' in data:
         website.public = data['public'] and True
+
+    if 'tags' in data:
+        tags = data['tags']
+        if isinstance(tags, list):
+            # Clean tags and remove empty strings
+            cleaned_tags = [tag.strip() for tag in tags if tag.strip()]
+            website.tags = ",".join(cleaned_tags)
+        elif isinstance(tags, str):
+            # If a single string is provided, convert it to a list
+            cleaned_tag = tags.strip().split(',')
+            cleaned_tag = [tag.strip() for tag in cleaned_tag if tag.strip()]
+            if cleaned_tag:
+                website.tags = ",".join(cleaned_tag)
+            else:
+                website.tags = ""
+        else:
+            return jsonify({'error': 'Tags must be a list of strings or a single string'}), 400
 
     db.session.add(website)
     db.session.commit()
@@ -522,6 +539,44 @@ def get_overall_website(website_id):
             return jsonify({'error': 'Unauthorized'}), 403
 
     return jsonify(website.to_dict()), 200
+
+@website_bp.route('/<int:website_id>/axe/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_axe(website_id):
+    """
+    Get Axe configuration for a specific website.
+    ---
+    tags:
+        - Websites
+    parameters:
+        - in: path
+            name: website_id
+            required: true
+            type: integer
+    responses:
+        200:
+            description: Axe configuration
+            schema:
+                type: object
+        404:
+            description: Website not found
+            schema:
+                type: object
+                properties:
+                    error:
+                        type: string
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+
+    if current_user:
+        if not current_user.profile.is_admin and website.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+    response = Response(website.get_ace_config(), mimetype='application/json')
+    response.headers['Content-Disposition'] = f'attachment; filename=website_{website_id}_ace_config.json'
+    return response
 
 @website_bp.route('/<int:website_id>/', methods=['DELETE'])
 @jwt_required()

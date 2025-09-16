@@ -1,10 +1,9 @@
 import PageError from '@/components/PageError';
 import { User } from '@/lib/types/user';
 import { getCurrentUser } from 'next-cas-client/app';
-import Domains from './domains';
-// type Props = {}
+import Rules from './Rules';
 
-async function Page() {
+async function page() {
     const user = await getCurrentUser<User>();
 
     if (!user || !user.is_admin) {
@@ -16,7 +15,11 @@ async function Page() {
             />
         );
     }
-    return <Domains />;
+    return (
+        <div>
+            <Rules />
+        </div>
+    );
 }
 
-export default Page;
+export default page;

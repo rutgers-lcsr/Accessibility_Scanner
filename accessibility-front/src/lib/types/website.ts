@@ -9,6 +9,8 @@ export type Website = {
     updated_at: string;
     public: boolean;
     last_scanned: string;
+    tags: string[];
+    default_tags: string[];
     report_counts: Record<AxeReportKeys, AxeReportCounts>;
     domain_id: string;
     sites: number[];
@@ -23,6 +25,7 @@ export type Site = {
     created_at: string;
     updated_at: string;
     reports: ReportMinimized[];
+    tags: string[];
     current_report: ReportMinimized;
     website_id: number;
     active: boolean;

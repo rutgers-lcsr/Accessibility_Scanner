@@ -5,6 +5,7 @@ from scanner.browser.parse import  get_imgs, get_links, get_videos
 from playwright.async_api import Browser
 import time 
 from scanner.browser.tabbable import is_page_tabbable
+from scanner.log import log_message
 from utils.style_generator import report_to_js
 from utils.urls import get_website_url
 
@@ -22,7 +23,7 @@ class AccessibilityReport(TypedDict, total=False):
 
 
 # Generates a AccessibilityReport for a given site
-async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu")-> AccessibilityReport:
+async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu", tags: List[str] = [], ace_config: str = "") -> AccessibilityReport:
     try:
         context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0")
         page = await context.new_page()
@@ -34,23 +35,20 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
 
     try:
         base_url = get_website_url(page.url)
-        report = await get_accessibility_report(page)
-
+        report = await get_accessibility_report(page, tags=tags, axe_config=ace_config)
+        if 'error' in report and report['error'] is not None:
+            await page.close()
+            return {"error": report['error']}
         links = await get_links(page)
-
         videos = await get_videos(page)
-        
         imgs = await get_imgs(page)
 
         tabable = await is_page_tabbable(page)
         has_video = await page.evaluate("() => { return !!document.querySelector('video'); }")
         has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
-
         timestamp = time.time()
 
-
         js_report = report_to_js(report['violations'], page.url)
-
         context = await page.evaluate(f"(function () {{ {js_report} }})()")
         
         photo = await page.screenshot(full_page=True)
@@ -72,4 +70,5 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         }
     except Exception as e:
         await page.close()
-        return {"error": str(e)}
+        log_message(f"Error generating report for {website}: {e}", 'error')
+        return {"error": e}

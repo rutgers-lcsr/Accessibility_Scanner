@@ -1,4 +1,4 @@
-"use client"
+'use client';
 import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
@@ -11,13 +11,13 @@ import {
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
-import { Pagination, Space, Table } from 'antd';
+import { Pagination, Table, Tag } from 'antd';
 import { format } from 'date-fns';
 import React from 'react';
 import useSWR from 'swr';
+import PageError from '../../../components/PageError';
+import PageLoading from '../../../components/PageLoading';
 import AdminWebsiteItems from './AdminWebsiteItems';
-import PageError from './PageError';
-import PageLoading from './PageLoading';
 
 type Props = {
     websiteId: number;
@@ -25,7 +25,7 @@ type Props = {
 };
 
 const Website = ({ websiteId, user }: Props) => {
-    const {  handlerUserApiRequest } = useUser();
+    const { handlerUserApiRequest } = useUser();
 
     const {
         data: websiteReport,
@@ -85,6 +85,19 @@ const Website = ({ websiteId, user }: Props) => {
             },
         },
         {
+            title: 'Passed',
+            key: 'passed',
+            render: (text: string, record: Site) => (
+                <span>{record.current_report.report_counts.passes.total}</span>
+            ),
+            onFilter: (value: boolean | React.Key, record: Site) =>
+                record.current_report.report_counts.passes.total === Number(value),
+            sorter: (a: Site, b: Site) =>
+                a.current_report.report_counts.passes.total -
+                b.current_report.report_counts.passes.total,
+            dataIndex: 'passed',
+        },
+        {
             title: 'Violations',
             key: 'violations',
             render: (text: string, record: Site) => (
@@ -98,6 +111,20 @@ const Website = ({ websiteId, user }: Props) => {
             dataIndex: 'violations',
         },
         {
+            title: 'Active Tags',
+            key: 'tags',
+            render: (text: string, record: Site) => (
+                <span>
+                    {record.tags.map((tag) => (
+                        <Tag key={tag}>{tag}</Tag>
+                    ))}
+                </span>
+            ),
+            onFilter: (value: boolean | React.Key, record: Site) =>
+                record.tags.includes(value as string),
+            dataIndex: 'tags',
+        },
+        {
             title: 'Actions',
             key: 'actions',
             render: (text: string, record: Site) => (
@@ -106,19 +133,19 @@ const Website = ({ websiteId, user }: Props) => {
         },
     ];
 
-
     return (
         <div>
             <header className="mb-8">
                 <h1 className="mb-2 text-3xl font-extrabold">
-                    Website Report for{' '}
-                    <HeaderLink url={`${websiteReport.url}`} />
+                    Website Report for <HeaderLink url={`${websiteReport.url}`} />
                 </h1>
-                {user && user.is_admin && <AdminWebsiteItems website={websiteReport} mutate={mutate} />}
+                {user && user.is_admin && (
+                    <AdminWebsiteItems website={websiteReport} mutate={mutate} />
+                )}
                 <h2 className="mb-4 text-lg text-gray-500">
                     Last Scanned:{' '}
                     {websiteReport?.last_scanned
-                        ? format(websiteReport?.last_scanned, 'MMMM dd, yyyy')
+                        ? format(websiteReport?.last_scanned, 'MMMM dd, yyyy HH:mm:ss z')
                         : 'Never'}
                 </h2>
                 <section
@@ -159,36 +186,29 @@ const Website = ({ websiteId, user }: Props) => {
                 </section>
             </header>
 
-            <Space
-                direction="vertical"
-                role="region"
-                aria-labelledby="website-sites"
-                className="rounded-lg bg-gray-50"
-            >
-                <Table<Site>
-                    className="min-h-[400px]"
-                    style={{ width: '100%', minHeight: 400, maxWidth: '100%' }}
-                    scroll={{ y: '45em' }}
-                    pagination={false}
-                    columns={sites_columns}
-                    dataSource={sites?.items}
-                    loading={isLoadingSites}
-                    rowKey="id"
-                />
+            <Table<Site>
+                className="min-h-[400px]"
+                style={{ width: '100%', minHeight: 400, maxWidth: '100%' }}
+                scroll={{ y: '45em' }}
+                pagination={false}
+                columns={sites_columns}
+                dataSource={sites?.items}
+                loading={isLoadingSites}
+                rowKey="id"
+            />
 
-                <div className="flex justify-center pt-4 pb-4">
-                    <Pagination
-                        showSizeChanger
-                        current={currentPage}
-                        pageSize={pageSize}
-                        total={sites?.count || 0}
-                        onShowSizeChange={(current, newPageSize) => {
-                            setPageSize(newPageSize);
-                        }}
-                        onChange={(page) => setCurrentPage(page)}
-                    />
-                </div>
-            </Space>
+            <div className="flex justify-center pt-4 pb-4">
+                <Pagination
+                    showSizeChanger
+                    current={currentPage}
+                    pageSize={pageSize}
+                    total={sites?.count || 0}
+                    onShowSizeChange={(current, newPageSize) => {
+                        setPageSize(newPageSize);
+                    }}
+                    onChange={(page) => setCurrentPage(page)}
+                />
+            </div>
         </div>
     );
 };

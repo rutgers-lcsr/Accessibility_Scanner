@@ -11,8 +11,11 @@
     "dependencies": {
         "@ant-design/nextjs-registry": "^1.1.0",
         "@ant-design/v5-patch-for-react-19": "^1.0.3",
+        "@hello-pangea/dnd": "^18.0.1",
+        "@monaco-editor/react": "^4.7.0",
         "antd": "^5.27.1",
         "date-fns": "^4.1.0",
+        "debounce": "^2.2.0",
         "highlight.js": "^11.11.1",
         "http-proxy": "^1.18.1",
         "next": "15.5.0",

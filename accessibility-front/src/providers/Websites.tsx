@@ -25,7 +25,10 @@ type WebsitesContextType = {
 
 const WebsitesContext = createContext<WebsitesContextType | undefined>(undefined);
 
-export const WebsitesProvider: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
+export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User | null }> = ({
+    children,
+    user,
+}) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
@@ -45,7 +48,6 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode, user: User 
 
     const requestWebsite = async (url: string) => {
         try {
-
             const getter = user ? handlerUserApiRequest<Website> : fetcherApi<Website>;
 
             const data = await getter(`/api/websites/`, {

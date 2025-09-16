@@ -12,6 +12,7 @@ import {
     HomeOutlined,
     LoginOutlined,
     LogoutOutlined,
+    SettingOutlined,
     SolutionOutlined,
 } from '@ant-design/icons';
 import { Menu } from 'antd';
@@ -43,6 +44,7 @@ export default function TabNav({ user }: Props) {
         { key: '4', path: '/rules' },
         { key: '5', path: user && user.is_admin ? '/domains' : '/login' },
         { key: '6', path: '/login' },
+        { key: '7', path: '/settings' },
     ];
 
     // Find the active tab key based on current pathname
@@ -62,6 +64,11 @@ export default function TabNav({ user }: Props) {
                   { label: 'Rules', key: '4', icon: <FormOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
                   { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
+                  {
+                      label: 'Settings',
+                      key: '7',
+                      icon: <SettingOutlined />,
+                  },
               ]
             : [
                   { label: 'Home', key: '1', icon: <HomeOutlined /> },
@@ -106,7 +113,13 @@ export default function TabNav({ user }: Props) {
             onCollapse={setCollapsed}
         >
             <div className="p-4 pl-3 text-xl font-bold">A11y</div>
-            <Menu onClick={handleSelect} selectedKeys={[activeKey]} mode="inline" items={items} />
+            <Menu
+                onClick={handleSelect}
+                selectedKeys={[activeKey]}
+                mode="inline"
+                items={items}
+                theme="light"
+            />
         </Sider>
     );
 }

@@ -4,9 +4,10 @@ import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 
 import { useAlerts } from '@/providers/Alerts';
-import { Button, Input, InputNumber, Modal, Space, Tooltip } from 'antd';
+import { Button, Divider, Flex, Input, InputNumber, Modal, Select, Space, Tooltip } from 'antd';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import useSWR from 'swr';
 
 type Props = {
     website: Website;
@@ -214,36 +215,95 @@ function AdminWebsiteItems({ website, mutate }: Props) {
         setLoadingDelete(false);
     };
 
+    const handleTagsChange = async (value: string[]) => {
+        setLoadingEmail(true);
+        try {
+            const updatedWebsite = await handlerUserApiRequest<Website>(
+                `/api/websites/${website.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ tags: value.join(',') }),
+                }
+            );
+            mutate(updatedWebsite);
+            addAlert('Tags updated successfully', 'success');
+        } catch {
+            addAlert('Failed to update tags', 'error');
+        }
+        setLoadingEmail(false);
+    };
+
+    const { data: allTags } = useSWR(`/api/axe/rules/tags/`, handlerUserApiRequest<string[]>);
+
     return (
-        <div className="mb-4 flex w-full flex-wrap rounded-md bg-gray-50 p-4 shadow">
-            <Space className="w-full" size={'large'} wrap>
-                <Button onClick={handleScan} loading={loadingScan}>
-                    Scan Now
-                </Button>
-
-                <Tooltip title="Automatic Website Scanning">
-                    <Button
-                        loading={loadingActivate}
-                        type={website.active ? 'primary' : 'default'}
-                        onClick={handleActivate}
-                    >
-                        {website.active ? 'Deactivate' : 'Activate'}
+        <div className="mb-4 rounded-md bg-gray-50 p-4 shadow">
+            <Space className="w-full" size={'large'} direction="vertical">
+                <div className="text-lg font-medium text-gray-800">Admin Actions</div>
+                <Flex gap="16px" align="center" style={{ paddingTop: 8 }}>
+                    <Button onClick={handleScan} loading={loadingScan}>
+                        Scan Now
                     </Button>
-                </Tooltip>
+                    <Tooltip title="Automatic Website Scanning">
+                        <Button
+                            loading={loadingActivate}
+                            type={website.active ? 'primary' : 'default'}
+                            onClick={handleActivate}
+                        >
+                            {website.active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                    </Tooltip>
 
-                <InputNumber
-                    disabled={!website.active || loadingRateLimit}
-                    addonBefore="Rate limit in Days"
-                    aria-label="Rate Limit in Days"
-                    min={1}
-                    value={website.rate_limit}
-                    onPressEnter={async (e) => {
-                        handleRateLimitChange((e.target as HTMLInputElement).value);
-                    }}
-                />
-                <div className="flex items-center gap-2">
+                    <InputNumber
+                        disabled={!website.active || loadingRateLimit}
+                        addonBefore="Rate limit in Days"
+                        aria-label="Rate Limit in Days"
+                        min={1}
+                        value={website.rate_limit}
+                        onPressEnter={async (e) => {
+                            handleRateLimitChange((e.target as HTMLInputElement).value);
+                        }}
+                    />
+                    <div>
+                        <Flex gap="8px" align="center">
+                            <label htmlFor="tags">Active Tags</label>
+                            <Tooltip title="Tags applied to this website, these will be used in addition to the default tags for the application.">
+                                <Select
+                                    mode="tags"
+                                    style={{ maxWidth: 400, minWidth: 200 }}
+                                    id="tags"
+                                    aria-label="Tags"
+                                    placeholder="Tags"
+                                    value={Array.from(
+                                        new Set([...website.tags, ...website.default_tags])
+                                    )}
+                                    options={Array.from(
+                                        new Set([
+                                            ...website.tags,
+                                            ...website.default_tags,
+                                            ...(allTags || []),
+                                        ])
+                                    ).map((tag) => ({
+                                        label: tag,
+                                        value: tag,
+                                    }))}
+                                    disabled={loadingEmail}
+                                    onChange={(value) => {
+                                        handleTagsChange(value);
+                                    }}
+                                />
+                            </Tooltip>
+                        </Flex>
+                    </div>
+                </Flex>
+                <Divider />
+
+                <Flex gap="16px" align="center">
                     <label htmlFor="email">Email</label>
                     <Input
+                        style={{ maxWidth: 300 }}
                         id="email"
                         aria-label="Email"
                         placeholder="Email"
@@ -264,9 +324,6 @@ function AdminWebsiteItems({ website, mutate }: Props) {
                     <Button onClick={handleSendEmailUpdate} loading={loadingEmail}>
                         Resend Latest Report Email
                     </Button>
-                </div>
-
-                <div className="">
                     <Button
                         type={website.public ? 'default' : 'primary'}
                         loading={loadingPublic}
@@ -274,8 +331,10 @@ function AdminWebsiteItems({ website, mutate }: Props) {
                     >
                         {website.public ? 'Disable Public Access' : 'Enable Public Access'}
                     </Button>
-                </div>
-                <div className="flex justify-end">
+                </Flex>
+
+                <Divider />
+                <Flex className="flex justify-end">
                     <Button danger onClick={() => setShowDeleteModal(true)} loading={loadingDelete}>
                         Delete
                     </Button>
@@ -287,7 +346,7 @@ function AdminWebsiteItems({ website, mutate }: Props) {
                     >
                         <p>Are you sure you want to delete this website?</p>
                     </Modal>
-                </div>
+                </Flex>
             </Space>
         </div>
     );

@@ -10,36 +10,32 @@ function rewriteUrl(path: string, query: string) {
 
 async function proxyRequest(req: NextRequest, method: string) {
     const path = req.nextUrl.pathname;
-    
+
     const query = req.nextUrl.searchParams.toString();
-    
+
     const url = rewriteUrl(path, query);
     const user: User | null = await getCurrentUser();
 
-    if(user){
-        if (req.nextUrl.pathname === '/api/auth/refresh'){
-            req.headers.set('Authorization', `Bearer ${user?.refresh_token || ''}`)
-        }else  {
-            req.headers.set('Authorization', `Bearer ${user?.access_token || ''}`)
+    if (user) {
+        if (req.nextUrl.pathname === '/api/auth/refresh') {
+            req.headers.set('Authorization', `Bearer ${user?.refresh_token || ''}`);
+        } else {
+            req.headers.set('Authorization', `Bearer ${user?.access_token || ''}`);
         }
     }
-    
 
-
-    const request:RequestInit = {
+    const request: RequestInit = {
         method,
         headers: req.headers,
         body: ['POST', 'PUT', 'PATCH'].includes(method) ? await req.text() : null,
-        redirect: 'follow'
+        redirect: 'follow',
     };
     try {
-
         const res = await fetch(url, request);
 
         const data = await res.arrayBuffer();
 
-
-        if(res.status === 401){
+        if (res.status === 401) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
@@ -47,7 +43,7 @@ async function proxyRequest(req: NextRequest, method: string) {
             status: res.status,
             headers: res.headers,
         });
-    }catch {
+    } catch {
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
@@ -58,24 +54,35 @@ async function loadUser(casUser: CasUser) {
         headers: {
             'x-cas-user': casUser.user,
             'x-cas-server': process.env.NEXT_PUBLIC_CAS_URL || '',
-        }
+        },
     });
 
-    return {...casUser,...await api_user.json() }
+    return { ...casUser, ...(await api_user.json()) };
 }
-
 
 const cas_get_route = handleAuth({ loadUser, validator: ValidatorProtocol.CAS30 });
 
 export async function GET(req: NextRequest) {
-
     if (req.nextUrl.pathname === '/api/cas/login') {
         // Handle token refresh
-        return cas_get_route(req, {params: {client: 'login'}});
+        return cas_get_route(req, { params: { client: 'login' } });
     }
-    if (req.nextUrl.pathname === '/api/cas/logout'){
-        return cas_get_route(req, {params: {client: 'logout'}});
+    if (req.nextUrl.pathname === '/api/cas/logout') {
+        return cas_get_route(req, { params: { client: 'logout' } });
     }
+    if (req.nextUrl.pathname === '/api/axe_js') {
+        const response = await fetch(
+            'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.9.1/axe.min.js'
+        );
+        const data = await response.text();
+        return new NextResponse(data, {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/javascript',
+            },
+        });
+    }
+
     return proxyRequest(req, 'GET');
 }
 export async function POST(req: NextRequest) {

@@ -1,7 +1,21 @@
 import { LoadingOutlined } from '@ant-design/icons';
 import { Flex, Spin } from 'antd';
 
-export default function PageLoading() {
+type Props = {
+    minimal?: boolean;
+};
+
+export default function PageLoading({ minimal }: Props) {
+    if (minimal) {
+        return (
+            <div className="flex">
+                <Flex align="center" gap="middle">
+                    <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+                </Flex>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-screen items-center justify-center">
             <Flex align="center" gap="middle">

@@ -65,3 +65,61 @@ export type Report = {
     created_at: string;
     updated_at: string;
 };
+
+export type CheckTemplate = {
+    name: string;
+    rule_id: number;
+    type: 'all' | 'any' | 'none';
+    description: string;
+    evaluate: string; // JavaScript function as a string
+    options?: Record<string, unknown>;
+    pass_text: string;
+    fail_text: string;
+    imcomplete_text?: string;
+    impact: 'minor' | 'moderate' | 'serious' | 'critical';
+};
+
+export type Check = {
+    id: number; // Unique identifier for the check (e.g., 'color-contrast')
+    name: string; // Human-readable name of the check
+    description: string; // Description of what the check does
+    evaluate: string; // JavaScript function as a string to evaluate the check
+    options: Record<string, unknown>; // Options for the check
+    pass_text: string; // Text to display when the check passes
+    fail_text: string; // Text to display when the check fails
+    impact: 'minor' | 'moderate' | 'serious' | 'critical'; // Severity of the issue
+    incomplete_text: string; // Whether the check is incomplete
+};
+
+export type RuleTemplate = {
+    name: string;
+    description: string;
+    matches?: string;
+    selector?: string;
+    help: string;
+    help_url: string;
+    tags: string[];
+    exclude_hidden: boolean;
+    impact: 'minor' | 'moderate' | 'serious' | 'critical';
+};
+export type Rule = {
+    id: number;
+    name: string;
+    description: string;
+    matches: string; // JavaScript function as a string
+    selector: string; // CSS selector
+    enabled: boolean;
+    exclude_hidden: boolean;
+    help: string;
+    help_url: string;
+    tags: string[]; // Tags associated with the rule
+    all: number[]; // IDs of checks that must all pass
+    any: number[]; // IDs of checks that must pass
+    none: number[]; // IDs of checks that must not be present
+    impact: 'minor' | 'moderate' | 'serious' | 'critical';
+};
+export type RulesChecks = {
+    all: Check[];
+    any: Check[];
+    none: Check[];
+};

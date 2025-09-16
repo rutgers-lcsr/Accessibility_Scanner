@@ -3,8 +3,9 @@
 from hashlib import md5
 import random
 import string
-from typing import List, TypedDict
+from typing import List, Literal, TypedDict
 from scanner.accessibility.ace import AxeResult
+from scanner.log import log_message
 
 LEVEL = {
     'critical': 'border: 3px solid red; z-index: 9999; position: relative;',
@@ -19,10 +20,16 @@ tooltip_style = "position: absolute; z-index: 9999;pointer-events: none; text-al
 class Injection(TypedDict):
     selector: str
     style: str
+    impact: Literal['critical', 'serious', 'moderate', 'minor', 'null']
     description: str
     message: str
     helping: str
     help_url: str
+    
+    
+        
+        
+    
 
 def report_to_js(report: List[AxeResult], report_url: str) -> str:
     """Generates javascript which can be used to find accessibility violations in a webpage.
@@ -34,22 +41,36 @@ def report_to_js(report: List[AxeResult], report_url: str) -> str:
         str: A string containing the generated JavaScript code.
     """
     injections = []
+    try:
+        for violation in report:
+            if violation['impact'] not in LEVEL:
+                log_message(f"Unknown impact level '{violation['impact']}' found. Defaulting to 'minor'.", 'warning')
+                violation['impact'] = 'minor'
+            if violation['description'] is None:
+                violation['description'] = "No description provided."
+            if violation['help'] is None:
+                violation['help'] = "No help provided."
+            if violation['helpUrl'] is None:
+                violation['helpUrl'] = "No help URL provided."
+            
+            for node in violation['nodes']:
+                    selector = ", ".join(node['target'])
 
-    for violation in report:
-       for node in violation['nodes']:
-            selector = ", ".join(node['target'])
+                    injection = Injection(
+                    selector=selector,
+                    impact= violation['impact'] or 'minor',
+                    style=LEVEL[violation['impact']],
+                    message=node['failureSummary'],
+                    description=violation['description'],
+                    help=violation['help'],
+                    help_url=violation['helpUrl'],
+                    )
+                    injections.append(injection)
+        return generate_js_list(injections, report_url)    
+    except Exception as e:
+        log_message(f"Error processing report for JS generation: {e}", 'error')
+        return ""
 
-            injection = Injection(
-               selector=selector,
-               style=LEVEL[violation['impact']],
-               message=node['failureSummary'],
-               description=violation['description'],
-               help=violation['help'],
-               help_url=violation['helpUrl'],
-            )
-            injections.append(injection)
-
-    return generate_js_list(injections, report_url)
 
 def generate_random_string(length):
     """
@@ -82,7 +103,7 @@ try {{
 
         var tooltip = document.createElement('div');
         tooltip.className = 'tooltip-{selector_hash}';
-        tooltip.innerHTML = `{injection['message']} <br> {injection['help']} <br> Click to Learn More`;
+        tooltip.innerHTML = `[{injection['impact']}] {injection['message']} <br> {injection['help']} <br> Click to Learn More`;
         tooltip.style = "{tooltip_style}";
         {selector_small_hash}.appendChild(tooltip);
     }};

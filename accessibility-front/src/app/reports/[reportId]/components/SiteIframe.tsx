@@ -5,19 +5,7 @@ type Props = {
 };
 
 function SiteIframe({ url }: Props) {
-    // const iframeRef = useRef<HTMLIFrameElement>(null);
-
-    // useEffect(() => {}, []);
-    // const handleLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
-    //     const iframe = e.target as HTMLIFrameElement;
-    //     console.log('Iframe loaded:', iframe);
-    //     try {
-    //         console.log(iframe.contentWindow);
-    //     } catch (error) {
-    //         console.error('Error occurred while loading iframe:', error);
-    //     }
-    // };
-
+    console.log('Rendering iframe for URL:', url);
     return (
         <iframe
             tabIndex={-1}
@@ -27,6 +15,8 @@ function SiteIframe({ url }: Props) {
             src={url}
             title="Website Preview"
             className="w-full min-h-[700px]"
+            style={{ border: 'none' }}
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
         />
     );
 }

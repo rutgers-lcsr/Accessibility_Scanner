@@ -23,9 +23,9 @@ async def conduct_scan_website(website: str):
 
     try:
         website = get_full_url(website)
-        process = Process(target=run_scan, args=(website,), daemon=True)
+        process = Process(target=run_scan, args=(website,), daemon=True, name=f"Scan-{get_netloc(website)}")
         process.start()
-        process.join()
+        # process.join()
     except Exception as e:
         return {"error": str(e)}, 500
    
@@ -33,8 +33,7 @@ async def conduct_scan_website(website: str):
 async def conduct_scan_site(site: str):
 
     try:
-        site = get_full_url(site)
-        process = Process(target=run_scan_site, args=(site,), daemon=True)
+        process = Process(target=run_scan_site, args=(site,), daemon=True, name=f"Scan-{get_netloc(site)}")
         process.start()
         process.join()
     except Exception as e:
@@ -59,7 +58,7 @@ def scan_website():
             except ValueError:
                 return {"error": "Invalid website ID"}, 400
 
-            website = db.session.get(Website, website_id)
+            website = db.session.query(Website).get(website_id)
             if not website:
                 return {"error": "Invalid website URL"}, 400
             
@@ -77,16 +76,14 @@ def scan_website():
             except ValueError:
                 return {"error": "Invalid site ID"}, 400
             
-            site = db.session.get(Site, site_id)
+            site = db.session.query(Site).get(site_id)
             if not site:
                 return {"error": "Invalid site URL"}, 400
-
-            site_url = get_full_url(site.url)
 
             if site.scanning:
                 return {"error": "Scan already in progress"}, 409
 
-            asyncio.run_coroutine_threadsafe(conduct_scan_site(site_url), loop)
+            asyncio.run_coroutine_threadsafe(conduct_scan_site(site.url), loop)
             return jsonify({"message": "Scan started", "polling_endpoint": f"/api/scans/status/?site={site_id}"}), 202
 
     except Exception as e:

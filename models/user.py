@@ -3,13 +3,20 @@ from models import db
 from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.orm import Mapped
 from datetime import datetime
+
+# Use string-based type hint to avoid circular import
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from models.website import Website
+
 class User(db.Model):
     __tablename__ = 'users'
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     username: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
     email: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
-    websites: Mapped[List['Website']] = db.relationship('Website', back_populates='user', lazy=True)
+    # Use string-based relationship to avoid circular import
+    websites: Mapped[List["Website"]] = db.relationship("Website", back_populates='user', lazy=True)
     # password is nullable because users can login using cas
     password: Mapped[str] = db.Column(db.String(255), nullable=True)
     is_active: Mapped[bool] = db.Column(db.Boolean, default=True)

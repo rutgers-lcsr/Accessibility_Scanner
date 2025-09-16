@@ -1,11 +1,13 @@
 
 from datetime import datetime
 from typing import List, TypedDict
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
 from models.report import AxeReportCounts, Report, ReportMinimized
+from models.rules import Rule
+from models.settings import Settings
 from models.user import User
 from scanner.accessibility.ace import AxeReportKeys
 from utils.urls import get_netloc, is_valid_url
@@ -78,6 +80,18 @@ class Site(db.Model):
             .scalar_subquery()
         )
 
+    def get_tags(self) -> List[str]:
+        """
+        Returns the tags for the site based on its associated website. If multiple websites are associated, it uses the first one.
+        """
+        if not self.websites:
+            return []
+        
+        return self.websites[0].get_tags()
+    def ace_config(self) -> str:
+        """Returns the ACE configuration for the site based on its associated website. If multiple websites are associated, it uses the first one."""
+        return self.websites[0].get_ace_config() if self.websites else ""
+    
     def to_dict(self) -> SiteDict:
 
 
@@ -96,6 +110,7 @@ class Site(db.Model):
             } for report in reports],
             'current_report': self.get_recent_report(),
             'active': self.active,
+            'tags': self.get_tags(),
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
@@ -121,6 +136,9 @@ class WebsiteDict(TypedDict,total=False):
     sites: List[int]
     last_scanned: datetime | None
     report_counts: dict[AxeReportKeys, AxeReportCounts]
+    tags: List[str]
+    email: str | None
+    should_email: bool
     active: bool
     rate_limit: int
     public: bool
@@ -143,16 +161,46 @@ class Website(db.Model):
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     user: Mapped['User'] = db.relationship('User', back_populates='websites', lazy=True)
+    tags: Mapped[str] = db.Column(db.Text, nullable=True) # comma separated list of tags
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
+    def get_tags(self) -> List[str]:
+        defaultTags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
+        if not self.tags and defaultTags:
+            return [tag.strip() for tag in defaultTags.split(",")]
+        
+        defaultTags = [tag.strip() for tag in defaultTags.split(",")] if defaultTags else []
+        websiteTags = [tag.strip() for tag in self.tags.split(",")] if self.tags else []
+        all_tags = sorted(set(websiteTags + defaultTags))
+        return all_tags 
+        
+    def get_ace_config(self) -> str:
 
+        all_tags = self.get_tags()
+        if not all_tags:
+            print("No tags found for ACE config")
+            return ""
+        
+        filter = [Rule.tags.like(f"%{tag.strip()}%") for tag in all_tags]
+        rules = db.session.query(Rule).filter(Rule.enabled == True, or_(*filter)).distinct().all()
+        print(f"Generating ACE config for website {self.id} with tags {self.tags} found {len(rules)} rules")
+        all_rules = [rule.to_js_object() for rule in rules]
+        all_checks = set()
+        
+        for rule in rules:
+            all_checks.update(rule.getChecksJson())
+
+        config = f"""{{ "checks": [{','.join(list(all_checks))}],"rules": [{','.join(all_rules)}]}}"""
+        return config
+
+        
 
     @hybrid_method
     def get_report_counts(self) -> AxeReportCounts | None:
         sites = self.sites.all()
         if not sites:
-            sites = []
+            sites: List[Site] = []
 
         total_counts = {
             'violations': {'total': 0, 'critical': 0, 'serious': 0, 'moderate': 0, 'minor': 0},
@@ -171,6 +219,14 @@ class Website(db.Model):
         return total_counts
 
     def to_dict(self)-> WebsiteDict:
+        
+        
+        defaultTags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
+        if defaultTags == '':
+            defaultTags = []
+        elif defaultTags:
+            defaultTags = [tag.strip() for tag in defaultTags.split(",")]
+
         return {
             'id': self.id,
             'url': self.url,
@@ -179,6 +235,8 @@ class Website(db.Model):
             'email': self.user.email or None if self.user else None,
             'should_email': self.should_email,
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
+            'tags': [tag.strip() for tag in self.tags.split(",")] if self.tags else [],
+            'default_tags': defaultTags,
             'report_counts': self.get_report_counts(),
             'active': self.active,
             'rate_limit': self.rate_limit,
@@ -226,23 +284,26 @@ class Website(db.Model):
 
 
     def delete(self, delete_domain: bool = True):
+        try:
+            for site in self.sites:
+                websites = site.websites.all()
+                if len(websites) <= 1:
+                    db.session.delete(site)
+                    Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == site.id)
+                else:
+                    site.websites.remove(self)
+                    db.session.add(site)
 
-        for site in self.sites:
-            websites = site.websites.all()
-            if len(websites) <= 1:
-                db.session.delete(site)
-                Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == site.id)
-            else:
-                site.websites.remove(self)
-                db.session.add(site)
+            if delete_domain and len(self.domain.websites) <= 1:
+                self.domain.delete()
 
-        if delete_domain and len(self.domain.websites) <= 1:
-            self.domain.delete()
+            Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id)
 
-        Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id)
-
-        db.session.delete(self)
-        db.session.commit()
+            db.session.delete(self)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
 
     def __repr__(self):
         return f'<Website {self.url}>'

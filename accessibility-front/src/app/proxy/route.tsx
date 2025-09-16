@@ -154,6 +154,7 @@ export async function GET(req: NextRequest) {
         );
         requestHeaders.set('Accept', req.headers.get('Accept') || '*/*');
         requestHeaders.set('Origin', req.headers.get('Origin') || url);
+        requestHeaders.set('Referer', req.headers.get('Referer') || url);
 
         const response = await fetch(url, {
             headers: requestHeaders,
@@ -177,6 +178,8 @@ export async function GET(req: NextRequest) {
         return new NextResponse(body, {
             headers: {
                 'Content-Type': response.headers.get('content-type') || 'text/html',
+                'Access-Control-Allow-Origin': '*',
+                'Content-Security-Policy': "frame-ancestors 'self' *",
                 'X-Frame-Options': 'ALLOWALL',
             },
         });

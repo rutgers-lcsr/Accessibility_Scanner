@@ -51,7 +51,9 @@ def create_app():
     from blueprints.user import user_bp
     from blueprints.website import website_bp
     from blueprints.scan import scan_bp
-
+    from blueprints.axe_rules import axe_bp
+    from blueprints.settings import settings_bp
+    
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(domain_bp, url_prefix='/api/domains')
     app.register_blueprint(report_bp, url_prefix='/api/reports')
@@ -59,12 +61,17 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix='/api/users')
     app.register_blueprint(website_bp, url_prefix='/api/websites')
     app.register_blueprint(scan_bp, url_prefix='/api/scans')
+    app.register_blueprint(axe_bp, url_prefix='/api/axe')
+    app.register_blueprint(settings_bp, url_prefix='/api/settings')
 
     with app.app_context():
         inspector = inspect(db.engine)
         # force schema default to db.engine.url.database
         db.metadata.create_all(bind=db.engine, checkfirst=True)
-
+        if 'settings' in inspector.get_table_names():
+            from models.settings import Settings
+            Settings.init_defaults()
+        
 
     # set up datetime format for j2 templates
     @app.template_filter('datetimeformat')
@@ -90,6 +97,7 @@ def init_scanner():
 if __name__ == '__main__':
     app = create_app()
     init_admin(app)
-
+    import multiprocessing
+    multiprocessing.set_start_method("spawn")
     app.run(debug=True)
 

@@ -3,9 +3,8 @@ export const fetcherApi = <T>(url: string) => handleRequest<T>(url);
 export const handleRequest = async <T>(url: string, options?: RequestInit): Promise<T> => {
     const response = await fetch(url, options);
     if (!response.ok) {
-
-        let reason = await response.json().catch(() => ({}));
-        if(response.status == 404){
+        let reason = await response.json().catch(() => ({ error: 'Unknown error' }));
+        if (response.status == 404) {
             reason = { error: 'Not Found' };
         }
 
