@@ -1,16 +1,16 @@
 import { Input } from 'antd';
 import { useState } from 'react';
 
-type Props = Omit<React.ComponentProps<typeof Input>, 'onChange'> & {
+type Props<T> = Omit<React.ComponentProps<typeof Input>, 'onChange'> & {
     label?: string;
-    value: string | number;
-    validate?: (value: string | number) => string | null;
-    onChange: (value: string | number) => Promise<void>;
+    value: T;
+    validate?: (value: T) => string | null;
+    onChange: (value: T) => Promise<void>;
 };
 
-function EditableInput({ label, value, onChange, validate, ...rest }: Props) {
+function EditableInput<T>({ label, value, onChange, validate, ...rest }: Props<T>) {
     const [isEditing, setIsEditing] = useState(false);
-    const [localValue, setLocalValue] = useState(value);
+    const [localValue, setLocalValue] = useState<T>(value);
     const [error, setError] = useState<string | null>(null);
     // Update local value if the prop value changes
     if (value !== localValue && !isEditing) {
@@ -30,7 +30,7 @@ function EditableInput({ label, value, onChange, validate, ...rest }: Props) {
                 {label && <strong>{label}: </strong>}
                 <Input
                     {...rest}
-                    value={localValue}
+                    value={localValue as unknown as string}
                     onPressEnter={async (e) => {
                         e.preventDefault();
                         if (validate) {
@@ -44,10 +44,10 @@ function EditableInput({ label, value, onChange, validate, ...rest }: Props) {
                             setIsEditing(false);
                             return;
                         }
-                        await onChange((e.target as HTMLInputElement).value);
+                        await onChange((e.target as HTMLInputElement).value as unknown as T);
                         setIsEditing(false);
                     }}
-                    onChange={(e) => setLocalValue(e.target.value)}
+                    onChange={(e) => setLocalValue(e.target.value as unknown as T)}
                     onBlur={() => setIsEditing(false)}
                     autoFocus
                     aria-label={label ? `${label} input` : 'Editable input'}
