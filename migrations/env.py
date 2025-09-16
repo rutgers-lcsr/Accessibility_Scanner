@@ -65,7 +65,7 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
+        url=url, target_metadata=get_metadata(), literal_binds=True,
     )
 
     with context.begin_transaction():
@@ -97,11 +97,24 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=get_metadata(),
-            **conf_args
-        )
+        dialect_name = connection.dialect.name
+
+        if dialect_name in ("mysql", "mariadb"):
+            context.configure(
+                connection=connection,
+                target_metadata=get_metadata(),
+                version_table="alembic_version",
+                version_table_schema=connection.engine.url.database,  # 👈 your DB name
+                **conf_args
+            )
+        else:
+            # SQLite, Postgres, etc.
+            context.configure(
+                connection=connection,
+                target_metadata=get_metadata(),
+                version_table="alembic_version",
+                **conf_args
+            )
 
         with context.begin_transaction():
             context.run_migrations()
