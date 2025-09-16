@@ -51,7 +51,7 @@ services:
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
             - CLIENT_URL=${CLIENT_URL}
         depends_on:
-            - a11y-db
+            - a11y-nextjs
         restart: unless-stopped
         logging:
             driver: json-file

@@ -19,6 +19,7 @@ COPY blueprints/ ./blueprints/
 COPY mail/ ./mail/
 COPY models/ ./models/
 COPY templates/ ./templates/
+COPY migrations/ ./migrations/
 COPY utils/ ./utils/
 COPY app.py .
 COPY config.py .
