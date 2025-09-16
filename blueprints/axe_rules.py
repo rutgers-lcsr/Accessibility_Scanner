@@ -7,6 +7,11 @@ from models.rules import Check, Rule
 
 axe_bp = Blueprint('axe', __name__)
 
+
+default_rule = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice", "wcag2a-obsolete", "wcag***" , "ACT", "section508", "TTv5", "EN-301-549" , "RGAAv4", "experimental", "wcag2aaa", "wcag22aa"]
+
+
+
 @axe_bp.route("/validate_javascript/", methods=["POST"])
 @admin_required
 def validate_javascript():
@@ -44,7 +49,7 @@ def get_rule_tags():
     # strip whitespace and remove empty tags
     tags = [tag.strip() for tag in tags if tag]
     # get unique tags
-    tags = list(set(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"] + tags))
+    tags = list(set(default_rule + tags))
     tags.sort()
 
     return jsonify(tags), 200
