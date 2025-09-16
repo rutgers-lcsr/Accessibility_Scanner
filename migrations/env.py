@@ -104,7 +104,7 @@ def run_migrations_online():
                 connection=connection,
                 target_metadata=get_metadata(),
                 version_table="alembic_version",
-                version_table_schema=connection.engine.url.database,  # 👈 your DB name
+                version_table_schema="a11y", 
                 **conf_args
             )
         else:
