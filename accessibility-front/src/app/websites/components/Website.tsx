@@ -50,7 +50,7 @@ const Website = ({ websiteId, user }: Props) => {
     const WebsiteReportItems: TabsProps['items'] = [
         {
             key: '1',
-            label: `Sites (${websiteReport.sites.length})`,
+            label: `Urls (${websiteReport.sites.length})`,
             children: (
                 <>
                     {isLoadingReport ? (
@@ -65,7 +65,7 @@ const Website = ({ websiteId, user }: Props) => {
         },
         {
             key: '2',
-            label: `Voilations (${violations.total})`,
+            label: `Violations (${violations.total})`,
             children: <WebsiteReport report={websiteReport.report} />,
         },
     ];
