@@ -1,6 +1,6 @@
+'use client';
 import { AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
-import { Card, Tag } from 'antd';
-
+import { Card, Collapse, Tag } from 'antd';
 type Props = {
     accessibilityResult: WebsiteAxeResult | AxeResult;
 };
@@ -30,33 +30,50 @@ function AuditAccessibilityItem({ accessibilityResult }: Props) {
 
                 {!!accessibilityResult.reports?.length && (
                     <div className="mt-4">
-                        <strong className="block mb-2 text-gray-800">Reported on:</strong>
-                        <ul className="space-y-2">
-                            {accessibilityResult.reports.map((report) => (
-                                <li key={report.report_id}>
-                                    <Card
-                                        size="small"
-                                        type="inner"
-                                        className="hover:shadow-md transition"
-                                    >
-                                        {' '}
-                                        <a
-                                            href={`/reports/${report.report_id}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                        <Collapse>
+                            <Collapse.Panel
+                                header={
+                                    <span className="font-medium">
+                                        Affected Reports
+                                        <Tag color="blue" style={{ marginLeft: 8 }}>
+                                            {accessibilityResult.reports.length}
+                                        </Tag>
+                                    </span>
+                                }
+                                key="1"
+                            >
+                                <ul style={{ paddingLeft: 0, margin: 0 }}>
+                                    {accessibilityResult.reports.map((report, idx) => (
+                                        <li
+                                            key={idx}
                                             style={{
-                                                color: '#1677ff',
-                                                fontWeight: 500,
-                                                wordBreak: 'break-all',
+                                                listStyle: 'none',
+                                                marginBottom: 12,
+                                                display: 'flex',
+                                                alignItems: 'center',
                                             }}
-                                            title={report.url}
                                         >
-                                            {report.url}
-                                        </a>
-                                    </Card>
-                                </li>
-                            ))}
-                        </ul>
+                                            <Tag color="geekblue" style={{ marginRight: 8 }}>
+                                                {new Date(report.timestamp).toLocaleString()}
+                                            </Tag>
+                                            <a
+                                                href={`/reports/${report.report_id}`}
+                                                className="text-blue-600 hover:underline"
+                                                style={{
+                                                    flex: 1,
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                }}
+                                                title={report.url}
+                                            >
+                                                {report.url}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </Collapse.Panel>
+                        </Collapse>
                     </div>
                 )}
                 <div className="mt-2 flex flex-wrap justify-end gap-2">
