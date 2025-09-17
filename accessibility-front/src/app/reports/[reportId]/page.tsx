@@ -72,7 +72,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                     <h2 className="mb-2 text-lg text-gray-500">
                         Report Date:{' '}
                         {report?.timestamp
-                            ? format(new Date(report.timestamp), 'MMMM dd, yyyy')
+                            ? format(new Date(report.timestamp), 'MMMM dd, yyyy HH:mm:ss')
                             : 'N/A'}
                     </h2>
                     <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>

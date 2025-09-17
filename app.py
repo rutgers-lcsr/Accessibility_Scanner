@@ -80,7 +80,7 @@ def create_app():
         from datetime import datetime
         try:
             dt = datetime.fromisoformat(value)
-            return dt.strftime(format)
+            return dt.strftime(format) + ' UTC'
         except Exception:
             return value  # Return original if formatting fails
 

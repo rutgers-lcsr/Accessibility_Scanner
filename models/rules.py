@@ -122,9 +122,11 @@ class Check(db.Model):
                 evaluate: {self.evaluate},
                 options: {self.options if self.options else '{}'},
                 metadata: {{
-                    pass: "{self.pass_text}",
-                    fail: "{self.fail_text}",
-                    incomplete: "{self.incomplete_text}",
+                    messages: {{
+                        pass: "{self.pass_text}",
+                        fail: "{self.fail_text}",
+                        incomplete: "{self.incomplete_text}",
+                    }}
                 }},
             }}
         """ 
