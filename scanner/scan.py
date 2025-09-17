@@ -175,8 +175,18 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
             
             for site_reports in results:
                 try:
-                # check if site exists if not create one
+                    
+                    # check if site url is based on website domain
+                    # this is because some links might be to a redirect domain or external domain, we want to ignore those even though we crawled them
+                    site_netloc = get_netloc(site_reports['url'])
+                    website_netloc = get_netloc(website.url)
+                    if site_netloc != website_netloc:
+                        log_message(f"Skipping site {site_reports['url']} as it is not part of the website domain {website_netloc}", 'warning')
+                        continue
+                    
+                    # check if site exists if not create one
                     site = db.session.query(Site).filter_by(url=site_reports['url']).first()
+                    
                     if site is None:
                         site = Site(url=site_reports['url'], website=website)
                         db.session.add(site)
