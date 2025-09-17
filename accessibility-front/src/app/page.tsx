@@ -54,15 +54,18 @@ export default function Home() {
                             description="Tool to convert documents into accessible formats."
                             link="https://it.rutgers.edu/digital-accessibility/knowledgebase/sensusaccess/"
                         />
+                        <ResourceCard
+                            title="Deque Axe DevTools for Chrome"
+                            description="Browser extension for testing web accessibility."
+                            link="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd"
+                        />
                     </div>
                     <Divider />
-                    
                     <Typography.Title level={4}>Additional Help</Typography.Title>
                     <Typography.Paragraph>
                         For technical assistance, contact the LCSR at{' '}
                         <a href="mailto:help@cs.rutgers.edu">help@cs.rutgers.edu</a>.
                     </Typography.Paragraph>
-                    
                 </Card>
             </Content>
         </>
