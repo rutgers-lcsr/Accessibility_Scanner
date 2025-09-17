@@ -11,8 +11,6 @@ import {
     WarningOutlined,
 } from '@ant-design/icons';
 import { Tabs, TabsProps } from 'antd';
-import { format } from 'date-fns';
-import React from 'react';
 import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -37,12 +35,6 @@ const Website = ({ websiteId, user }: Props) => {
         `/api/websites/${websiteId}`,
         user ? handlerUserApiRequest<WebsiteType> : fetcherApi<WebsiteType>
     );
-    // Use a ref to avoid resetting pageSize on re-render
-    const [currentPage, setCurrentPage] = React.useState(1);
-    const [pageSize, setPageSize] = React.useState(10);
-    React.useEffect(() => {
-        setPageSize(pageSize);
-    }, [pageSize]);
 
     if (reportError) return <PageError status={500} title="Error loading website report" />;
     if (!websiteReport) return <PageLoading />;
@@ -90,7 +82,7 @@ const Website = ({ websiteId, user }: Props) => {
                 <h2 className="mb-4 text-lg text-gray-500">
                     Last Scanned:{' '}
                     {websiteReport?.last_scanned
-                        ? format(websiteReport?.last_scanned, 'MMMM dd, yyyy HH:mm:ss z')
+                        ? new Date(websiteReport.last_scanned).toLocaleString()
                         : 'Never'}
                 </h2>
                 <section
