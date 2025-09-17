@@ -63,12 +63,35 @@ def get_axe_config(axe_config:str) -> str:
 def get_axe_js(tags: List[str]) -> str:
     tags_str = ', '.join([f"'{tag.strip()}'" for tag in tags])
     return f"""async () => {{
-            return await axe.run({{
+            const report = await axe.run({{
                 runOnly: {{
                     type: 'tag',
                     values: [{tags_str}]
                 }}
             }});
+            
+            report.testEngine = 'LCSRAccessibility';
+            // convert errors to strings
+            function cleanErrors(obj) {{
+                if (obj && typeof obj === 'object') {{
+                    if (Array.isArray(obj)) {{
+                        return obj.map(cleanErrors);
+                    }} else {{
+                        const newObj = {{}};
+                        for (const [key, value] of Object.entries(obj)) {{
+                            if (value instanceof Error) {{
+                                newObj[key] = value.toString();
+                            }} else {{
+                                newObj[key] = cleanErrors(value);
+                            }}
+                        }}
+                        return newObj;
+                    }}
+                }}
+                return obj;
+            }}
+            return cleanErrors(report);
+            
         }}"""
 async def get_accessibility_report(page: Page, tags:List[str] = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'], axe_config: str = "") -> AxeReport:
     

@@ -174,24 +174,27 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
 
             
             for site_reports in results:
+                try:
                 # check if site exists if not create one
-                site = db.session.query(Site).filter_by(url=site_reports['url']).first()
-                if site is None:
-                    site = Site(url=site_reports['url'], website=website)
+                    site = db.session.query(Site).filter_by(url=site_reports['url']).first()
+                    if site is None:
+                        site = Site(url=site_reports['url'], website=website)
+                        db.session.add(site)
+                        db.session.flush()
+                    else:
+                        if site not in website.sites:
+                            print(f"Adding site {site.id} to website {website.id}")
+                            website.sites.append(site)
+                    report = Report(site_reports, site_id=site.id)
+                    site.reports.append(report)
+                    site.last_scanned = db.func.current_timestamp()
+                    db.session.add(report)
                     db.session.add(site)
-                    db.session.flush()
-                else:
-                    if site not in website.sites:
-                        print(f"Adding site {site.id} to website {website.id}")
-                        website.sites.append(site)
-                report = Report(site_reports, site_id=site.id)
-
-                
-                site.reports.append(report)
-                site.last_scanned = db.func.current_timestamp()
-                db.session.add(report)
-                db.session.add(site)
-                db.session.commit()
+                    db.session.commit()
+                except Exception as e:
+                    log_message(f"Error storing report for {site_reports['url']}: {str(e)}", 'error')
+                    db.session.rollback()
+                    continue
 
             
             website.last_scanned = db.func.current_timestamp()

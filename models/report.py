@@ -58,6 +58,8 @@ class Report(db.Model):
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
+    def __repr__(self):
+        return f"<Report {self.id} for site {self.site_id} - {self.url}>"
     def __init__(self, data: AccessibilityReport, site_id):
         self.from_dict(data)
         self.site_id = site_id
@@ -180,6 +182,6 @@ class Report(db.Model):
             'videos': self.videos,
             'imgs': self.imgs,
             'tabable': self.tabable,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            # 'created_at': self.created_at.isoformat(),
+            # 'updated_at': self.updated_at.isoformat()
         }

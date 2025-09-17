@@ -71,4 +71,4 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     except Exception as e:
         await page.close()
         log_message(f"Error generating report for {website}: {e}", 'error')
-        return {"error": e}
+        return {"error": str(e)}
