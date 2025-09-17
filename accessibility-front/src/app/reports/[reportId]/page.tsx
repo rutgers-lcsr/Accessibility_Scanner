@@ -7,7 +7,6 @@ import {
     WarningOutlined,
 } from '@ant-design/icons';
 import { Content } from 'antd/es/layout/layout';
-import { format } from 'date-fns';
 import { headers } from 'next/headers';
 
 import AdminReportItems from '@/components/AdminReportItems';
@@ -71,9 +70,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                     {user && user.is_admin && <AdminReportItems report={report} />}
                     <h2 className="mb-2 text-lg text-gray-500">
                         Report Date:{' '}
-                        {report?.timestamp
-                            ? format(new Date(report.timestamp), 'MMMM dd, yyyy HH:mm:ss')
-                            : 'N/A'}
+                        {report?.timestamp ? new Date(report.timestamp).toLocaleString() : 'N/A'}
                     </h2>
                     <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
 
