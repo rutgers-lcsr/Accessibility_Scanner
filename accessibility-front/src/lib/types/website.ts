@@ -1,4 +1,4 @@
-import { AxeReportCounts, AxeReportKeys, ReportMinimized } from './axe';
+import { AxeReportCounts, AxeReportKeys, ReportMinimized, WebsiteAxeReport } from './axe';
 
 export type Website = {
     id: number;
@@ -11,6 +11,7 @@ export type Website = {
     last_scanned: string;
     tags: string[];
     default_tags: string[];
+    report: WebsiteAxeReport;
     report_counts: Record<AxeReportKeys, AxeReportCounts>;
     domain_id: string;
     sites: number[];

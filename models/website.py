@@ -9,7 +9,7 @@ from models.report import AxeReportCounts, Report, ReportMinimized
 from models.rules import Rule
 from models.settings import Settings
 from models.user import User
-from scanner.accessibility.ace import AxeReportKeys
+from scanner.accessibility.ace import AxeReportKeys, AxeResult, WebsiteAxeReport
 from utils.urls import get_netloc, is_valid_url
 
 class SiteDict(TypedDict):
@@ -53,6 +53,12 @@ class Site(db.Model):
             'timestamp': report.timestamp.isoformat() if report.timestamp else None
         }
         return report
+    
+    def get_full_current_report(self) -> Report | None:
+        report:Report = self.reports.order_by(Report.timestamp.desc()).first()
+        if report:
+            return report
+        return None
 
     @hybrid_property
     def user_id(self) -> int | None:
@@ -217,6 +223,42 @@ class Website(db.Model):
                         total_counts[key][subkey] += current_report['report_counts'][key][subkey]
 
         return total_counts
+    
+    
+    def get_report(self) -> WebsiteAxeReport:
+        report = {}
+        for site in self.sites:
+            current_report = site.get_full_current_report()
+            if current_report:
+                for key in ["violations", "passes", "incomplete", "inapplicable"]:
+                    if key not in report:
+                        # initialize the key with an empty list
+                        report[key] = []
+                    for item in current_report.report.get(key, []):
+                        rule: AxeResult = item
+                        rule_id = rule.get('id')
+                        existing_rule = next((r for r in report[key] if r.get('id') == rule_id), None)
+                        site_report = {
+                            'url': site.url,
+                            'timestamp': current_report.report.get('timestamp'),
+                            'report_id': current_report.id
+                        }
+                        if existing_rule:
+                            existing_rule['reports'].append(site_report)
+                        else:
+                            new_rule = rule.copy()
+                            new_rule['reports'] = [site_report]
+                            report[key].append(new_rule)
+
+        # sort by report cirticality
+        for key in report:
+            report[key].sort(key=lambda x: ('critical' if x.get('impact') == 'critical' else
+                                            'serious' if x.get('impact') == 'serious' else
+                                            'moderate' if x.get('impact') == 'moderate' else
+                                            'minor' if x.get('impact') == 'minor' else
+                                            'none'))
+
+        return report
 
     def to_dict(self)-> WebsiteDict:
         
@@ -237,12 +279,13 @@ class Website(db.Model):
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'tags': [tag.strip() for tag in self.tags.split(",")] if self.tags else [],
             'default_tags': defaultTags,
+            'report': self.get_report(),
             'report_counts': self.get_report_counts(),
             'active': self.active,
             'rate_limit': self.rate_limit,
             'public': self.public,
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'updated_at': self.updated_at.isoformat(),
         }
 
     def __init__(self, url:str, user_id:int=None):
@@ -282,6 +325,7 @@ class Website(db.Model):
         self.user_id = user_id
         self.domain = subdomain_obj
 
+        self.rate_limit = Settings.get(key='default_rate_limit', default=30)
 
     def delete(self, delete_domain: bool = True):
         try:

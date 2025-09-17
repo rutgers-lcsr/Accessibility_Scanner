@@ -16,7 +16,7 @@ export type AxeNode = {
 };
 
 export type AxeResult = {
-    id: number;
+    id: string; // Unique identifier for the rule (e.g., 'color-contrast')
     impact?: 'minor' | 'moderate' | 'serious' | 'critical';
     description: string;
     help: string;
@@ -25,11 +25,26 @@ export type AxeResult = {
     nodes: AxeNode[];
 };
 
+export type WebsiteAxeResultReport = {
+    url: string;
+    timestamp: string;
+    report_id: number;
+};
+export type WebsiteAxeResult = AxeResult & {
+    reports: WebsiteAxeResultReport[];
+};
+
 export type AxeReport = {
     violations: AxeResult[];
     passes: AxeResult[];
     inapplicable: AxeResult[];
     incomplete: AxeResult[];
+};
+export type WebsiteAxeReport = {
+    violations: WebsiteAxeResult[];
+    passes: WebsiteAxeResult[];
+    inapplicable: WebsiteAxeResult[];
+    incomplete: WebsiteAxeResult[];
 };
 
 export type AxeReportCounts = {

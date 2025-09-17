@@ -273,7 +273,6 @@ def update_website(website_id):
     return jsonify(website.to_dict()), 200
 
 @website_bp.route('/activate', methods=['POST'])
-@jwt_required()
 @admin_required
 def activate_website():
     """
@@ -577,6 +576,48 @@ def get_website_axe(website_id):
     response = Response(website.get_ace_config(), mimetype='application/json')
     response.headers['Content-Disposition'] = f'attachment; filename=website_{website_id}_ace_config.json'
     return response
+
+# @website_bp.route('/<int:website_id>/report/', methods=['GET'])
+# @jwt_required()
+# def get_website_report(website_id):
+#     """
+#     Get aggregated website reports for a specific website. Giving back the report rules violations on a site level. 
+#     ---
+#     tags:
+#         - Websites
+#     parameters:
+#         - in: path
+#             name: website_id
+#             required: true
+#             type: integer
+#     responses:
+#         200:
+#             description: Aggregated report counts
+#             schema:
+#                 type: object
+#         404:
+#             description: Website not found
+#             schema:
+#                 type: object
+#                 properties:
+#                     error:
+#                         type: string
+#     """
+    
+#     website = db.session.get(Website, website_id)
+#     if not website:
+#         return jsonify({'error': 'Website not found'}), 404
+    
+#     if current_user:
+#         if not current_user.profile.is_admin and website.user_id != current_user.id:
+#             return jsonify({'error': 'Unauthorized'}), 403
+    
+#     return jsonify(website.get_report()), 200
+    
+    
+    
+    
+
 
 @website_bp.route('/<int:website_id>/', methods=['DELETE'])
 @jwt_required()

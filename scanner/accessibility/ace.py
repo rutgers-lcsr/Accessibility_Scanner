@@ -31,6 +31,15 @@ class AxeResult(TypedDict, total=False):
     tags: List[str]
     nodes: List[AxeNode]
 
+
+class AxeSiteReport(TypedDict):
+    url:str
+    timestamp: str
+    report_id: int
+
+class WebsiteAxeResult(AxeResult):
+    reports: List[AxeSiteReport]
+
 # https://www.deque.com/axe/core-documentation/api-documentation/#results-object
 class AxeReport(TypedDict, total=False):
     url: str
@@ -42,6 +51,14 @@ class AxeReport(TypedDict, total=False):
     passes: List[AxeResult]
     incomplete: List[AxeResult]
     inapplicable: List[AxeResult]
+    
+    
+class WebsiteAxeReport(TypedDict):
+    url:str
+    violations: List[WebsiteAxeResult]
+    passes: List[WebsiteAxeResult]
+    incomplete: List[WebsiteAxeResult]
+    inapplicable: List[WebsiteAxeResult]
 
 AxeReportKeys = Literal["violations", "passes", "incomplete", "inapplicable"]
 

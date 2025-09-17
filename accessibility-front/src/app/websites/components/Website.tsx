@@ -1,9 +1,8 @@
 'use client';
 import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
 import { fetcherApi } from '@/lib/api';
-import { Paged } from '@/lib/types/Paged';
 import { User } from '@/lib/types/user';
-import { Site, Website as WebsiteType } from '@/lib/types/website';
+import { Website as WebsiteType } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 import {
     AlertOutlined,
@@ -11,13 +10,15 @@ import {
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
-import { Pagination, Table, Tag } from 'antd';
+import { Tabs, TabsProps } from 'antd';
 import { format } from 'date-fns';
 import React from 'react';
 import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
 import AdminWebsiteItems from './AdminWebsiteItems';
+import WebsiteReport from './WebsiteReport';
+import WebsiteSiteTable from './WebsiteSiteTable';
 
 type Props = {
     websiteId: number;
@@ -30,6 +31,7 @@ const Website = ({ websiteId, user }: Props) => {
     const {
         data: websiteReport,
         error: reportError,
+        isLoading: isLoadingReport,
         mutate: mutateWebsiteReport,
     } = useSWR(
         `/api/websites/${websiteId}`,
@@ -42,18 +44,7 @@ const Website = ({ websiteId, user }: Props) => {
         setPageSize(pageSize);
     }, [pageSize]);
 
-    const {
-        data: sites,
-        error: siteError,
-        isLoading: isLoadingSites,
-        mutate: mutateSites,
-    } = useSWR(
-        `/api/websites/${websiteId}/sites?page=${currentPage}&limit=${pageSize}`,
-        user ? handlerUserApiRequest<Paged<Site>> : fetcherApi<Paged<Site>>
-    );
-
     if (reportError) return <PageError status={500} title="Error loading website report" />;
-    if (siteError) return <PageError status={500} title="Error loading sites" />;
     if (!websiteReport) return <PageLoading />;
 
     const violations = websiteReport.report_counts.violations;
@@ -61,75 +52,29 @@ const Website = ({ websiteId, user }: Props) => {
     // Mutate both the website report and the sites data when it become stale,
     // this is needed for a full page reload when the website is scanned
     const mutate = async (website?: WebsiteType) => {
-        mutateSites();
         mutateWebsiteReport(website);
     };
 
-    const sites_columns = [
+    const WebsiteReportItems: TabsProps['items'] = [
         {
-            title: 'URL',
-            width: 300,
-            dataIndex: 'url',
-            key: 'url',
-            render: (text: string, record: Site) => (
-                <a href={`/reports/${record.current_report.id}`}>{text}</a>
+            key: '1',
+            label: `Sites (${websiteReport.sites.length})`,
+            children: (
+                <>
+                    {isLoadingReport ? (
+                        <PageLoading />
+                    ) : reportError ? (
+                        <PageError status={500} title="Error loading website report" />
+                    ) : (
+                        <WebsiteSiteTable websiteId={websiteId} user={user} />
+                    )}
+                </>
             ),
         },
         {
-            title: 'Last Scanned',
-            dataIndex: 'last_scanned',
-            key: 'last_scanned',
-            render: (date: string) => {
-                if (!date) return 'Never';
-                return format(new Date(date), 'MMMM dd, yyyy');
-            },
-        },
-        {
-            title: 'Passed',
-            key: 'passed',
-            render: (text: string, record: Site) => (
-                <span>{record.current_report.report_counts.passes.total}</span>
-            ),
-            onFilter: (value: boolean | React.Key, record: Site) =>
-                record.current_report.report_counts.passes.total === Number(value),
-            sorter: (a: Site, b: Site) =>
-                a.current_report.report_counts.passes.total -
-                b.current_report.report_counts.passes.total,
-            dataIndex: 'passed',
-        },
-        {
-            title: 'Violations',
-            key: 'violations',
-            render: (text: string, record: Site) => (
-                <span>{record.current_report.report_counts.violations.total}</span>
-            ),
-            onFilter: (value: boolean | React.Key, record: Site) =>
-                record.current_report.report_counts.violations.total === Number(value),
-            sorter: (a: Site, b: Site) =>
-                a.current_report.report_counts.violations.total -
-                b.current_report.report_counts.violations.total,
-            dataIndex: 'violations',
-        },
-        {
-            title: 'Active Tags',
-            key: 'tags',
-            render: (text: string, record: Site) => (
-                <span>
-                    {record.tags.map((tag) => (
-                        <Tag key={tag}>{tag}</Tag>
-                    ))}
-                </span>
-            ),
-            onFilter: (value: boolean | React.Key, record: Site) =>
-                record.tags.includes(value as string),
-            dataIndex: 'tags',
-        },
-        {
-            title: 'Actions',
-            key: 'actions',
-            render: (text: string, record: Site) => (
-                <a href={`/reports/${record.current_report.id}`}>View Report</a>
-            ),
+            key: '2',
+            label: `Voilations (${violations.total})`,
+            children: <WebsiteReport report={websiteReport.report} />,
         },
     ];
 
@@ -186,29 +131,9 @@ const Website = ({ websiteId, user }: Props) => {
                 </section>
             </header>
 
-            <Table<Site>
-                className="min-h-[400px]"
-                style={{ width: '100%', minHeight: 400, maxWidth: '100%' }}
-                scroll={{ y: '45em' }}
-                pagination={false}
-                columns={sites_columns}
-                dataSource={sites?.items}
-                loading={isLoadingSites}
-                rowKey="id"
-            />
-
-            <div className="flex justify-center pt-4 pb-4">
-                <Pagination
-                    showSizeChanger
-                    current={currentPage}
-                    pageSize={pageSize}
-                    total={sites?.count || 0}
-                    onShowSizeChange={(current, newPageSize) => {
-                        setPageSize(newPageSize);
-                    }}
-                    onChange={(page) => setCurrentPage(page)}
-                />
-            </div>
+            <section aria-labelledby="website-report">
+                <Tabs defaultActiveKey="1" items={WebsiteReportItems} />
+            </section>
         </div>
     );
 };

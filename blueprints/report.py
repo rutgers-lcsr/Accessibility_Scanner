@@ -20,8 +20,11 @@ def get_reports():
     limit = params.get('limit', default=100, type=int)
     page = params.get('page', default=1, type=int)
     search = params.get('search', type=str)
+    desc = params.get('desc', default=True, type=bool)
 
-    reports_q = db.session.query(Report).order_by(Report.timestamp.desc(), func.json_extract(Report.report_counts, '$.violations.total').desc())
+    order_by = Report.timestamp.desc() if desc else Report.timestamp.asc()
+
+    reports_q = db.session.query(Report).order_by(order_by, func.json_extract(Report.report_counts, '$.violations.total').desc())
 
 
     if search:
