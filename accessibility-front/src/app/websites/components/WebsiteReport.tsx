@@ -75,9 +75,9 @@ function WebsiteReport({ report }: Props) {
                         </Button>
                     </Flex>
                 }
-                bodyStyle={{ paddingTop: 16, paddingBottom: 16 }}
+                styles={{ body: { paddingTop: 16, paddingBottom: 16 } }}
             >
-                <div className="mt-4 space-y-4">
+                <div className="pt-4 pb-4">
                     {sortedViolations.map((violation, index) => (
                         <AuditAccessibilityItem key={index} accessibilityResult={violation} />
                     ))}
