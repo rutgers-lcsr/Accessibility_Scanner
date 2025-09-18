@@ -1,14 +1,14 @@
-"use client"
-import PageError from "@/components/PageError";
-import { Domain } from "@/lib/types/domain";
-import { useDomains } from "@/providers/Domain";
-import { Button, Input, Pagination, Table, TableColumnsType } from "antd";
-import AddDomain from "./modals/addDomain";
-import DeleteDomain from "./modals/deleteDomain";
-
+'use client';
+import PageError from '@/components/PageError';
+import { Domain } from '@/lib/types/domain';
+import { useDomains } from '@/providers/Domain';
+import { Button, Flex, Input, Pagination, Table, TableColumnsType } from 'antd';
+import { Content } from 'antd/es/layout/layout';
+import AddDomain from './modals/addDomain';
+import DeleteDomain from './modals/deleteDomain';
 
 export default function Domains() {
-const {
+    const {
         domains,
         loadingDomain,
         domainPage,
@@ -43,7 +43,10 @@ const {
             render: (_, record) => {
                 return (
                     <div className="flex justify-center gap-4">
-                        <Button onClick={() => patchDomain(record.id, { active: !record.active })} type={record.active ? 'primary' : 'default'}>
+                        <Button
+                            onClick={() => patchDomain(record.id, { active: !record.active })}
+                            type={record.active ? 'primary' : 'default'}
+                        >
                             {record.active ? 'Deactivate' : 'Activate'}
                         </Button>
                         <DeleteDomain domainId={record.id} />
@@ -54,21 +57,22 @@ const {
     ];
 
     return (
-        <div className="">
-            <header className="mb-4 flex w-full justify-between">
-                <h1 className="text-2xl font-bold">Domains</h1>
+        <Content className="p-6">
+            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h1 className="text-3xl font-bold text-gray-800">Domains</h1>
                 <div></div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <AddDomain />
-
                     <Input.Search
-                        className="w-64"
+                        className="w-72"
                         placeholder="Search domains"
                         onSearch={(value) => {
                             // console.log(value);
                             setDomainFilters({ search: value });
                         }}
                         loading={loadingDomain}
+                        allowClear
+                        size="large"
                     />
                 </div>
             </header>
@@ -81,18 +85,18 @@ const {
                     pagination={false}
                     locale={{ emptyText: <PageError status={'info'} title="No Domains found." /> }}
                 />
+                <Flex style={{ padding: '16px 0' }} justify="center">
+                    <Pagination
+                        showSizeChanger
+                        defaultCurrent={domainPage}
+                        total={domainCount}
+                        onShowSizeChange={(current, pageSize) => {
+                            setDomainLimit(pageSize);
+                        }}
+                        onChange={(current) => setDomainPage(current)}
+                    />
+                </Flex>
             </main>
-            <footer className="mt-4 flex justify-center">
-                <Pagination
-                    showSizeChanger
-                    defaultCurrent={domainPage}
-                    total={domainCount}
-                    onShowSizeChange={(current, pageSize) => {
-                        setDomainLimit(pageSize);
-                    }}
-                    onChange={(current) => setDomainPage(current)}
-                />
-            </footer>
-        </div>
+        </Content>
     );
 }

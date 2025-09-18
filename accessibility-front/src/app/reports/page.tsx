@@ -3,8 +3,8 @@ import PageError from '@/components/PageError';
 import { Report as ReportType } from '@/lib/types/axe';
 import { useReports } from '@/providers/Reports';
 import { Input, Pagination, Table } from 'antd';
+import { Content } from 'antd/es/layout/layout';
 import { format } from 'date-fns';
-
 const columns = [
     {
         title: 'Url',
@@ -50,9 +50,9 @@ export default function ReportPage() {
     } = useReports();
 
     return (
-        <div className="">
-            <header className="mb-4 flex w-full justify-between">
-                <h1 className="text-2xl font-bold">Accessibility Reports</h1>
+        <Content className="p-6">
+            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h1 className="text-3xl font-bold text-gray-800">Accessibility Reports</h1>
                 <div>
                     <Input.Search
                         className="w-64"
@@ -62,6 +62,8 @@ export default function ReportPage() {
                             setReportSearch(value);
                         }}
                         loading={isLoading}
+                        size="large"
+                        allowClear
                     />
                 </div>
             </header>
@@ -94,6 +96,6 @@ export default function ReportPage() {
                     onChange={(current) => setReportPage(current)}
                 />
             </footer>
-        </div>
+        </Content>
     );
 }

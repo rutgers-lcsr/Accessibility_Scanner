@@ -1,15 +1,15 @@
-"use client"
+'use client';
 import PageError from '@/components/PageError';
 import { User } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useWebsites } from '@/providers/Websites';
-import { Input, Pagination, Table } from 'antd';
-import { Content } from "antd/es/layout/layout";
+import { Flex, Input, Pagination, Table } from 'antd';
+import { Content } from 'antd/es/layout/layout';
 import { formatDate } from 'date-fns';
 import CreateWebsite from './modals/createWebsite';
 type Props = {
     user: User | null;
-}
+};
 
 const columns = [
     {
@@ -53,8 +53,7 @@ const columns = [
         key: 'active',
         render: (active: boolean) => (active ? 'Yes' : 'No'),
     },
-];  
-
+];
 
 function Websites({ user }: Props) {
     const {
@@ -68,27 +67,31 @@ function Websites({ user }: Props) {
     } = useWebsites();
 
     return (
-        <Content className="">
-            <header className="mb-4 flex w-full justify-between">
-                <h1 className="text-2xl font-bold">Websites</h1>
-
-                <div className="flex items-center gap-2">
+        <Content className="p-6">
+            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h1 className="text-3xl font-bold text-gray-800">Websites</h1>
+                <div className="flex items-center gap-3">
                     <CreateWebsite user={user} />
                     <Input.Search
-                        className="w-64"
+                        className="w-72"
                         placeholder="Search websites"
                         onSearch={(value) => setWebsiteSearch(value)}
                         loading={isLoading}
+                        allowClear
+                        size="large"
                     />
                 </div>
             </header>
-            <Content className="h-[calc(100vh-12rem)] overflow-y-auto">
+            <Content>
                 <Table<WebsiteType>
                     rowKey="id"
                     columns={columns}
                     dataSource={websites || []}
                     loading={isLoading}
                     pagination={false}
+                    bordered
+                    size="middle"
+                    className="bg-white rounded-lg"
                     locale={{
                         emptyText: (
                             <PageError
@@ -99,20 +102,20 @@ function Websites({ user }: Props) {
                         ),
                     }}
                 />
+                <Flex style={{ padding: '16px 0' }} justify="center">
+                    <Pagination
+                        showSizeChanger
+                        defaultCurrent={WebsitePage}
+                        total={websitesTotal || 0}
+                        onShowSizeChange={(current, pageSize) => {
+                            setWebsiteLimit(pageSize);
+                        }}
+                        onChange={(current) => setWebsitePage(current)}
+                    />
+                </Flex>
             </Content>
-            <footer className="mt-4 flex justify-center">
-                <Pagination
-                    showSizeChanger
-                    defaultCurrent={WebsitePage}
-                    total={websitesTotal || 0}
-                    onShowSizeChange={(current, pageSize) => {
-                        setWebsiteLimit(pageSize);
-                    }}
-                    onChange={(current) => setWebsitePage(current)}
-                />
-            </footer>
         </Content>
     );
 }
 
-export default Websites
+export default Websites;
