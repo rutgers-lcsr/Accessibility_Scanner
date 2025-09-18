@@ -118,7 +118,7 @@ def get_scan_status():
             return {"error": "Invalid site URL"}, 400
 
 
-        if site.scanning:
+        if not site.scanning:
             report = site.get_recent_report()
             return jsonify(report), 200
 
