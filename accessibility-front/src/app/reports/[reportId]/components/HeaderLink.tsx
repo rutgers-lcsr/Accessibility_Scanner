@@ -5,7 +5,6 @@ interface Props {
 }
 
 export default function HeaderLink({ url }: Props) {
-
     const openLink = () => {
         window.open(url, '_blank');
     };
@@ -24,8 +23,7 @@ export default function HeaderLink({ url }: Props) {
                 margin: 0,
                 textDecoration: 'underline',
                 transition: 'color 0.3s',
-                
-
+                userSelect: 'all',
             }}
         >
             {url.replace(/(^\w+:|^)\/\//, '')}

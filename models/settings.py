@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped
 from datetime import datetime
 
 
-app_setting = Literal['default_tags', 'default_rate_limit']
+app_setting = Literal['default_tags', 'default_rate_limit', 'default_should_auto_scan', 'default_notify_on_completion', 'default_email_domain']
 
 
 class Settings(db.Model):
@@ -49,6 +49,9 @@ class Settings(db.Model):
         defaults = {
             "default_tags": 'wcag2a, wcag2aa, wcag21a, wcag21aa',
             "default_rate_limit": "30",
+            "default_should_auto_scan": "true",
+            "default_notify_on_completion": "true",
+            "default_email_domain": "",
         }
         for key, value in defaults.items():
             if not db.session.query(Settings).filter_by(key=key).first():

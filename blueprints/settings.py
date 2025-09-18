@@ -24,7 +24,7 @@ def get_settings():
 def update_settings():
     data = request.json
     for key, value in data.items():
-        if key in ['default_tags', 'default_rate_limit']:
+        if key in ['default_tags', 'default_rate_limit', 'default_should_auto_scan', 'default_notify_on_completion', 'default_email_domain']:
             Settings.set(key, str(value))
     updated_settings = Settings.to_dict()
     return jsonify(updated_settings), 200

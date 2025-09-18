@@ -45,6 +45,8 @@ class Report(db.Model):
     id: Mapped[str] = db.Column(db.Integer, primary_key=True)
     site_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('site.id'))
     site = db.relationship("Site", back_populates="reports")
+    error: Mapped[str | None] = db.Column(db.String(255), nullable=True)
+    response_code: Mapped[int | None] = db.Column(db.Integer, nullable=True)
     url: Mapped[str] = db.Column(db.String(255), nullable=False)
     base_url: Mapped[str] = db.Column(db.String(255), nullable=False)
     timestamp: Mapped[datetime] = db.Column(db.DateTime, nullable=False)
@@ -113,7 +115,9 @@ class Report(db.Model):
 
     def from_dict(self, data: AccessibilityReport):
         self.url = data['url']
-        self.base_url = data['base_url']
+        self.error = data.get('error', None)
+        self.response_code = data.get('response_code', None)
+        self.base_url = data.get('base_url', '')
         self.timestamp = datetime.fromtimestamp(data['timestamp'])
         self.report = data['report']
         self.report_counts = {

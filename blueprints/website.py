@@ -373,7 +373,7 @@ def get_websites():
 
     # Query all websites, left join to sites and reports (so websites with no sites/reports are included)
     w_query = (
-        db.session.query(Website)
+        db.session.query(Website).order_by(Website.url.asc())
         .outerjoin(Site_Website_Assoc, Site_Website_Assoc.c.website_id == Website.id)
         .outerjoin(Site, Site.id == Site_Website_Assoc.c.site_id)
         .outerjoin(Report, Report.site_id == Site.id)
@@ -486,7 +486,7 @@ def get_website_sites(website_id):
     )
     # Join sites to their most recent report and order by violations
     sites_query = (
-        db.session.query(Site).where(Site.id.in_(site_subq.select()))
+        db.session.query(Site).order_by(Site.url.asc()).where(Site.id.in_(site_subq.select()))
         .join(Report, (Report.site_id == Site.id))
         .join(
             latest_report_subq,
@@ -576,47 +576,6 @@ def get_website_axe(website_id):
     response = Response(website.get_ace_config(), mimetype='application/json')
     response.headers['Content-Disposition'] = f'attachment; filename=website_{website_id}_ace_config.json'
     return response
-
-# @website_bp.route('/<int:website_id>/report/', methods=['GET'])
-# @jwt_required()
-# def get_website_report(website_id):
-#     """
-#     Get aggregated website reports for a specific website. Giving back the report rules violations on a site level. 
-#     ---
-#     tags:
-#         - Websites
-#     parameters:
-#         - in: path
-#             name: website_id
-#             required: true
-#             type: integer
-#     responses:
-#         200:
-#             description: Aggregated report counts
-#             schema:
-#                 type: object
-#         404:
-#             description: Website not found
-#             schema:
-#                 type: object
-#                 properties:
-#                     error:
-#                         type: string
-#     """
-    
-#     website = db.session.get(Website, website_id)
-#     if not website:
-#         return jsonify({'error': 'Website not found'}), 404
-    
-#     if current_user:
-#         if not current_user.profile.is_admin and website.user_id != current_user.id:
-#             return jsonify({'error': 'Unauthorized'}), 403
-    
-#     return jsonify(website.get_report()), 200
-    
-    
-    
-    
 
 
 @website_bp.route('/<int:website_id>/', methods=['DELETE'])

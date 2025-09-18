@@ -1,4 +1,4 @@
-import { Input } from 'antd';
+import { Input, Tooltip } from 'antd';
 import { useState } from 'react';
 
 type Props<T> = Omit<React.ComponentProps<typeof Input>, 'onChange'> & {
@@ -60,14 +60,16 @@ function EditableInput<T>({ label, value, onChange, validate, ...rest }: Props<T
     }
 
     return (
-        <div
-            onClick={() => setIsEditing(true)}
-            style={{ cursor: 'pointer' }}
-            aria-label={label ? `${label} value` : 'Editable input value'}
-        >
-            {label && <strong>{label}: </strong>}
-            <span>{value}</span>
-        </div>
+        <Tooltip title={'Click to edit' + (label ? ` ${label}` : '')} placement="top">
+            <div
+                onClick={() => setIsEditing(true)}
+                style={{ cursor: 'pointer', minHeight: '32px' }}
+                aria-label={label ? `${label} value` : 'Editable input value'}
+            >
+                {label && <strong>{label}: </strong>}
+                <span className="underline">{value}</span>
+            </div>
+        </Tooltip>
     );
 }
 

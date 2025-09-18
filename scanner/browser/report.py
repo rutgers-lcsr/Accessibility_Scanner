@@ -8,9 +8,10 @@ from scanner.browser.tabbable import is_page_tabbable
 from scanner.log import log_message
 from utils.style_generator import report_to_js
 from utils.urls import get_website_url
-
 class AccessibilityReport(TypedDict, total=False):
     url: str
+    response_code: int
+    error: str
     base_url: str
     report: AxeReport
     links: List[str]
@@ -19,15 +20,25 @@ class AccessibilityReport(TypedDict, total=False):
     tabable: bool
     timestamp: float
     photo: bytes
+    
+    
 
 
 
 # Generates a AccessibilityReport for a given site
 async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu", tags: List[str] = [], ace_config: str = "") -> AccessibilityReport:
+    result = AccessibilityReport()
+    result['timestamp'] = time.time()
     try:
         context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0")
         page = await context.new_page()
-        await page.goto(website)
+        res = await page.goto(website)
+        result['url'] = website
+        result['response_code'] = res.status if res else 0
+        if res is None or res.status >= 400:
+            await page.close()
+            result['error'] = f"Failed to load page, status code: {res.status if res else 'No Response'}"
+            return result
         await page.wait_for_load_state()
         await page.wait_for_timeout(1000)  # Wait for a second to ensure the page is fully loaded
     except Exception as e:
@@ -55,19 +66,19 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
 
         await page.close()
         # Process the report as needed
-        return {
-            'url': website,
-            'base_url': base_url,
-            'report': report,
-            'links': links,
-            'videos': videos,
-            'imgs': imgs,
-            'tabable': tabable,
-            'has_video': has_video,
-            'has_img': has_img,
-            'timestamp': timestamp,
-            'photo': photo
-        }
+        
+        result['base_url'] = base_url
+        result['report'] = report
+        result['links'] = links
+        result['videos'] = videos
+        result['imgs'] = imgs
+        result['tabable'] = tabable
+        result['has_video'] = has_video
+        result['has_img'] = has_img
+        result['timestamp'] = timestamp
+        result['photo'] = photo
+
+        return result
     except Exception as e:
         await page.close()
         log_message(f"Error generating report for {website}: {e}", 'error')

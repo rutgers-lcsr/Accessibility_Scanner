@@ -6,7 +6,7 @@ from scanner.browser.report import AccessibilityReport, generate_report
 from scanner.log import log_message
 from app import create_app
 from models import db
-from models.website import Site, Website, WebsiteDict
+from models.website import Site, Site_Website_Assoc, Website, 
 from models.report import Report
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
@@ -40,8 +40,6 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
                 for site_link in res.get('links', []):
                     if not site_link in sites_done and not site_link in currently_processing and not queue.exists(site_link):
                         await queue.put(site_link)
-                        
-                                    
                 results.append(res)
         except Exception as e:
             log_message(f"[Worker {name}] Exception for {site}: {str(e)}", 'error')
@@ -62,39 +60,50 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
             site = db.session.query(Site).filter_by(url=site_url).first()
             if site is None:
                 raise ValueError("Site not found")
-            site.scanning = True
             
             tags = site.get_tags()
             ace_config:str = site.ace_config()
             if not tags:
                 tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
             log_message(f"Using tags: {tags} for site {site.url}", 'info')
-            
+            site.scanning = True
             db.session.add(site)
             db.session.commit()
 
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
-                log_message(f"Generating report for {site_url}", 'info')
-                report = await generate_report(browser, website=site_url, tags=tags, ace_config=ace_config)
-                
-                if 'error' in report and report['error'] is not None:
-                    log_message(f"Error for {site_url}: {report['error']}", 'error')
-                    raise ValueError(report['error'])
-                
-                await browser.close()
+                try:
+                    browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
+                    log_message(f"Generating report for {site_url}", 'info')
+                    report = await generate_report(browser, website=site_url, tags=tags, ace_config=ace_config)
+                    
+                    if 'error' in report and report['error'] is not None:
+                        log_message(f"Error for {site_url}: {report['error']}", 'error')
+                        raise ValueError(report['error'])
+                    
+                    await browser.close()
 
-                site = db.session.query(Site).filter_by(url=site_url).first()
-                if site is None:
-                    raise ValueError("Site not found after scan")
-                report = Report(report, site_id=site.id)
-                site.reports.append(report)
-                site.last_scanned = db.func.current_timestamp()
-                site.scanning = False
-                db.session.add(report)
-                db.session.add(site)
-                db.session.commit()
-                
+                    site = db.session.query(Site).filter_by(url=site_url).first()
+                    if site is None:
+                        raise ValueError("Site not found after scan")
+                    report = Report(report, site_id=site.id)
+                    site.reports.append(report)
+                     
+                    
+                    db.session.add(report)
+                    db.session.add(site)
+                    db.session.commit()
+                except Exception as e:
+                    log_message(f"Exception generating report for {site_url}: {str(e)}", 'error')
+                    raise e
+                finally:
+                    site = db.session.query(Site).filter_by(url=site_url).first()
+                    if not site:
+                        raise ValueError("Site not found after scan")
+                    site.scanning = False
+                    site.last_scanned = db.func.current_timestamp()
+                    db.session.add(site)
+                    db.session.commit()
+            log_message(f"Finished report for {site_url}", 'info')
             return report
         finally:
             site = Site.query.filter_by(url=site_url).first()
@@ -172,7 +181,9 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
             if not website.domain_id:
                 log_message(f"Warning website doesnt have an associated domain", 'warning')
 
-            
+
+            sitesFound = set()
+
             for site_reports in results:
                 try:
                     
@@ -198,6 +209,8 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                     report = Report(site_reports, site_id=site.id)
                     site.reports.append(report)
                     site.last_scanned = db.func.current_timestamp()
+                    sitesFound.add(site.id)
+                    site.scanning = False
                     db.session.add(report)
                     db.session.add(site)
                     db.session.commit()
@@ -205,16 +218,51 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                     log_message(f"Error storing report for {site_reports['url']}: {str(e)}", 'error')
                     db.session.rollback()
                     continue
-
+            websitesToScan = set()
+            # remove any sites that were not found in this scan from the website
+            for site in website.sites:
+                
+                if site.id not in sitesFound:
+                    log_message(f"Removing site {site.id} from website {website.id} as it was not found in this scan", 'info')
+                    
+                    associated_websites =site.websites.all() 
+                    
+                    # If site has mutliple websites remove the association only
+                    if len(associated_websites) > 1:
+                        site.websites.remove(website)
+                        
+                        for w in associated_websites:
+                            if w.id != website.id:
+                                websitesToScan.add(w.url)
+                        
+                        db.session.add(site)
+                        db.session.commit()
+                    else:
+                        website.sites.remove(site)
+                        # Its safe to delete the site
+                        
+                        Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == site.id).execute()
+                        
+                        db.session.delete(site)
+                        db.session.add(website)
+                        db.session.commit()
             
             website.last_scanned = db.func.current_timestamp()
             website.scanning = False
             db.session.add(website)
-            db.session.commit()        
+            db.session.commit()
+            
+            
+            for url in websitesToScan:
+                log_message(f"Queueing website {url} for scan as it was linked by a site this is no longer associated with the current site {website.url}", 'info')
+                asyncio.get_event_loop().create_task(generate_reports(url))
+
+            
             
             website_doc = db.session.get(Website, website.id)
-
             ScanFinishedEmail(website_doc).send()
+            
+            log_message(f"Finished scan for website: {target_website}", 'info')
             return results
     finally:
         with app.app_context():

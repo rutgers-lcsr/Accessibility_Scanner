@@ -6,6 +6,9 @@ import { useUser } from './User';
 type Settings = {
     default_tags: string;
     default_rate_limit: number;
+    default_should_auto_scan: string;
+    default_notify_on_completion: string;
+    default_email_domain: string;
 };
 
 type SettingsContextType = {

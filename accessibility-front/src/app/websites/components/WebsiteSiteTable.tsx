@@ -75,11 +75,11 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
             title: 'Active Tags',
             key: 'tags',
             render: (text: string, record: Site) => (
-                <span>
+                <>
                     {record.tags.map((tag) => (
                         <Tag key={tag}>{tag}</Tag>
                     ))}
-                </span>
+                </>
             ),
             onFilter: (value: boolean | React.Key, record: Site) =>
                 record.tags.includes(value as string),

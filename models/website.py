@@ -16,6 +16,7 @@ class SiteDict(TypedDict):
     id: int
     url: str
     last_scanned: str | None
+    
     website_id: int
     reports: List[ReportMinimized]
     current_report: ReportMinimized | None
@@ -133,7 +134,19 @@ class Site(db.Model):
         if website:
             if website not in self.websites:
                 self.websites.append(website)
-        
+
+    def delete(self, commit: bool = True):
+        try:
+            db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == self.id))
+            db.session.delete(self)
+            if commit:
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
+    
+    def __repr__(self):
+        return f'<Site {self.url} {self.id} scanning={self.scanning} active={self.active}>'
 
 class WebsiteDict(TypedDict,total=False):
     id: int
@@ -324,16 +337,19 @@ class Website(db.Model):
         self.url = url
         self.user_id = user_id
         self.domain = subdomain_obj
+        
+        # set defaults from settings
 
         self.rate_limit = Settings.get(key='default_rate_limit', default=30)
+        self.active = Settings.get(key='default_should_auto_scan', default='true').lower() == 'true'
+        self.should_email = Settings.get(key='default_notify_on_completion', default='false').lower() == 'true'
 
     def delete(self, delete_domain: bool = True):
         try:
             for site in self.sites:
                 websites = site.websites.all()
                 if len(websites) <= 1:
-                    db.session.delete(site)
-                    Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == site.id)
+                    site.delete(commit=False)
                 else:
                     site.websites.remove(self)
                     db.session.add(site)
@@ -341,7 +357,8 @@ class Website(db.Model):
             if delete_domain and len(self.domain.websites) <= 1:
                 self.domain.delete()
 
-            Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id)
+            # remove all associations for self
+            db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id))
 
             db.session.delete(self)
             db.session.commit()
