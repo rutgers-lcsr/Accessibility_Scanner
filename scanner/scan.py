@@ -6,7 +6,7 @@ from scanner.browser.report import AccessibilityReport, generate_report
 from scanner.log import log_message
 from app import create_app
 from models import db
-from models.website import Site, Site_Website_Assoc, Website, 
+from models.website import Site, Site_Website_Assoc, Website 
 from models.report import Report
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
