@@ -2,7 +2,7 @@
 
 from flask import Blueprint
 from authentication.login import admin_required
-from models.settings import Settings
+from models.settings import APP_SETTINGS, Settings
 
 
 settings_bp = Blueprint('settings', __name__)
@@ -23,8 +23,12 @@ def get_settings():
 @admin_required
 def update_settings():
     data = request.json
+    updated = False
     for key, value in data.items():
-        if key in ['default_tags', 'default_rate_limit', 'default_should_auto_scan', 'default_notify_on_completion', 'default_email_domain']:
+        if key in APP_SETTINGS:
             Settings.set(key, str(value))
+            updated = True
     updated_settings = Settings.to_dict()
+    if not updated:
+        return jsonify({"message": "No valid settings provided."}), 400
     return jsonify(updated_settings), 200

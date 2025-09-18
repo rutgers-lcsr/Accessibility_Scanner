@@ -3,7 +3,7 @@ import EditableInput from '@/components/EditableInput';
 import PageLoading from '@/components/PageLoading';
 import { useSettings } from '@/providers/Settings';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Card, Select, Spin } from 'antd';
+import { Card, Select } from 'antd';
 import { useState } from 'react';
 
 function Settings() {
@@ -29,11 +29,11 @@ function Settings() {
     return (
         <div className="flex justify-center items-start min-h-screen">
             <Card
+                loading={loading}
                 title="Application Settings"
                 className="w-full max-w-xl shadow-lg"
                 extra={
                     <div>
-                        <Spin spinning={loading} />
                         <InfoCircleOutlined /> Click to edit
                     </div>
                 }
@@ -95,6 +95,31 @@ function Settings() {
                     Should new websites be automatically scanned when added, this can be overridden
                     per website.
                 </div>
+                <label className="block mb-2 font-bold" htmlFor="default_should_auto_activate">
+                    Default Auto Activate New Websites
+                </label>
+                <Select
+                    id="default_should_auto_activate"
+                    value={
+                        settings?.default_should_auto_activate?.toString() === 'true'
+                            ? 'true'
+                            : 'false'
+                    }
+                    onChange={(value) =>
+                        handleSave(
+                            'default_should_auto_activate',
+                            value === 'true' ? 'true' : 'false'
+                        )
+                    }
+                    options={[
+                        { label: 'Enabled', value: 'true' },
+                        { label: 'Disabled', value: 'false' },
+                    ]}
+                />
+                <div className="text-sm text-gray-500">
+                    Should new websites be automatically activated for automatic scanning per rate
+                    limit when added, this can be overridden per website.
+                </div>
                 <div className="my-4" />
                 <label className="block mb-2 font-bold" htmlFor="default_notify_on_completion">
                     Default Notify on Scan Completion
@@ -139,7 +164,8 @@ function Settings() {
                 <div className="text-sm text-gray-500">
                     Default email domain for users. Users will be sent emails using their username
                     and this domain, e.g. user@example.com. Leaving it blank will cause users to not
-                    be added. Note: Not implemented yet.
+                    be added. Note: Not implemented yet. Assumes all users share the same email
+                    domain. usually the university domain.
                 </div>
             </Card>
         </div>

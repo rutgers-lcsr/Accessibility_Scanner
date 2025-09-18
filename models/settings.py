@@ -3,10 +3,18 @@ from typing import Literal
 from models import db
 from sqlalchemy.orm import Mapped
 from datetime import datetime
+from typing import Literal, get_args
 
 
-app_setting = Literal['default_tags', 'default_rate_limit', 'default_should_auto_scan', 'default_notify_on_completion', 'default_email_domain']
-
+AppSetting = Literal[
+    "default_tags",
+    "default_rate_limit",
+    "default_should_auto_scan",
+    "default_should_auto_activate",
+    "default_notify_on_completion",
+    "default_email_domain",
+]
+APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
 class Settings(db.Model):
     __tablename__ = 'settings'
@@ -22,14 +30,14 @@ class Settings(db.Model):
         return f"<Settings {self.key}={self.value}>"
     
     @staticmethod
-    def get(key: app_setting, default: str = None) -> str | None:
+    def get(key: AppSetting, default: str = None) -> str | None:
         setting = db.session.query(Settings).filter_by(key=key).first()
         if setting:
             return setting.value
         return default
     
     @staticmethod
-    def set(key: app_setting, value: str, description: str = None) -> None:
+    def set(key: AppSetting, value: str, description: str = None) -> None:
         setting = db.session.query(Settings).filter_by(key=key).first()
         if setting:
             setting.value = value
@@ -39,6 +47,7 @@ class Settings(db.Model):
             setting = Settings(key=key, value=value, description=description)
             db.session.add(setting)
         db.session.commit()
+
     @staticmethod
     def to_dict() -> dict:
         settings = db.session.query(Settings).all()
@@ -50,6 +59,7 @@ class Settings(db.Model):
             "default_tags": 'wcag2a, wcag2aa, wcag21a, wcag21aa',
             "default_rate_limit": "30",
             "default_should_auto_scan": "true",
+            "default_should_auto_activate": "false",
             "default_notify_on_completion": "true",
             "default_email_domain": "",
         }

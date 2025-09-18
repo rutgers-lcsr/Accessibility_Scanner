@@ -6,6 +6,7 @@ from authentication.login import  admin_required
 from blueprints.scan import conduct_scan_website, loop
 from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail, ScanFinishedEmail
 from models.report import AxeReportCounts, Report
+from models.settings import Settings
 from models.user import User
 from models.website import Domain, Site, Site_Website_Assoc, Website 
 from models import db
@@ -91,7 +92,8 @@ def create_website():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-    asyncio.run_coroutine_threadsafe(conduct_scan_website(new_website.url), loop)
+    if Settings.get('default_should_auto_scan', 'true').lower() == 'true':
+        asyncio.run_coroutine_threadsafe(conduct_scan_website(new_website.url), loop)
 
     return jsonify(new_website.to_dict()), 201
 @website_bp.route('/email/<int:website_id>/', methods=['POST'])

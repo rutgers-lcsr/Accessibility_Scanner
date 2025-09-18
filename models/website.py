@@ -341,7 +341,7 @@ class Website(db.Model):
         # set defaults from settings
 
         self.rate_limit = Settings.get(key='default_rate_limit', default=30)
-        self.active = Settings.get(key='default_should_auto_scan', default='true').lower() == 'true'
+        self.active = Settings.get(key='default_should_auto_activate', default='true').lower() == 'true'
         self.should_email = Settings.get(key='default_notify_on_completion', default='false').lower() == 'true'
 
     def delete(self, delete_domain: bool = True):

@@ -9,6 +9,7 @@ type Settings = {
     default_should_auto_scan: string;
     default_notify_on_completion: string;
     default_email_domain: string;
+    default_should_auto_activate: string;
 };
 
 type SettingsContextType = {
