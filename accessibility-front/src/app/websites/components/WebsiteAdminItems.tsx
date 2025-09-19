@@ -104,8 +104,8 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                             }}
                         />
                         <div className="mt-1 text-xs text-gray-500">
-                            Start typing to add users who can view this website. Leave empty to
-                            remove all users.
+                            Start typing to add users who can view this website. Users and Admin
+                            will be notified when a scan finishes. Leave empty to remove all users.
                         </div>
                     </Descriptions.Item>
                 </Descriptions>

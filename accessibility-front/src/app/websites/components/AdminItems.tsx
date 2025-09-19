@@ -350,7 +350,7 @@ function AdminItems({ website, mutate }: Props) {
                     <label htmlFor="users" style={{ minWidth: 80 }}>
                         Users
                     </label>
-                    <Tooltip title="Users who are allowed to view this website.">
+                    <Tooltip title="Users who are allowed to view this website. Users and Admin will be notified when a scan finishes.">
                         <Select
                             mode="tags"
                             style={{ minWidth: 300 }}
