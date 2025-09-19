@@ -3,7 +3,8 @@ import { AxeReportCounts, AxeReportKeys, ReportMinimized, WebsiteAxeReport } fro
 export type Website = {
     id: number;
     url: string;
-    email: string;
+    admin: string;
+    users: string[];
     should_email: boolean;
     create_at: string;
     updated_at: string;

@@ -34,7 +34,7 @@ def get_reports():
         reports_q = reports_q.filter(Report.public)
     
     if current_user and not current_user.profile.is_admin:
-        reports_q = reports_q.filter(Report.user_id == current_user.id)
+        reports_q = reports_q.filter(Report.can_view(current_user))
 
     reports = reports_q.paginate(page=page, per_page=limit)
 
@@ -54,7 +54,7 @@ def get_report_by_id(report_id):
         if not report.public:
             return jsonify({'error': 'Unauthorized'}), 403
 
-    if not report.user_id == current_user.id and not current_user.profile.is_admin:
+    if not report.admin_id == current_user.id and not current_user.profile.is_admin:
         return jsonify({'error': 'Unauthorized'}), 403
 
     return jsonify(report.to_dict()), 200

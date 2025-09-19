@@ -13,6 +13,52 @@ function AuditAccessibilityItem({ accessibilityResult }: Props) {
     };
 
     if (isWebsiteResult(accessibilityResult)) {
+        const reportItems: Parameters<typeof Collapse>[0]['items'] = [
+            {
+                label: (
+                    <span className="font-medium">
+                        Affected Reports
+                        <Tag color="blue" style={{ marginLeft: 8 }}>
+                            {accessibilityResult.reports.length}
+                        </Tag>
+                    </span>
+                ),
+
+                children: (
+                    <ul style={{ paddingLeft: 0, margin: 0 }}>
+                        {accessibilityResult.reports.map((report, idx) => (
+                            <li
+                                key={idx}
+                                style={{
+                                    listStyle: 'none',
+                                    marginBottom: 12,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <Tag color="geekblue" style={{ marginRight: 8 }}>
+                                    {new Date(report.timestamp).toLocaleString()}
+                                </Tag>
+                                <a
+                                    href={`/reports/${report.report_id}`}
+                                    className="text-blue-600 hover:underline"
+                                    style={{
+                                        flex: 1,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                    title={report.url}
+                                >
+                                    {report.url}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                ),
+            },
+        ];
+
         return (
             <Card
                 style={{ marginBottom: '16px' }}
@@ -30,50 +76,7 @@ function AuditAccessibilityItem({ accessibilityResult }: Props) {
 
                 {!!accessibilityResult.reports?.length && (
                     <div className="mt-4">
-                        <Collapse>
-                            <Collapse.Panel
-                                header={
-                                    <span className="font-medium">
-                                        Affected Reports
-                                        <Tag color="blue" style={{ marginLeft: 8 }}>
-                                            {accessibilityResult.reports.length}
-                                        </Tag>
-                                    </span>
-                                }
-                                key="1"
-                            >
-                                <ul style={{ paddingLeft: 0, margin: 0 }}>
-                                    {accessibilityResult.reports.map((report, idx) => (
-                                        <li
-                                            key={idx}
-                                            style={{
-                                                listStyle: 'none',
-                                                marginBottom: 12,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                            }}
-                                        >
-                                            <Tag color="geekblue" style={{ marginRight: 8 }}>
-                                                {new Date(report.timestamp).toLocaleString()}
-                                            </Tag>
-                                            <a
-                                                href={`/reports/${report.report_id}`}
-                                                className="text-blue-600 hover:underline"
-                                                style={{
-                                                    flex: 1,
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap',
-                                                }}
-                                                title={report.url}
-                                            >
-                                                {report.url}
-                                            </a>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </Collapse.Panel>
-                        </Collapse>
+                        <Collapse items={reportItems}></Collapse>
                     </div>
                 )}
                 <div className="mt-2 flex flex-wrap justify-end gap-2">

@@ -167,7 +167,6 @@ function Settings() {
                             }
                             return null;
                         }}
-                        disabled={true}
                     />
                     <div className="text-sm text-gray-500">
                         Default email domain for users. Users will be sent emails using their

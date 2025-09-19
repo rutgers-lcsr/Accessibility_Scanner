@@ -15,10 +15,10 @@ def get_site(site_id):
         return jsonify({'error': 'Site not found'}), 404
 
     if current_user:
-        if site.user_id != current_user.id or not current_user.profile.is_admin:
+        if not site.can_view(current_user):
             return jsonify({'error': 'Unauthorized'}), 403
 
-    if not current_user or not current_user.profile.is_admin:
+    if not current_user:
         # make sure that non-admin users can only see public websites
         if site.public == False:
             return jsonify({'error': 'Unauthorized'}), 403

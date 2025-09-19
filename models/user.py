@@ -6,6 +6,8 @@ from datetime import datetime
 
 # Use string-based type hint to avoid circular import
 from typing import TYPE_CHECKING
+
+from models.assoc import UserWebsiteAssoc
 if TYPE_CHECKING:
     from models.website import Website
 
@@ -16,7 +18,12 @@ class User(db.Model):
     username: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
     email: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
     # Use string-based relationship to avoid circular import
-    websites: Mapped[List["Website"]] = db.relationship("Website", back_populates='user', lazy=True)
+    admin_websites: Mapped[List["Website"]] = db.relationship(
+        "Website", back_populates='admin', lazy=True
+    )
+    viewable_websites: Mapped[List["Website"]] = db.relationship(
+        "Website", secondary=UserWebsiteAssoc, back_populates='users', lazy=True
+    )
     # password is nullable because users can login using cas
     password: Mapped[str] = db.Column(db.String(255), nullable=True)
     is_active: Mapped[bool] = db.Column(db.Boolean, default=True)

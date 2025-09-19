@@ -1,10 +1,11 @@
 
 from datetime import datetime
 from typing import List, TypedDict
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
+from models.assoc import UserWebsiteAssoc
 from models.report import AxeReportCounts, Report, ReportMinimized
 from models.rules import Rule
 from models.settings import Settings
@@ -26,8 +27,8 @@ class SiteDict(TypedDict):
 
 Site_Website_Assoc = db.Table(
     'site_website_assoc',
-    db.Column('site_id', db.Integer, db.ForeignKey('site.id'), primary_key=True),
-    db.Column('website_id', db.Integer, db.ForeignKey('website.id'), primary_key=True)
+    db.Column('site_id', db.Integer, db.ForeignKey('site.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('website_id', db.Integer, db.ForeignKey('website.id', ondelete='CASCADE'), primary_key=True)
 )
 
 
@@ -61,16 +62,30 @@ class Site(db.Model):
             return report
         return None
 
-    @hybrid_property
-    def user_id(self) -> int | None:
-        return self.websites
-
-    @user_id.expression
-    def user_id(cls):
-        from sqlalchemy import select
+    @hybrid_method
+    def can_view(self, user: User) -> bool:
+        if not self.websites:
+            return False
+        for website in self.websites:
+            if website.can_view(user):
+                return True
+        return False
+    @can_view.expression
+    def can_view(cls, user: User):
+        from sqlalchemy import select, exists
+        from models.website import Website
+        if not user:
+            return False
         return (
-            select(Website.user_id)
-            .where(Website.id == cls.website_id)
+            select(exists().where(
+                Site_Website_Assoc.c.site_id == cls.id,
+                Site_Website_Assoc.c.website_id == Website.id,
+                or_(
+                    Website.public == True,
+                    Website.admin_id == user.id,
+                    or_(UserWebsiteAssoc.c.user_id == user.id, UserWebsiteAssoc.c.website_id == Website.id)
+                )
+            ))
             .scalar_subquery()
         )
 
@@ -137,7 +152,6 @@ class Site(db.Model):
 
     def delete(self, commit: bool = True):
         try:
-            db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == self.id))
             db.session.delete(self)
             if commit:
                 db.session.commit()
@@ -147,6 +161,9 @@ class Site(db.Model):
     
     def __repr__(self):
         return f'<Site {self.url} {self.id} scanning={self.scanning} active={self.active}>'
+
+
+
 
 class WebsiteDict(TypedDict,total=False):
     id: int
@@ -178,11 +195,55 @@ class Website(db.Model):
     # Whether the website reports are public 
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    user: Mapped['User'] = db.relationship('User', back_populates='websites', lazy=True)
+    admin_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    admin: Mapped['User'] = db.relationship('User', back_populates='admin_websites', lazy=True)
+    users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)
+    # storing tags as comma separated values
     tags: Mapped[str] = db.Column(db.Text, nullable=True) # comma separated list of tags
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    
+
+    # Permission checks
+    def can_edit(self, user: User) -> bool:
+        if user and self.admin_id == user.id:
+            return True
+        if user and user.profile and user.profile.is_admin:
+            return True
+        return False
+    
+    def can_view(self, user: User) -> bool:
+        if self.public:
+            return True
+        if user and self.admin_id == user.id:
+            return True
+        if user and user.profile and user.profile.is_admin:
+            return True
+        return False
+
+    def add_user(self, user: User, commit: bool = True):
+        if user not in self.users:
+            self.users.append(user)
+            db.session.add(self)
+            if commit:
+                db.session.commit()
+
+    def remove_user(self, user: User, commit: bool = True):
+        if user in self.users:
+            self.users.remove(user)
+            db.session.add(self)
+            if commit:
+                db.session.commit()
+                
+    def get_user_emails(self) -> List[str]:
+        emails = set()
+        if self.admin and self.admin.email:
+            emails.add(self.admin.email)
+        for user in self.users:
+            if user.email:
+                emails.add(user.email)
+        return list(emails)
 
     def get_tags(self) -> List[str]:
         defaultTags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
@@ -287,7 +348,8 @@ class Website(db.Model):
             'url': self.url,
             'sites': [site.id for site in self.sites.with_entities(Site.id).all()],
             'domain_id': self.domain_id,
-            'email': self.user.email or None if self.user else None,
+            'admin': self.admin.username if self.admin else None,
+            'users': [user.username for user in self.users],
             'should_email': self.should_email,
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'tags': [tag.strip() for tag in self.tags.split(",")] if self.tags else [],
@@ -335,7 +397,7 @@ class Website(db.Model):
             db.session.add(subdomain_obj)
 
         self.url = url
-        self.user_id = user_id
+        self.admin_id = user_id
         self.domain = subdomain_obj
         
         # set defaults from settings
@@ -358,7 +420,6 @@ class Website(db.Model):
                 self.domain.delete()
 
             # remove all associations for self
-            db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id))
 
             db.session.delete(self)
             db.session.commit()
@@ -367,7 +428,7 @@ class Website(db.Model):
             raise e
 
     def __repr__(self):
-        return f'<Website {self.url}>'
+        return f'<Website {self.id} url={self.url} admin={self.admin_id}>'
 
 
 # Domains can only be created by the admins

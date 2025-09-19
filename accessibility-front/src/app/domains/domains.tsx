@@ -76,11 +76,13 @@ export default function Domains() {
                     />
                 </div>
             </header>
-            <main className="h-[calc(100vh-12rem)] overflow-y-auto">
+            <Content>
                 <Table<Domain>
                     rowKey="id"
                     columns={columns}
                     dataSource={domains || []}
+                    bordered
+                    size="middle"
                     loading={loadingDomain}
                     pagination={false}
                     locale={{ emptyText: <PageError status={'info'} title="No Domains found." /> }}
@@ -96,7 +98,7 @@ export default function Domains() {
                         onChange={(current) => setDomainPage(current)}
                     />
                 </Flex>
-            </main>
+            </Content>
         </Content>
     );
 }

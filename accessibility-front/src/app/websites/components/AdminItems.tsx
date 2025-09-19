@@ -14,7 +14,7 @@ type Props = {
     mutate: (website?: Website) => Promise<void>;
 };
 
-function AdminWebsiteItems({ website, mutate }: Props) {
+function AdminItems({ website, mutate }: Props) {
     const router = useRouter();
     const { addAlert } = useAlerts();
     const [loadingScan, setLoadingScan] = useState(false);
@@ -111,20 +111,10 @@ function AdminWebsiteItems({ website, mutate }: Props) {
             setLoadingRateLimit(false);
         }
     };
-    const handleEmailChange = async (value: string | null) => {
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+    const handleAdminChange = async (value: string | null) => {
         if (value !== null) {
             setLoadingEmail(true);
             try {
-                // check if value is real email
-
-                if (!regex.test(value)) {
-                    addAlert('Please enter a valid email address', 'error');
-                    setLoadingEmail(false);
-                    return;
-                }
-
                 const updatedWebsite = await handlerUserApiRequest<Website>(
                     `/api/websites/${website.id}`,
                     {
@@ -132,13 +122,36 @@ function AdminWebsiteItems({ website, mutate }: Props) {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ email: value }),
+                        body: JSON.stringify({ admin: value }),
                     }
                 );
                 mutate(updatedWebsite);
-                addAlert('Email updated successfully', 'success');
+                addAlert('Admin user updated successfully', 'success');
             } catch {
-                addAlert('Failed to update email', 'error');
+                addAlert('Failed to update admin user', 'error');
+            }
+
+            setLoadingEmail(false);
+        }
+    };
+    const handleUsersChange = async (value: string[] | null) => {
+        if (value !== null) {
+            setLoadingEmail(true);
+            try {
+                const updatedWebsite = await handlerUserApiRequest<Website>(
+                    `/api/websites/${website.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ users: value }),
+                    }
+                );
+                mutate(updatedWebsite);
+                addAlert('Users updated successfully', 'success');
+            } catch (error) {
+                addAlert('Failed to update users: ' + (error as Error).message, 'error');
             }
 
             setLoadingEmail(false);
@@ -164,6 +177,7 @@ function AdminWebsiteItems({ website, mutate }: Props) {
         }
         setLoadingShouldEmail(false);
     };
+
     const handleChangePublic = async (value: boolean) => {
         setLoadingPublic(true);
         try {
@@ -203,7 +217,7 @@ function AdminWebsiteItems({ website, mutate }: Props) {
     const handleDelete = async () => {
         setLoadingDelete(true);
         try {
-            await handlerUserApiRequest(`/api/websites/${website.id}`, {
+            await handlerUserApiRequest(`/api/websites/${website.id}/`, {
                 method: 'DELETE',
             });
             mutate();
@@ -240,13 +254,20 @@ function AdminWebsiteItems({ website, mutate }: Props) {
 
     return (
         <div className="mb-4 rounded-md bg-gray-50 p-4 shadow">
-            <Space className="w-full" size={'large'} direction="vertical">
+            <Space className="w-full" size="large" direction="vertical">
                 <div className="text-lg font-medium text-gray-800">Admin Actions</div>
+
+                {/* Scan and Activation Section */}
+                <Divider orientation="left" orientationMargin={0}>
+                    <span>Scan & Activation</span>
+                </Divider>
                 <Flex gap="16px" align="center" style={{ paddingTop: 8 }}>
-                    <Button onClick={handleScan} loading={loadingScan}>
-                        Scan Now
-                    </Button>
-                    <Tooltip title="Automatic Website Scanning">
+                    <Tooltip title="Manually trigger a scan for this website. You will be notified when the scan is complete.">
+                        <Button onClick={handleScan} loading={loadingScan}>
+                            Scan Now
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title="Enable or disable automatic scanning for this website.">
                         <Button
                             loading={loadingActivate}
                             type={website.active ? 'primary' : 'default'}
@@ -255,85 +276,127 @@ function AdminWebsiteItems({ website, mutate }: Props) {
                             {website.active ? 'Deactivate' : 'Activate'}
                         </Button>
                     </Tooltip>
-
-                    <InputNumber
-                        disabled={!website.active || loadingRateLimit}
-                        addonBefore="Rate limit in Days"
-                        aria-label="Rate Limit in Days"
-                        min={1}
-                        value={website.rate_limit}
-                        onPressEnter={async (e) => {
-                            handleRateLimitChange((e.target as HTMLInputElement).value);
-                        }}
-                    />
-                    <div>
-                        <Flex gap="8px" align="center">
-                            <label htmlFor="tags">Active Tags</label>
-                            <Tooltip title="Tags applied to this website, these will be used in addition to the default tags for the application.">
-                                <Select
-                                    mode="tags"
-                                    style={{ maxWidth: 400, minWidth: 200 }}
-                                    id="tags"
-                                    aria-label="Tags"
-                                    placeholder="Tags"
-                                    value={Array.from(
-                                        new Set([...website.tags, ...website.default_tags])
-                                    )}
-                                    options={Array.from(
-                                        new Set([
-                                            ...website.tags,
-                                            ...website.default_tags,
-                                            ...(allTags || []),
-                                        ])
-                                    ).map((tag) => ({
-                                        label: tag,
-                                        value: tag,
-                                    }))}
-                                    disabled={loadingEmail}
-                                    onChange={(value) => {
-                                        handleTagsChange(value);
-                                    }}
-                                />
-                            </Tooltip>
-                        </Flex>
-                    </div>
+                    <Tooltip title="Set how often this website can be scanned (in days).">
+                        <InputNumber
+                            disabled={!website.active || loadingRateLimit}
+                            addonBefore="Rate limit in Days"
+                            aria-label="Rate Limit in Days"
+                            min={1}
+                            defaultValue={website.rate_limit}
+                            value={website.rate_limit}
+                            onChange={async (value) => {
+                                if (value !== null) {
+                                    handleRateLimitChange(value.toString());
+                                }
+                            }}
+                            onPressEnter={async (e) => {
+                                handleRateLimitChange((e.target as HTMLInputElement).value);
+                            }}
+                        />
+                    </Tooltip>
                 </Flex>
-                <Divider />
 
+                {/* Tags Section */}
+                <Divider orientation="left" orientationMargin={0}>
+                    <span>Tags</span>
+                </Divider>
+                <Flex gap="8px" align="center">
+                    <label htmlFor="tags" style={{ minWidth: 80 }}>
+                        Active Tags
+                    </label>
+                    <Tooltip title="Tags applied to this website, used in addition to the default tags for the application.">
+                        <Select
+                            mode="tags"
+                            style={{ maxWidth: 400, minWidth: 200 }}
+                            id="tags"
+                            aria-label="Tags"
+                            placeholder="Tags"
+                            value={Array.from(new Set([...website.tags, ...website.default_tags]))}
+                            options={Array.from(
+                                new Set([
+                                    ...website.tags,
+                                    ...website.default_tags,
+                                    ...(allTags || []),
+                                ])
+                            ).map((tag) => ({ label: tag, value: tag }))}
+                            disabled={loadingEmail}
+                            onChange={handleTagsChange}
+                        />
+                    </Tooltip>
+                </Flex>
+
+                {/* Admin & Users Section */}
+                <Divider orientation="left" orientationMargin={0}>
+                    <span>Admin & Users</span>
+                </Divider>
                 <Flex gap="16px" align="center">
-                    <label htmlFor="email">Email</label>
-                    <Input
-                        style={{ maxWidth: 300 }}
-                        id="email"
-                        aria-label="Email"
-                        placeholder="Email"
-                        type="text"
-                        defaultValue={website.email}
-                        disabled={loadingEmail}
-                        onPressEnter={async (e) => {
-                            handleEmailChange((e.target as HTMLInputElement).value);
-                        }}
-                    />
-                    <Button
-                        type={website.should_email ? 'default' : 'primary'}
-                        loading={loadingShouldEmail}
-                        onClick={() => handleShouldEmailChange(!website.should_email)}
-                    >
-                        {website.should_email ? 'Disable Email Notify' : 'Enable Email Notify'}
-                    </Button>
-                    <Button onClick={handleSendEmailUpdate} loading={loadingEmail}>
-                        Resend Latest Report Email
-                    </Button>
-                    <Button
-                        type={website.public ? 'default' : 'primary'}
-                        loading={loadingPublic}
-                        onClick={() => handleChangePublic(!website.public)}
-                    >
-                        {website.public ? 'Disable Public Access' : 'Enable Public Access'}
-                    </Button>
+                    <label htmlFor="admin" style={{ minWidth: 80 }}>
+                        Admin User
+                    </label>
+                    <Tooltip title="The email of the user who is the admin for this website.">
+                        <Input
+                            style={{ maxWidth: 300 }}
+                            id="admin"
+                            aria-label="Admin User"
+                            placeholder="Admin User Email"
+                            type="text"
+                            defaultValue={website.admin}
+                            disabled={loadingEmail}
+                            onPressEnter={async (e) => {
+                                handleAdminChange((e.target as HTMLInputElement).value);
+                            }}
+                        />
+                    </Tooltip>
+                    <label htmlFor="users" style={{ minWidth: 80 }}>
+                        Users
+                    </label>
+                    <Tooltip title="Users who are allowed to view this website.">
+                        <Select
+                            mode="tags"
+                            style={{ minWidth: 300 }}
+                            id="users"
+                            aria-label="Users"
+                            placeholder="Users who can view this website"
+                            value={website.users.length > 0 ? website.users : undefined}
+                            disabled={loadingEmail}
+                            onChange={(value) => {
+                                handleUsersChange(value.filter((v) => v.trim() !== ''));
+                            }}
+                        />
+                    </Tooltip>
                 </Flex>
 
-                <Divider />
+                {/* Email & Public Section */}
+                <Divider orientation="left" orientationMargin={0}>
+                    <span>Email & Public Access</span>
+                </Divider>
+                <Flex gap="16px" align="center">
+                    <Tooltip title="Enable or disable email notifications for this website.">
+                        <Button
+                            type={website.should_email ? 'default' : 'primary'}
+                            loading={loadingShouldEmail}
+                            onClick={() => handleShouldEmailChange(!website.should_email)}
+                        >
+                            {website.should_email ? 'Disable Email Notify' : 'Enable Email Notify'}
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title="Resend the latest report email to all users.">
+                        <Button onClick={handleSendEmailUpdate} loading={loadingEmail}>
+                            Resend Latest Report Email
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title="Enable or disable public access to this website's reports.">
+                        <Button
+                            type={website.public ? 'default' : 'primary'}
+                            loading={loadingPublic}
+                            onClick={() => handleChangePublic(!website.public)}
+                        >
+                            {website.public ? 'Disable Public Access' : 'Enable Public Access'}
+                        </Button>
+                    </Tooltip>
+                </Flex>
+
+                {/* Danger Zone Section */}
                 <Flex className="flex justify-end">
                     <Button danger onClick={() => setShowDeleteModal(true)} loading={loadingDelete}>
                         Delete
@@ -352,4 +415,4 @@ function AdminWebsiteItems({ website, mutate }: Props) {
     );
 }
 
-export default AdminWebsiteItems;
+export default AdminItems;

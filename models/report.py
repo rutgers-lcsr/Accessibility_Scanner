@@ -4,6 +4,8 @@ from typing import List, TypedDict
 from sqlalchemy import LargeBinary
 from sqlalchemy.dialects.mysql import LONGBLOB
 
+from models.user import User
+
 from . import db
 from scanner.browser.report import AccessibilityReport
 from scanner.accessibility.ace import AxeReport, AxeReportKeys, AxeResult
@@ -75,17 +77,51 @@ class Report(db.Model):
         return self.site.public if self.site else False
 
     @hybrid_property
-    def user_id(self):
-        return self.site.user_id if self.site else None
+    def admin_id(self):
+        return self.site.admin_id if self.site else None
 
-    @user_id.expression
-    def user_id(cls):
+    @admin_id.expression
+    def admin_id(cls):
         from sqlalchemy import select
         from models.website import Site
         return (
-            select(Site.user_id)
+            select(Site.admin_id)
             .where(Site.id == cls.site_id)
             .scalar_subquery()
+        )
+
+    @hybrid_method
+    def can_view(self, user: User) -> bool:
+        if self.public:
+            return True
+        if not user:
+            return False
+        if user.profile.is_admin:
+            return True
+        if self.site.can_view(user):
+            return True
+        return False
+
+    @can_view.expression
+    def can_view(cls, user):
+        from sqlalchemy import select, case
+        from models.website import Site, UserWebsiteAssoc
+        return case(
+            [
+                (cls.public == True, True),
+                (user == None, False),
+                (user.profile.is_admin == True, True),
+                (
+                    select(UserWebsiteAssoc.c.user_id)
+                    .where(
+                        (UserWebsiteAssoc.c.website_id == cls.site_id) &
+                        (UserWebsiteAssoc.c.user_id == user.id)
+                    )
+                    .exists(),
+                    True
+                )
+            ],
+            else_=False
         )
 
     @public.expression

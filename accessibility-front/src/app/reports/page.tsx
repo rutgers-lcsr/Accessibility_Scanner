@@ -2,7 +2,7 @@
 import PageError from '@/components/PageError';
 import { Report as ReportType } from '@/lib/types/axe';
 import { useReports } from '@/providers/Reports';
-import { Input, Pagination, Table } from 'antd';
+import { Flex, Input, Pagination, Table } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { format } from 'date-fns';
 const columns = [
@@ -67,13 +67,16 @@ export default function ReportPage() {
                     />
                 </div>
             </header>
-            <main className="h-[calc(100vh-13rem)] overflow-y-auto">
+            <Content>
                 <Table<ReportType>
                     rowKey="id"
                     columns={columns}
                     dataSource={reports || []}
                     loading={isLoading}
                     pagination={false}
+                    bordered
+                    size="middle"
+                    className="bg-white rounded-lg"
                     locale={{
                         emptyText: (
                             <PageError
@@ -84,18 +87,18 @@ export default function ReportPage() {
                         ),
                     }}
                 />
-            </main>
-            <footer className="mt-4 flex justify-center">
-                <Pagination
-                    showSizeChanger
-                    defaultCurrent={ReportPage}
-                    total={reportsTotal}
-                    onShowSizeChange={(current, pageSize) => {
-                        setReportLimit(pageSize);
-                    }}
-                    onChange={(current) => setReportPage(current)}
-                />
-            </footer>
+                <Flex style={{ padding: '16px 0' }} justify="center">
+                    <Pagination
+                        showSizeChanger
+                        defaultCurrent={ReportPage}
+                        total={reportsTotal}
+                        onShowSizeChange={(current, pageSize) => {
+                            setReportLimit(pageSize);
+                        }}
+                        onChange={(current) => setReportPage(current)}
+                    />
+                </Flex>
+            </Content>
         </Content>
     );
 }

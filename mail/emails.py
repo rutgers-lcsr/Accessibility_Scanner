@@ -55,8 +55,14 @@ class NewWebsiteEmail(AccessEmails):
         super().__init__()
 
     def send(self):
+        
+        emails = self.website.get_user_emails()
+        if not emails:
+            log_message(f"Website {self.website.id} has no associated user emails to send new website notification.", 'warning')
+            return
+        
         msg = Message("New Website Added",
-                recipients=[self.website.email])
+                      recipients=emails)
 
         jwt_token = generate_jwt_token({"action": "subscribe", "website_id": self.website.id, "email": self.website.email})
         msg.html = render_template("emails/new_website.html", website=self.website, client_url=self.client_url, jwt_token=jwt_token)
@@ -74,12 +80,16 @@ class ScanFinishedEmail(AccessEmails):
         if not force and not self.website.should_email:
             return
 
-        if not email and not self.website.user or not self.website.user.email:
-            log_message(f"Website {self.website.id} has no associated user email to send scan finished notification.", 'warning')
+        emails = self.website.get_user_emails()
+        if email:
+            emails.append(email)
+        emails = list(set([e for e in emails if e]))
+        if not emails:
+            log_message(f"Website {self.website.id} has no associated user emails to send scan finished notification.", 'warning')
             return
 
         msg = Message("Accessibility Scan Finished",
-                      recipients=[self.website.user.email])
+                      recipients=emails)
 
         msg.html = render_template("emails/scan_finished.html", website=self.website.to_dict(), client_url=self.client_url, scan=self.report_counts, timestamp=datetime.now().isoformat())
 

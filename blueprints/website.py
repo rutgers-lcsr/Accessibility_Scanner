@@ -7,7 +7,7 @@ from blueprints.scan import conduct_scan_website, loop
 from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail, ScanFinishedEmail
 from models.report import AxeReportCounts, Report
 from models.settings import Settings
-from models.user import User
+from models.user import Profile, User
 from models.website import Domain, Site, Site_Website_Assoc, Website 
 from models import db
 from scanner.accessibility.ace import AxeReportKeys
@@ -152,7 +152,7 @@ def email_website_report(website_id):
         return jsonify({'error': str(e)}), 500
 
 @website_bp.route('/<int:website_id>/', methods=['PATCH'])
-@admin_required
+@jwt_required()
 def update_website(website_id):
     """
     Update an existing website.
@@ -176,6 +176,16 @@ def update_website(website_id):
                         type: string
                     active:
                         type: boolean
+                    admin:
+                        type: integer
+                    users:
+                        type: array
+                        items:
+                            type: string
+                    tags:
+                        type: array
+                        items:
+                            type: string
                     rate_limit:
                         type: integer
                     hard_limit:
@@ -211,6 +221,11 @@ def update_website(website_id):
     if not website:
         return jsonify({'error': 'Website not found'}), 404
 
+    if not current_user:
+        return jsonify({'error': 'User is not authenticated'}), 401
+    if not website.can_edit(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
     if 'base_url' in data:
         base_url = data['base_url']
         if not is_valid_url(base_url):
@@ -234,18 +249,53 @@ def update_website(website_id):
     if 'hard_limit' in data:
         website.hard_limit = data['hard_limit']
 
-    if 'email' in data:
-        email = str(data['email'])
-        regex = r"[^@]+@[^@]+\.[^@]+"
-        if not re.match(regex, email):
-            return jsonify({'error': 'Invalid email format'}), 400
-        # Email user that they have been added
-        user = db.session.query(User).filter_by(email=email).first()
-        if not user:
-            # since admins can only change email, assume they are the user
-            user = User(email=email, username=email.split('@')[0])
-            db.session.add(user)
-        website.user = user
+
+    if 'admin' in data:
+        admin_username = data['admin']
+        admin_user = db.session.query(User).filter_by(username=admin_username).first()
+        if not admin_user:
+            domain = Settings.get('default_email_domain', '')
+            email = f"{admin_username}@{domain}" if domain else None
+            if not email:
+                return jsonify({'error': f'No email domain set to create user {admin_username}, Please ask an admin to set a default'}), 400
+            new_user = User(username=admin_username, email=email)
+            new_user.profile = Profile(user=new_user, is_admin=False)
+            db.session.add(new_user)
+            db.session.commit()  # Commit to get the user ID
+            admin_user =  db.session.query(User).filter_by(username=admin_username).first()
+            if not admin_user:
+                return jsonify({'error': f'Could not create user {admin_username}'}), 500
+        if website.admin_id == admin_user.id:
+            return jsonify({'error': 'The specified user is already the admin of this website'}), 400
+        website.admin = admin_user
+        # if the admin is being changed, make sure to email them
+        
+    if 'users' in data:
+        users = data['users']
+        if isinstance(users, list):
+            # First remove all existing users
+            current_users = website.users[:]
+            for user in current_users:
+                website.remove_user(user, commit=False)
+            # Now add the new users
+            for username in users:
+                user = db.session.query(User).filter_by(username=username).first()
+                if user:
+                    website.add_user(user, commit=False)
+                else:
+                    # add the user if they dont exist
+                    domain = Settings.get('default_email_domain', '')
+                    email = f"{username}@{domain}" if domain else None
+                    if not email:
+                        return jsonify({'error': f'No email domain set to create user {username}, Please ask an admin to set a default'}), 400
+                    new_user = User(username=username, email=email)
+                    new_user.profile = Profile(user=new_user, is_admin=False)
+                    db.session.add(new_user)
+                    db.session.commit()  # Commit to get the user ID
+                    new_user =  db.session.query(User).filter_by(username=username).first()
+                    website.add_user(new_user, commit=False)
+        else:
+            return jsonify({'error': 'Users must be a list of usernames'}), 400
 
     if 'should_email' in data:
         website.should_email = data['should_email'] and True
@@ -273,6 +323,7 @@ def update_website(website_id):
     db.session.add(website)
     db.session.commit()
     return jsonify(website.to_dict()), 200
+
 
 @website_bp.route('/activate', methods=['POST'])
 @admin_required
@@ -535,9 +586,11 @@ def get_overall_website(website_id):
     if not website:
         return jsonify({'error': 'Website not found'}), 404
     
-    if current_user:
-        if not current_user.profile.is_admin and website.user_id != current_user.id:
+    if not current_user:
+        if not website.public:
             return jsonify({'error': 'Unauthorized'}), 403
+    if current_user:
+        website.can_view(current_user) or jsonify({'error': 'Unauthorized'}), 403
 
     return jsonify(website.to_dict()), 200
 
