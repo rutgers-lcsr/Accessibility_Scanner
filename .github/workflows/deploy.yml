@@ -62,6 +62,18 @@ jobs:
               run: |
                   docker restart a11y_nginx
 
+            - name: Wait for services to be up
+              run: |
+                  sleep 20
+
+            - name: check for api docker container
+              run: |
+                  status=$(docker inspect -f '{{.State.Status}}' a11y_api)
+                  if [ "$status" != "running" ]; then
+                      echo "API container is not running as expected. Current status: $status"
+                      exit 1
+                  fi
+
             - name: Remove docker artifacts
               run: |
                   docker system prune -f
