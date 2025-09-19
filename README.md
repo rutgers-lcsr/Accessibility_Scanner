@@ -33,7 +33,7 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     cd Accessibility_Scanner
     ```
 3. Set up environment variables in a `.env` file based on the provided `.env.example` file.
-4. Copy the example env files in both `accessibility-back` and `accessibility-front` directories to `.env` files and set the appropriate values.
+4. Set up .env in `accessibility-front` directories and set the appropriate values.
    The `.env` file in `accessibility-front` should look something like this:
 
     ```bash
@@ -46,6 +46,7 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     ```
 
     Note: `NODE_TLS_REJECT_UNAUTHORIZED=0` is needed if using self-signed certificates for cas server.
+    Furthermore, this is because docker compose requires the .env file to be in the same level as the docker-compose.yml file.
 
 5. Build and start the Docker containers:
     ```bash
