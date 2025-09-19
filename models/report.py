@@ -78,7 +78,7 @@ class Report(db.Model):
 
     @hybrid_property
     def admin_id(self):
-        return self.site.admin_id if self.site else None
+        return self.site.websites[0].admin_id if self.site and self.site.websites else None
 
     @admin_id.expression
     def admin_id(cls):

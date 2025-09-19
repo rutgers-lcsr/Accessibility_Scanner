@@ -50,11 +50,11 @@ def get_report_by_id(report_id):
     if not report:
         return jsonify({'error': 'Report not found'}), 404
     
-    if not current_user or not current_user.profile.is_admin:
+    if not current_user:
         if not report.public:
             return jsonify({'error': 'Unauthorized'}), 403
 
-    if not report.admin_id == current_user.id and not current_user.profile.is_admin:
+    if not report.can_view(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
 
     return jsonify(report.to_dict()), 200
@@ -78,12 +78,11 @@ def get_report_photo(report_id):
     if not report:
         return jsonify({'error': 'Report not found'}), 404
 
-    if not current_user or not current_user.profile.is_admin:
+    if not current_user:
         if not report.public:
             return jsonify({'error': 'Unauthorized'}), 403
 
-
-    if not report.user_id == current_user.id and not current_user.profile.is_admin:
+    if not report.can_view(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
 
     image = Image.open(io.BytesIO(report.photo))

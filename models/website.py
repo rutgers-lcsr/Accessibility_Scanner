@@ -91,14 +91,21 @@ class Site(db.Model):
 
     @hybrid_property
     def public(self) -> bool:
-        return self.website.public if self.website else False
+        for website in self.websites:
+            if website.public:
+                return True
+        return False
 
     @public.expression
     def public(cls):
-        from sqlalchemy import select
+        from sqlalchemy import select, exists
+        from models.website import Website
         return (
-            select(Website.public)
-            .where(Website.id == cls.website_id)
+            select(exists().where(
+                Site_Website_Assoc.c.site_id == cls.id,
+                Site_Website_Assoc.c.website_id == Website.id,
+                Website.public == True
+            ))
             .scalar_subquery()
         )
 
