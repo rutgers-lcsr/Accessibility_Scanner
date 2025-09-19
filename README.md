@@ -14,7 +14,7 @@ An accessibility website scanner built for auditing and monitoring websites for 
 -   **Reverse Proxy**: Nginx server acting as a reverse proxy for SSL.
 -   **Backend**: Flask application handling API requests, user authentication, and database interactions.
 -   **Frontend**: Nextjs application providing a user interface for managing sites, viewing reports, and configuring settings.
--   **Database**: PostgreSQL database for storing user data, site information, and accessibility reports.
+-   **Database**: Mariadb database for storing user data, site information, and accessibility reports.
 -   **Scanner**: Playwright-based scanner that performs accessibility tests on web pages.
     Note: scanner container doesn't need to be run for application to work, it can be run separately as needed. The scanner is for automatic scans which happen based on the rate limit.
 -   **Adminer**: A separate admin interface for managing database and setting users as admins.
@@ -32,11 +32,12 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     ```bash
     cd Accessibility_Scanner
     ```
-3. Build and start the Docker containers:
+3. Set up environment variables in a `.env` file based on the provided `.env.example` file.
+4. Build and start the Docker containers:
     ```bash
-    docker-compose up --build
+    docker-compose up -d
     ```
-4. Access the application at `http://localhost:5000`.
+5. Access the application at `http://localhost:5000`.
 
 ## Creation of users
 
@@ -52,9 +53,29 @@ To set a user as an admin, you can use the Adminer interface provided in the dep
 4. Navigate to the `profiles` table.
 5. Find the user you want to set as an admin and change the `is_admin` field to `true`.
 6. Save the changes.
+7. Login to the Frontend with the admin user to access admin functionalities. Note: Make sure to change initial settings like email domain before adding users.
+
+## Setting up the first website
+
+Websites can only be added if the following is true:
+
+-   An admin has added a proper parent domain to the scanner. Meaning if you want to add `sub.rutgers.edu`, a admin must have added `rutgers.edu` as a parent domain first. If only `cs.rutgers.edu` is added, `sub.rutgers.edu` cannot be added.
+
+Then, go to websites page in the Frontend and add a new website. After a site is added, depending on the settings, the scanner will automatically scan the site based on the rate limit. You can also manually trigger scans from the Frontend interface.
+
+## Reports
+
+Each report contains details about the accessibility issues found during the scan, along with a screenshot of the scanned page. Reports for an entire website will be aggregated and issues can will be grouped by issue type, severity, and other criteria. Its recommended to view full website reports first before diving into individual page reports.
+
+## User Management
+
+Any user can create an account and request a site. They will automatically be assigned to that site as an admin. Website Admins will be able to add other users to the website report. These users will be able to view reports for that website but will not be able to add other users or modify the site settings. These users will also be notified when a scan is finished. Only global admins can add parent domains and websites as well as manage all users. Global admins can change the admin user of a website.
 
 ## Notes
 
 -   Ensure that Backend API is not publicly accessible without proper authentication and authorization. Frontend should handle user authentication and restrict access to authorized users only.
 -   The scanner can be run separately as needed and does not need to be running for the application to function. (In this case automatic scans will not happen based on the rate limit) but manual scans can still be triggered and run in the backend application.
 -   Modify the `docker-compose.yml` file as needed to customize the deployment settings, such as ports, environment variables, and volume mounts.
+-   Deleting a website will also delete all associated reports and data for that website. This action is irreversible.
+-   Deleting a domain will only delete a website if no other websites are using that domain as their parent domain.
+-   Deleting a domain will only delete the domain itself doesnt have a parent domain it can attach to.
