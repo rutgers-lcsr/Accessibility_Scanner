@@ -71,6 +71,7 @@ jobs:
                   status=$(docker inspect -f '{{.State.Status}}' a11y_api)
                   if [ "$status" != "running" ]; then
                       echo "API container is not running as expected. Current status: $status"
+                      docker logs a11y_api
                       exit 1
                   fi
 
