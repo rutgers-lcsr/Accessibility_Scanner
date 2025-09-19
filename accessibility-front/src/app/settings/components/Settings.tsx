@@ -171,8 +171,8 @@ function Settings() {
                     <div className="text-sm text-gray-500">
                         Default email domain for users. Users will be sent emails using their
                         username and this domain, e.g. user@example.com. Leaving it blank will cause
-                        users to not be added. Note: Not implemented yet. Assumes all users share
-                        the same email domain. usually the university domain.
+                        users to not be added. Assumes all users share the same email domain,
+                        usually the university domain.
                     </div>
                 </Card>
             </Flex>
