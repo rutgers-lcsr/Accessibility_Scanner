@@ -33,11 +33,25 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     cd Accessibility_Scanner
     ```
 3. Set up environment variables in a `.env` file based on the provided `.env.example` file.
-4. Build and start the Docker containers:
+4. Copy the example env files in both `accessibility-back` and `accessibility-front` directories to `.env` files and set the appropriate values.
+   The `.env` file in `accessibility-front` should look something like this:
+
+    ```bash
+     API_URL=http://localhost:5000  # Backend API URL
+     JWT_SECRET_KEY="KHJADoishdjfo" # random string
+     NEXT_CAS_CLIENT_SECRET="heA1hsrnQ6mrNe7eaqxsz3i74vAKZhM0" # 32 character random string used for session encryption
+     NEXT_PUBLIC_BASE_URL="http://localhost:3000" # Frontend URL
+     NEXT_PUBLIC_CAS_URL="https://localhost:8443/cas" # CAS server URL
+     NODE_TLS_REJECT_UNAUTHORIZED=0 # needed if using self-signed certificates for cas server
+    ```
+
+    Note: `NODE_TLS_REJECT_UNAUTHORIZED=0` is needed if using self-signed certificates for cas server.
+
+5. Build and start the Docker containers:
     ```bash
     docker-compose up -d
     ```
-5. Access the application at `http://localhost:5000`.
+6. Access the application at `http://localhost:5000`.
 
 ## Creation of users
 
