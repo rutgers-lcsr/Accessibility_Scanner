@@ -46,7 +46,7 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     ```
 
     Note: `NODE_TLS_REJECT_UNAUTHORIZED=0` is needed if using self-signed certificates for cas server.
-    Furthermore, this is because docker compose requires the .env file to be in the same level as the docker-compose.yml file.
+    Furthermore, this is because docker compose requires the .env file to be in the same level as the Dockerfile file.
 
 5. Build and start the Docker containers:
     ```bash
