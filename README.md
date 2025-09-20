@@ -60,7 +60,7 @@ Users can be created through the Frontend interface. When a user logs in for the
 
 ## Setting a Admin User
 
-To set a user as an admin, you can use the Adminer interface provided in the deployment. Follow these steps:
+If not set in SITEADMIN, to set a user as an admin, you can use the Adminer interface provided in the deployment. Follow these steps:
 
 1. Login to the Frontend to automatically create a user profile.
 2. Access Adminer at `http://localhost:8080`.
@@ -84,7 +84,7 @@ Each report contains details about the accessibility issues found during the sca
 
 ## User Management
 
-Any user can create an account and request a site. They will automatically be assigned to that site as an admin. Website Admins will be able to add other users to the website report. These users will be able to view reports for that website but will not be able to add other users or modify the site settings. These users will also be notified when a scan is finished. Only global admins can add parent domains and websites as well as manage all users. Global admins can change the admin user of a website.
+Any user can create an account and request a site. They will automatically be assigned to that site as an admin. Website Admins will be able to add other users to the website report but not to change ratelimits or scan the site. Website users will be able to view reports for that website but will not be able to add other users or modify the site settings. These users will also be notified when a scan is finished. Only global admins can add parent domains and websites as well as manage all users. Global admins can change the admin user of a website.
 
 ## Notes
 

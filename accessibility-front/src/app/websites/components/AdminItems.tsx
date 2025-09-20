@@ -304,7 +304,7 @@ function AdminItems({ website, mutate }: Props) {
                     <label htmlFor="tags" style={{ minWidth: 80 }}>
                         Active Tags
                     </label>
-                    <Tooltip title="Tags applied to this website, used in addition to the default tags for the application.">
+                    <Tooltip title="Tags applied to this website, used in addition to the default tags for the application. Default tags are automatically applied to all websites and cannot be removed here.">
                         <Select
                             mode="tags"
                             style={{ maxWidth: 400, minWidth: 200 }}
@@ -333,7 +333,7 @@ function AdminItems({ website, mutate }: Props) {
                     <label htmlFor="admin" style={{ minWidth: 80 }}>
                         Admin User
                     </label>
-                    <Tooltip title="The email of the user who is the admin for this website.">
+                    <Tooltip title="The user who is an Website Admin for this website.">
                         <Input
                             style={{ maxWidth: 300 }}
                             id="admin"
