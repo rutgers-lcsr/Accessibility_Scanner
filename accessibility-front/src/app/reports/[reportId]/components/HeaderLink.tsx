@@ -15,6 +15,7 @@ export default function HeaderLink({ url }: Props) {
             size="large"
             onAuxClick={openLink}
             onClick={openLink}
+            onMouseDown={openLink}
             style={{
                 color: 'inherit',
                 fontSize: 'inherit',
