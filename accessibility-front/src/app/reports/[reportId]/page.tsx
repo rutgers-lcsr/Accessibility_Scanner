@@ -87,34 +87,60 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         </h2>
                         <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
                             <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
-                                <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
-                                <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
-                                <h4 className="text-3xl font-bold text-red-600">
-                                    {violations.critical}
-                                </h4>
+                                <Tooltip
+                                    title="Major barriers that prevent
+                                        access for many users. Immediate attention required."
+                                >
+                                    <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
+                                    <h3 className="mb-2 text-lg font-medium text-red-700">
+                                        Critical
+                                    </h3>
+                                    <h4 className="text-3xl font-bold text-red-600">
+                                        {violations.critical}
+                                    </h4>
+                                </Tooltip>
                             </div>
                             <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
-                                <AlertOutlined className="mb-2 text-3xl text-red-700" />
-                                <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
-                                <h4 className="text-3xl font-bold text-red-600">
-                                    {violations.serious}
-                                </h4>
+                                <Tooltip
+                                    title="Significant issues that can make
+                                        content difficult to use. Should be fixed promptly."
+                                >
+                                    <AlertOutlined className="mb-2 text-3xl text-red-700" />
+                                    <h3 className="mb-2 text-lg font-medium text-red-700">
+                                        Serious
+                                    </h3>
+                                    <h4 className="text-3xl font-bold text-red-600">
+                                        {violations.serious}
+                                    </h4>
+                                </Tooltip>
                             </div>
                             <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
-                                <WarningOutlined className="mb-2 text-3xl text-orange-700" />
-                                <h3 className="mb-2 text-lg font-medium text-orange-700">
-                                    Moderate
-                                </h3>
-                                <h4 className="text-3xl font-bold text-orange-600">
-                                    {violations.moderate}
-                                </h4>
+                                <Tooltip
+                                    title="Problems that may inconvenience
+                                        some users but do not block access."
+                                >
+                                    <WarningOutlined className="mb-2 text-3xl text-orange-700" />
+                                    <h3 className="mb-2 text-lg font-medium text-orange-700">
+                                        Moderate
+                                    </h3>
+                                    <h4 className="text-3xl font-bold text-orange-600">
+                                        {violations.moderate}
+                                    </h4>
+                                </Tooltip>
                             </div>
                             <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
-                                <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
-                                <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
-                                <h4 className="text-3xl font-bold text-yellow-600">
-                                    {violations.minor}
-                                </h4>
+                                <Tooltip
+                                    title="Low-impact issues that may
+                                        affect usability in specific cases."
+                                >
+                                    <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
+                                    <h3 className="mb-2 text-lg font-medium text-yellow-700">
+                                        Minor
+                                    </h3>
+                                    <h4 className="text-3xl font-bold text-yellow-600">
+                                        {violations.minor}
+                                    </h4>
+                                </Tooltip>
                             </div>
                         </div>
                         {report.videos.length > 0 && (
@@ -141,77 +167,41 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 </span>
                             }
                         >
-                            <p className="mb-4 text-base text-gray-700">
-                                This report provides an automated assessment of your webpage’s
-                                accessibility, highlighting issues that may affect users with
-                                disabilities. Each issue is classified by severity to help you
-                                prioritize fixes:
-                            </p>
-                            <ul className="mb-6">
-                                <li className="flex items-start mb-2">
-                                    <ExclamationCircleOutlined className="mt-1 mr-2 text-red-600" />
-                                    <span>
-                                        <strong>Critical:</strong> Major barriers that prevent
-                                        access for many users. Immediate attention required.
-                                    </span>
-                                </li>
-                                <li className="flex items-start mb-2">
-                                    <AlertOutlined className="mt-1 mr-2 text-red-500" />
-                                    <span>
-                                        <strong>Serious:</strong> Significant issues that can make
-                                        content difficult to use. Should be fixed promptly.
-                                    </span>
-                                </li>
-                                <li className="flex items-start mb-2">
-                                    <WarningOutlined className="mt-1 mr-2 text-orange-500" />
-                                    <span>
-                                        <strong>Moderate:</strong> Problems that may inconvenience
-                                        some users but do not block access.
-                                    </span>
-                                </li>
-                                <li className="flex items-start mb-2">
-                                    <InfoCircleOutlined className="mt-1 mr-2 text-yellow-500" />
-                                    <span>
-                                        <strong>Minor:</strong> Low-impact issues that may affect
-                                        usability in specific cases.
-                                    </span>
-                                </li>
-                            </ul>
                             <p className="mb-2 text-base text-gray-700">
                                 The{' '}
                                 <strong>
                                     <a href="#website-preview">Website Preview</a>
                                 </strong>{' '}
-                                section shows your page with accessibility overlays, helping you
-                                visually identify problem areas. For the most accurate results, use
-                                the provided
-                                <a href="#report-injection-script"> injection script</a> or the{' '}
-                                <a href="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd">
-                                    Chrome extension
-                                </a>{' '}
-                                to highlight issues directly on your live site.
+                                gives you more information about each error, but may not show them
+                                all.
                             </p>
                             <p className="mb-2 text-base text-gray-700">
                                 The{' '}
                                 <strong>
                                     <a href="#report-photo">Report Photo</a>
                                 </strong>{' '}
-                                captures the state of your webpage at the time of the scan,
-                                including detected accessibility issues. Use this to compare with
-                                the live site and ensure consistency.
+                                shows all the errors reported, but without explanations or context.
                             </p>
                             <p className="mb-2 text-base text-gray-700">
-                                If you notice differences between the preview and your live site,
-                                run the injection script in your browser’s DevTools Console to
-                                render this report on the page. This could be due to dynamic content
-                                or changes made after the initial scan.
+                                To display all errors with explainations either use the{' '}
+                                <ul>
+                                    <li className="list-disc ml-6">
+                                        Use the{' '}
+                                        <a href="#report-injection-script">injection script</a>
+                                    </li>
+                                    <li className="list-disc ml-6">
+                                        Install The following{' '}
+                                        <a href="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd">
+                                            Chrome extension
+                                        </a>
+                                    </li>
+                                </ul>{' '}
                             </p>
                             <p className="mt-4 text-base text-gray-700">
                                 At the{' '}
                                 <a href="#detailed-accessibility-issues">bottom of this page</a>,
-                                you’ll find a detailed list of all detected accessibility issues.
-                                Each entry includes guidance and context to help you resolve them
-                                and improve your site’s inclusivity.
+                                you’ll find a detailed list of all detected accessibility issues and
+                                links to resources for <b>fixing them</b>.
                             </p>
                         </Card>
                     </section>
