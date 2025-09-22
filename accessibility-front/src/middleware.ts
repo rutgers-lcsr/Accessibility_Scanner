@@ -6,10 +6,11 @@ const casUrl = process.env.NEXT_PUBLIC_CAS_URL as string;
 
 export async function middleware(request: NextRequest) {
     const user = await getCurrentUser();
-    if (!user && process.env.NODE_ENV === 'production') {
+    if (!user) {
+        const redirect = `${baseUrl}${request.nextUrl.pathname}`;
         return NextResponse.redirect(
             new URL(
-                `${casUrl}/login?service=${encodeURIComponent(`${baseUrl}/api/cas/login?redirect=${request.url}`)}`,
+                `${casUrl}/login?service=${encodeURIComponent(`${baseUrl}/api/cas/login?redirect=${redirect}`)}`,
                 request.url
             )
         );

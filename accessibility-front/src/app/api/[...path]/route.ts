@@ -65,8 +65,6 @@ const cas_get_route = handleAuth({ loadUser, validator: ValidatorProtocol.CAS30 
 export async function GET(req: NextRequest) {
     if (req.nextUrl.pathname === '/api/cas/login') {
         // Handle token refresh
-
-        console.log(req.nextUrl.searchParams);
         return cas_get_route(req, {
             params: { client: 'login' },
         });
