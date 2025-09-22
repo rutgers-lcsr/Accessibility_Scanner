@@ -8,14 +8,14 @@ from scanner.accessibility.ace import AxeResult
 from scanner.log import log_message
 
 LEVEL = {
-    'critical': 'border: 3px solid red; z-index: 9999; position: relative;',
-    'serious': 'border: 3px solid orange; z-index: 9999; position: relative;',
-    'moderate': 'border: 3px solid yellow; z-index: 9999; position: relative;',
-    'minor': 'border: 3px solid green; z-index: 9999; position: relative;',
-    'null': 'border: 3px solid gray; z-index: 9999; position: relative;'
+    'critical': 'border: 4px solid red; z-index: 9990; position: relative;',
+    'serious': 'border: 4px solid orange; z-index: 9990; position: relative;',
+    'moderate': 'border: 4px solid yellow; z-index: 9990; position: relative;',
+    'minor': 'border: 4px solid green; z-index: 9990; position: relative;',
+    'null': 'border: 4px solid gray; z-index: 9990; position: relative;'
 }
 
-tooltip_style = "position: absolute; z-index: 9999;pointer-events: none; text-align: center; background-color: rgba(255, 255, 255, 0.9); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); color: black; padding: 5px; border-radius: 4px; font-size: 12px; font-family: Arial, sans-serif; top: 0; left: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); min-width: 300px; overflow: 'auto';"
+tooltip_style = "position: absolute; z-index: 9999;pointer-events: none; text-align: center; background-color: rgba(255, 255, 255, 0.9); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); color: black; padding: 5px; border-radius: 4px; font-size: 12px; font-family: Arial, sans-serif; top: 0; left: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); min-width: 300px; overflow: 'auto'; font-weight: bold; cursor: pointer; font-size: 14px;"
 
 class Injection(TypedDict):
     selector: str

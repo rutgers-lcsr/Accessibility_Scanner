@@ -39,12 +39,43 @@ function injectScript(body: string, url: string, reportId: string) {
     let html = makeHtmlPage(body);
 
     html = html.replace(/href="([^"]+)"/g, (match, p1) => {
-        const newUrl = new URL(p1, url).href;
+        if (
+            p1.startsWith('http') ||
+            p1.startsWith('https') ||
+            p1.startsWith('#') ||
+            p1.startsWith('mailto:')
+        ) {
+            return match; // Don't change absolute URLs, anchors, or mailto links
+        }
+        if (p1.startsWith('data:')) {
+            return match; // Don't change data URLs
+        }
+        if (p1.startsWith('//')) {
+            return match; // Don't change protocol-relative URLs
+        }
+        let baseUrl = url;
+        if (!baseUrl.endsWith('/') && !p1.startsWith('/')) {
+            baseUrl = baseUrl + '/';
+        }
+        const newUrl = new URL(p1, baseUrl).href;
         return `href="${newUrl}"`;
     });
 
     html = html.replace(/src="([^"]+)"/g, (match, p1) => {
-        const newUrl = new URL(p1, url).href;
+        if (p1.startsWith('data:')) {
+            return match; // Don't change data URLs
+        }
+        if (p1.startsWith('http') || p1.startsWith('https')) {
+            return match; // Don't change absolute URLs
+        }
+        if (p1.startsWith('//')) {
+            return match; // Don't change protocol-relative URLs
+        }
+        let baseUrl = url;
+        if (!baseUrl.endsWith('/') && !p1.startsWith('/')) {
+            baseUrl = baseUrl + '/';
+        }
+        const newUrl = new URL(p1, baseUrl).href;
         return `src="${newUrl}"`;
     });
 
