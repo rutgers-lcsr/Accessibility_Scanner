@@ -14,7 +14,7 @@ import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
 import { User } from '@/lib/types/user';
-import { Card, Image } from 'antd';
+import { Card, Image, Tooltip } from 'antd';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
 import HeaderLink from './components/HeaderLink';
@@ -89,32 +89,32 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                             <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
                                 <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
                                 <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
-                                <p className="text-3xl font-bold text-red-600">
+                                <h4 className="text-3xl font-bold text-red-600">
                                     {violations.critical}
-                                </p>
+                                </h4>
                             </div>
                             <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
                                 <AlertOutlined className="mb-2 text-3xl text-red-700" />
                                 <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
-                                <p className="text-3xl font-bold text-red-600">
+                                <h4 className="text-3xl font-bold text-red-600">
                                     {violations.serious}
-                                </p>
+                                </h4>
                             </div>
                             <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
                                 <WarningOutlined className="mb-2 text-3xl text-orange-700" />
                                 <h3 className="mb-2 text-lg font-medium text-orange-700">
                                     Moderate
                                 </h3>
-                                <p className="text-3xl font-bold text-orange-600">
+                                <h4 className="text-3xl font-bold text-orange-600">
                                     {violations.moderate}
-                                </p>
+                                </h4>
                             </div>
                             <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
                                 <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
                                 <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
-                                <p className="text-3xl font-bold text-yellow-600">
+                                <h4 className="text-3xl font-bold text-yellow-600">
                                     {violations.minor}
-                                </p>
+                                </h4>
                             </div>
                         </div>
                         {report.videos.length > 0 && (
@@ -133,12 +133,97 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                             </div>
                         )}
                     </section>
+                    <section className="mt-6">
+                        <Card
+                            title={
+                                <span className="text-2xl font-semibold">
+                                    How to read the Report
+                                </span>
+                            }
+                        >
+                            <p className="mb-4 text-base text-gray-700">
+                                This report provides an automated assessment of your webpage’s
+                                accessibility, highlighting issues that may affect users with
+                                disabilities. Each issue is classified by severity to help you
+                                prioritize fixes:
+                            </p>
+                            <ul className="mb-6">
+                                <li className="flex items-start mb-2">
+                                    <ExclamationCircleOutlined className="mt-1 mr-2 text-red-600" />
+                                    <span>
+                                        <strong>Critical:</strong> Major barriers that prevent
+                                        access for many users. Immediate attention required.
+                                    </span>
+                                </li>
+                                <li className="flex items-start mb-2">
+                                    <AlertOutlined className="mt-1 mr-2 text-red-500" />
+                                    <span>
+                                        <strong>Serious:</strong> Significant issues that can make
+                                        content difficult to use. Should be fixed promptly.
+                                    </span>
+                                </li>
+                                <li className="flex items-start mb-2">
+                                    <WarningOutlined className="mt-1 mr-2 text-orange-500" />
+                                    <span>
+                                        <strong>Moderate:</strong> Problems that may inconvenience
+                                        some users but do not block access.
+                                    </span>
+                                </li>
+                                <li className="flex items-start mb-2">
+                                    <InfoCircleOutlined className="mt-1 mr-2 text-yellow-500" />
+                                    <span>
+                                        <strong>Minor:</strong> Low-impact issues that may affect
+                                        usability in specific cases.
+                                    </span>
+                                </li>
+                            </ul>
+                            <p className="mb-2 text-base text-gray-700">
+                                The{' '}
+                                <strong>
+                                    <a href="#website-preview">Website Preview</a>
+                                </strong>{' '}
+                                section shows your page with accessibility overlays, helping you
+                                visually identify problem areas. For the most accurate results, use
+                                the provided
+                                <a href="#report-injection-script"> injection script</a> or the{' '}
+                                <a href="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd">
+                                    Chrome extension
+                                </a>{' '}
+                                to highlight issues directly on your live site.
+                            </p>
+                            <p className="mb-2 text-base text-gray-700">
+                                The{' '}
+                                <strong>
+                                    <a href="#report-photo">Report Photo</a>
+                                </strong>{' '}
+                                captures the state of your webpage at the time of the scan,
+                                including detected accessibility issues. Use this to compare with
+                                the live site and ensure consistency.
+                            </p>
+                            <p className="mb-2 text-base text-gray-700">
+                                If you notice differences between the preview and your live site,
+                                run the injection script in your browser’s DevTools Console to
+                                render this report on the page. This could be due to dynamic content
+                                or changes made after the initial scan.
+                            </p>
+                            <p className="mt-4 text-base text-gray-700">
+                                At the{' '}
+                                <a href="#detailed-accessibility-issues">bottom of this page</a>,
+                                you’ll find a detailed list of all detected accessibility issues.
+                                Each entry includes guidance and context to help you resolve them
+                                and improve your site’s inclusivity.
+                            </p>
+                        </Card>
+                    </section>
                 </Card>
             </Content>
             <Content className="mb-2">
                 <Card>
                     <h1 className="mb-4 text-2xl font-semibold">Website Preview</h1>
-                    <div className="mb-4 rounded-lg border max-h-[700px] overflow-auto w-full hover:shadow-lg transition-shadow relative">
+                    <div
+                        className="mb-4 rounded-lg border max-h-[700px] overflow-auto w-full hover:shadow-lg transition-shadow relative"
+                        id="website-preview"
+                    >
                         <div className="right-1 top-0 p-2 absolute">
                             <Console
                                 label="Accessibility Report Script"
@@ -183,6 +268,7 @@ document.body.appendChild(accessScriptElement);`}
                         </p>
                     </div>
                     <Console
+                        id="report-injection-script"
                         label="Accessibility Report Script"
                         command={`var accessScriptElement = document.createElement('script');
 accessScriptElement.src = '${report_script_full_url}';
@@ -192,13 +278,16 @@ document.body.appendChild(accessScriptElement);`}
                 <div className="mt-2">
                     <Card>
                         <h2 className="my-4 text-2xl font-semibold">Report Photo</h2>
-                        <div className="max-h-[300px] overflow-auto">
-                            <Image
-                                src={report_photo_url}
-                                alt="Report Photo"
-                                className="rounded-lg"
-                            />
-                        </div>
+                        <Tooltip title="This is a screenshot of the page at the time of the report, including any detected accessibility issues.">
+                            <div className="max-h-[300px] overflow-auto" id="report-photo">
+                                <Image
+                                    src={report_photo_url}
+                                    alt="Report Photo"
+                                    preview
+                                    className="rounded-lg w-full hover:shadow-lg transition-shadow"
+                                />
+                            </div>
+                        </Tooltip>
                     </Card>
                 </div>
 
@@ -206,7 +295,10 @@ document.body.appendChild(accessScriptElement);`}
                     <div className="mt-2">
                         <Card>
                             <div>
-                                <h2 className="mb-4 text-2xl font-semibold">
+                                <h2
+                                    className="mb-4 text-2xl font-semibold"
+                                    id="detailed-accessibility-issues"
+                                >
                                     Accessibility Issues
                                 </h2>
                                 <p className="mb-2">
@@ -224,6 +316,23 @@ document.body.appendChild(accessScriptElement);`}
                         </Card>
                     </div>
                 )}
+                <div className="mt-4">
+                    <Card>
+                        <h2 className="mb-4 text-2xl font-semibold">Questions</h2>
+                        <p className="mb-2">
+                            Need help interpreting this report, fixing accessibility issues, or
+                            requesting a rescan? Our team is here to support you. Reach out anytime
+                            at{' '}
+                            <a
+                                href="mailto:a11y@cs.rutgers.edu"
+                                className="text-blue-600 underline hover:text-blue-800"
+                            >
+                                a11y@cs.rutgers.edu
+                            </a>
+                            .
+                        </p>
+                    </Card>
+                </div>
             </Content>
 
             {/* <pre>{JSON.stringify(report, null, 2)}</pre> */}

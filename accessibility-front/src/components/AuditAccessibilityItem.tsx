@@ -1,6 +1,6 @@
 'use client';
 import { AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
-import { Card, Collapse, Tag } from 'antd';
+import { Card, Collapse, Tag, Tooltip } from 'antd';
 type Props = {
     accessibilityResult: WebsiteAxeResult | AxeResult;
 };
@@ -16,12 +16,14 @@ function AuditAccessibilityItem({ accessibilityResult }: Props) {
         const reportItems: Parameters<typeof Collapse>[0]['items'] = [
             {
                 label: (
-                    <span className="font-medium">
-                        Affected Reports
-                        <Tag color="blue" style={{ marginLeft: 8 }}>
-                            {accessibilityResult.reports.length}
-                        </Tag>
-                    </span>
+                    <Tooltip title="List of URLs where this issue was found (Click to expand)">
+                        <span className="font-medium">
+                            Affected URLs
+                            <Tag color="blue" style={{ marginLeft: 8 }}>
+                                {accessibilityResult.reports.length}
+                            </Tag>
+                        </span>
+                    </Tooltip>
                 ),
 
                 children: (

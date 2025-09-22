@@ -102,24 +102,30 @@ const Website = ({ websiteId, user }: Props) => {
                         <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
                             <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
                             <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
-                            <p className="text-3xl font-bold text-red-600">{violations.critical}</p>
+                            <h4 className="text-3xl font-bold text-red-600">
+                                {violations.critical}
+                            </h4>
                         </div>
                         <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
                             <AlertOutlined className="mb-2 text-3xl text-red-700" />
                             <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
-                            <p className="text-3xl font-bold text-red-600">{violations.serious}</p>
+                            <h4 className="text-3xl font-bold text-red-600">
+                                {violations.serious}
+                            </h4>
                         </div>
                         <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
                             <WarningOutlined className="mb-2 text-3xl text-orange-700" />
                             <h3 className="mb-2 text-lg font-medium text-orange-700">Moderate</h3>
-                            <p className="text-3xl font-bold text-orange-600">
+                            <h4 className="text-3xl font-bold text-orange-600">
                                 {violations.moderate}
-                            </p>
+                            </h4>
                         </div>
                         <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
                             <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
                             <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
-                            <p className="text-3xl font-bold text-yellow-600">{violations.minor}</p>
+                            <h4 className="text-3xl font-bold text-yellow-600">
+                                {violations.minor}
+                            </h4>
                         </div>
                     </div>
                 </section>

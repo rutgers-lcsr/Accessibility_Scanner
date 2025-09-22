@@ -31,7 +31,6 @@ export const metadata: Metadata = {
     },
 };
 
-
 export default async function RootLayout({
     children,
 }: Readonly<{
@@ -39,9 +38,8 @@ export default async function RootLayout({
 }>) {
     const user: User | null = await getCurrentUser();
 
-
     return (
-        <html lang="en">
+        <html lang="en" className="scroll-smooth h-full">
             <body className={`${geistSans.variable} ${geistMono.variable}`}>
                 <AntdRegistry>
                     <Layout hasSider>
