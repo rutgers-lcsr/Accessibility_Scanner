@@ -86,6 +86,14 @@ Each report contains details about the accessibility issues found during the sca
 
 Any user can create an account and request a site. They will automatically be assigned to that site as an admin. Website Admins will be able to add other users to the website report but not to change ratelimits or scan the site. Website users will be able to view reports for that website but will not be able to add other users or modify the site settings. These users will also be notified when a scan is finished. Only global admins can add parent domains and websites as well as manage all users. Global admins can change the admin user of a website.
 
+## Security
+
+Currently the Scanner uses a custom user-agent string to identify itself to the websites it scans. Please ensure that the website allows access to the following user-agent string:
+
+```
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0
+```
+
 ## Notes
 
 -   Ensure that Backend API is not publicly accessible without proper authentication and authorization. Frontend should handle user authentication and restrict access to authorized users only.

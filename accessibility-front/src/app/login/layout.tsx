@@ -4,13 +4,11 @@ import { redirect } from 'next/navigation';
 import { ReactNode } from 'react';
 
 export default async function Layout({ children }: { children: ReactNode }) {
-
     const user = await getCurrentUser();
-    if (user){
+    if (user) {
         // If user is logged in, redirect to home page
-        redirect('/');  
+        redirect('/');
     }
-
 
     return (
         <>

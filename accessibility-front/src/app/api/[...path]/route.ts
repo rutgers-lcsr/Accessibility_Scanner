@@ -65,10 +65,16 @@ const cas_get_route = handleAuth({ loadUser, validator: ValidatorProtocol.CAS30 
 export async function GET(req: NextRequest) {
     if (req.nextUrl.pathname === '/api/cas/login') {
         // Handle token refresh
-        return cas_get_route(req, { params: { client: 'login' } });
+
+        console.log(req.nextUrl.searchParams);
+        return cas_get_route(req, {
+            params: { client: 'login' },
+        });
     }
     if (req.nextUrl.pathname === '/api/cas/logout') {
-        return cas_get_route(req, { params: { client: 'logout' } });
+        return cas_get_route(req, {
+            params: { client: 'logout' },
+        });
     }
     if (req.nextUrl.pathname === '/api/axe_js') {
         const response = await fetch(
