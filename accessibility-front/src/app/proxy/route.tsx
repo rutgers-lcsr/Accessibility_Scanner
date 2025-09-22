@@ -1,6 +1,7 @@
 import ProxyError from '@/components/ProxyError';
+import axios from 'axios';
+import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
-
 function makeHtmlPage(body: string) {
     if (body.includes('<html')) {
         return body;
@@ -123,7 +124,9 @@ function proxyError(status: Response['status']) {
                     status={502}
                     title="Bad Gateway"
                     subTitle="Received an invalid response from the upstream server."
-                    details="This may be a temporary issue with the website or network."
+                    details="This may be a temporary issue with the website or network. This could be due to SSL issues or the server being down. If it is an SSL issue, please ensure the site has a valid SSL certificate. Or use the following extension to bypass CORS and SSL issues."
+                    link="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd"
+                    linkName="Axe DevTools Extension"
                 />
             );
         default:
@@ -153,34 +156,43 @@ export async function GET(req: NextRequest) {
             req.headers.get('Accept-Language') || 'en-US,en;q=0.9'
         );
         requestHeaders.set('Accept', req.headers.get('Accept') || '*/*');
-        requestHeaders.set('Origin', req.headers.get('Origin') || url);
-        requestHeaders.set('Referer', req.headers.get('Referer') || url);
 
-        const response = await fetch(url, {
-            headers: requestHeaders,
-            redirect: 'follow',
+        const agent = new https.Agent({
+            rejectUnauthorized: false,
+        });
+        const response = await axios.get(url, {
+            headers: Object.fromEntries(requestHeaders.entries()),
+            httpsAgent: agent,
+            responseType: 'text',
+            validateStatus: () => true,
         });
 
-        if (!response.ok) {
+        if (!response.status || response.status >= 400) {
             return new NextResponse(renderToString(proxyError(response.status)), {
                 status: response.status,
                 headers: { 'Content-Type': 'text/html' },
             });
         }
 
-        let body = await response.text();
+        let body = await response.data;
 
         // If the reportId is present, we can use it to modify the response
         if (reportId) {
             body = injectScript(body, url, reportId);
         }
+        if (!body) {
+            body = '<html><body><h1>No content</h1></body></html>';
+        }
 
         return new NextResponse(body, {
             headers: {
-                'Content-Type': response.headers.get('content-type') || 'text/html',
+                'Content-Type': response.headers
+                    ? response.headers['content-type'] || 'text/html'
+                    : 'text/html',
                 'Access-Control-Allow-Origin': '*',
                 'Content-Security-Policy': "frame-ancestors 'self' *",
                 'X-Frame-Options': 'ALLOWALL',
+                'Referrer-Policy': 'no-referrer',
             },
         });
     } catch (err) {

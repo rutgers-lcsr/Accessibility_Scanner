@@ -16,7 +16,8 @@ function SiteIframe({ url }: Props) {
             title="Website Preview"
             className="w-full min-h-[700px]"
             style={{ border: 'none' }}
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+            allow="geolocation; microphone; camera; midi; vr; accelerometer; gyroscope; payment; ambient-light-sensor; autoplay; clipboard-read; clipboard-write"
         />
     );
 }

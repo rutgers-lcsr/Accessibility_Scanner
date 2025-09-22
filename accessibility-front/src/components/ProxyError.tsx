@@ -3,9 +3,11 @@ type Props = {
     title?: string;
     subTitle?: string;
     details?: string;
+    link?: string;
+    linkName?: string;
 };
 
-function ProxyError({ status, title, subTitle, details }: Props) {
+function ProxyError({ status, title, subTitle, details, link, linkName }: Props) {
     return (
         <html>
             <body>
@@ -26,6 +28,14 @@ function ProxyError({ status, title, subTitle, details }: Props) {
                         <div className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded">
                             {details}
                         </div>
+                    )}
+                    {link && (
+                        <a
+                            href={link}
+                            className="mt-6 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                            {linkName || 'Learn More'}
+                        </a>
                     )}
                 </div>
             </body>
