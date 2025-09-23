@@ -85,6 +85,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         >
                             Accessibility Report
                         </h2>
+
                         <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
                             <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
                                 <Tooltip

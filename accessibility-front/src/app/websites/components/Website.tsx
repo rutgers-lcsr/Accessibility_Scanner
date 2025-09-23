@@ -10,7 +10,7 @@ import {
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
-import { Tabs, TabsProps } from 'antd';
+import { Tabs, TabsProps, Tooltip, Typography } from 'antd';
 import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -100,39 +100,87 @@ const Website = ({ websiteId, user }: Props) => {
                     </h2>
                     <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
                         <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
-                            <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
-                            <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
-                            <h4 className="text-3xl font-bold text-red-600">
-                                {violations.critical}
-                            </h4>
+                            <Tooltip
+                                title="Major barriers that prevent
+                                        access for many users. Immediate attention required."
+                            >
+                                <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
+                                <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
+                                <h4 className="text-3xl font-bold text-red-600">
+                                    {violations.critical}
+                                </h4>
+                            </Tooltip>
                         </div>
                         <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
-                            <AlertOutlined className="mb-2 text-3xl text-red-700" />
-                            <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
-                            <h4 className="text-3xl font-bold text-red-600">
-                                {violations.serious}
-                            </h4>
+                            <Tooltip
+                                title="Significant issues that can make
+                                        content difficult to use. Should be fixed promptly."
+                            >
+                                <AlertOutlined className="mb-2 text-3xl text-red-700" />
+                                <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
+                                <h4 className="text-3xl font-bold text-red-600">
+                                    {violations.serious}
+                                </h4>
+                            </Tooltip>
                         </div>
                         <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
-                            <WarningOutlined className="mb-2 text-3xl text-orange-700" />
-                            <h3 className="mb-2 text-lg font-medium text-orange-700">Moderate</h3>
-                            <h4 className="text-3xl font-bold text-orange-600">
-                                {violations.moderate}
-                            </h4>
+                            <Tooltip
+                                title="Problems that may inconvenience
+                                        some users but do not block access."
+                            >
+                                <WarningOutlined className="mb-2 text-3xl text-orange-700" />
+                                <h3 className="mb-2 text-lg font-medium text-orange-700">
+                                    Moderate
+                                </h3>
+                                <h4 className="text-3xl font-bold text-orange-600">
+                                    {violations.moderate}
+                                </h4>
+                            </Tooltip>
                         </div>
                         <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
-                            <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
-                            <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
-                            <h4 className="text-3xl font-bold text-yellow-600">
-                                {violations.minor}
-                            </h4>
+                            <Tooltip
+                                title="Low-impact issues that may
+                                        affect usability in specific cases."
+                            >
+                                <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
+                                <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
+                                <h4 className="text-3xl font-bold text-yellow-600">
+                                    {violations.minor}
+                                </h4>
+                            </Tooltip>
                         </div>
                     </div>
+                    {violations.total > 15 && (
+                        // Give some advice if there are too many violations
+                        <div className="mt-6 rounded-md bg-blue-50 p-4">
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <InfoCircleOutlined className="text-blue-400" />
+                                </div>
+                                <div className="ml-3">
+                                    <h3 className="text-sm font-medium text-blue-800">
+                                        Consider prioritizing the most critical issues first to make
+                                        the biggest impact on your websites accessibility. Take a
+                                        look a the violations tab to get started. This will show you
+                                        a list of common issues and how to fix them.
+                                    </h3>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </section>
             </header>
 
             <section aria-labelledby="website-report">
                 <Tabs defaultActiveKey="1" items={WebsiteReportItems} />
+            </section>
+            <section className="mt-8">
+                <Typography.Paragraph>
+                    For technical assistance, feel free to contact the LCSR at{' '}
+                    <a href="mailto:a11y@cs.rutgers.edu">a11y@cs.rutgers.edu</a>. We are here to
+                    help you improve the accessibility of your website and ensure compliance with
+                    accessibility standards.
+                </Typography.Paragraph>
             </section>
         </div>
     );
