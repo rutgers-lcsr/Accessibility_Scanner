@@ -73,9 +73,20 @@ function injectScript(body: string, url: string, reportId: string) {
         return `src="${redirectUrl(url, p1, 'src')}"`;
     });
 
+    // for the single page without a head tag, we need to add one
     if (!html.includes('</head>')) {
         // if there is no head tag, we need to add one
         html = html.replace(/<html([^>]*)>/, `<html$1><head>${reportScript}</head>`);
+
+        if (!html.includes('<head>')) {
+            // if there is no head tag, we need to add one
+            html = html.replace(/<body([^>]*)>/, `<body$1><head>${reportScript}</head>`);
+        }
+        if (!html.includes('<head>')) {
+            // if there is still no head tag, we need to add one at the top
+            html = html.replace(/<html([^>]*)>/, `<html$1><head>${reportScript}</head><body>`);
+        }
+
         return html;
     }
     html = html.replace('</head>', `${reportScript} </head>`);
