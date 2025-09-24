@@ -71,8 +71,6 @@ function AdminReportItems({ report }: Props) {
                     title="Site Info"
                     bordered
                 >
-                    <Descriptions.Item label="Site ID">{report.site_id}</Descriptions.Item>
-                    <Descriptions.Item label="URL">{report.url}</Descriptions.Item>
                     <Descriptions.Item label="Actions">
                         <Button
                             type="primary"
@@ -82,19 +80,6 @@ function AdminReportItems({ report }: Props) {
                         >
                             {loadingScan ? 'Scanning...' : 'Re-scan Site'}
                         </Button>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Report ID">{report.id}</Descriptions.Item>
-                    <Descriptions.Item label="Report Date">
-                        {report?.timestamp ? new Date(report.timestamp).toLocaleString() : 'N/A'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Total Violations">
-                        {report.report_counts.violations.total}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Total Passes">
-                        {report.report_counts.passes.total}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Total Incomplete">
-                        {report.report_counts.incomplete.total}
                     </Descriptions.Item>
                 </Descriptions>
             </Space>
