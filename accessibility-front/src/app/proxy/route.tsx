@@ -34,52 +34,46 @@ function makeHtmlPage(body: string) {
     `;
 }
 
+function redirectUrl(url: string, link: string, linkType: 'href' | 'src') {
+    if (link.startsWith('http') || link.startsWith('https')) {
+        return link; // Don't change absolute URLs
+    }
+    if (link.startsWith('data:')) {
+        return link; // Don't change data URLs
+    }
+    if (link.startsWith('//')) {
+        return link; // Don't change protocol-relative URLs
+    }
+    // this is the hard part, links are usually handled relative to the base URL of the page, but we need to make it an absolute URL
+    let baseUrl = url;
+
+    // if baseUrl ends with a file (e.g. .html, .php, .aspx, etc.), remove the file part
+    const endsWithFile = baseUrl.match(/\/[^\/]+\.[a-zA-Z0-9]+$/);
+    if (endsWithFile) {
+        baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
+    }
+    if (!baseUrl.endsWith('/') && !link.startsWith('/')) {
+        baseUrl = baseUrl + '/';
+    }
+
+    const newUrl = new URL(link, baseUrl).href;
+    console.log(`Redirecting ${linkType} from ${link} to ${newUrl}`);
+    return newUrl;
+}
+
 function injectScript(body: string, url: string, reportId: string) {
     const reportScript = `<script defer src="${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/${reportId}/script/"></script>`;
     let html = makeHtmlPage(body);
 
     html = html.replace(/href="([^"]+)"/g, (match, p1) => {
-        if (
-            p1.startsWith('http') ||
-            p1.startsWith('https') ||
-            p1.startsWith('#') ||
-            p1.startsWith('mailto:')
-        ) {
-            return match; // Don't change absolute URLs, anchors, or mailto links
-        }
-        if (p1.startsWith('data:')) {
-            return match; // Don't change data URLs
-        }
-        if (p1.startsWith('//')) {
-            return match; // Don't change protocol-relative URLs
-        }
-        let baseUrl = url;
-        if (!baseUrl.endsWith('/') && !p1.startsWith('/')) {
-            baseUrl = baseUrl + '/';
-        }
-        const newUrl = new URL(p1, baseUrl).href;
-        return `href="${newUrl}"`;
+        return `href="${redirectUrl(url, p1, 'href')}"`;
     });
 
     html = html.replace(/src="([^"]+)"/g, (match, p1) => {
-        if (p1.startsWith('data:')) {
-            return match; // Don't change data URLs
-        }
-        if (p1.startsWith('http') || p1.startsWith('https')) {
-            return match; // Don't change absolute URLs
-        }
-        if (p1.startsWith('//')) {
-            return match; // Don't change protocol-relative URLs
-        }
-        let baseUrl = url;
-        if (!baseUrl.endsWith('/') && !p1.startsWith('/')) {
-            baseUrl = baseUrl + '/';
-        }
-        const newUrl = new URL(p1, baseUrl).href;
-        return `src="${newUrl}"`;
+        return `src="${redirectUrl(url, p1, 'src')}"`;
     });
 
-    html = html.replace('</head>', `${reportScript}</head>`);
+    html = html.replace('</head>', `${reportScript} </head>`);
 
     return html;
 }

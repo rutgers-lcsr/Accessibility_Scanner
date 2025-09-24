@@ -2,7 +2,7 @@ import asyncio
 import threading
 from flask import Flask, Blueprint, jsonify, request
 from multiprocessing import Process
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, current_user
 from authentication.login import admin_required
 from models.website import Site, Website
 from scanner.scan import run_scan, run_scan_site
@@ -35,13 +35,13 @@ async def conduct_scan_site(site: str):
     try:
         process = Process(target=run_scan_site, args=(site,), daemon=True, name=f"Scan-{get_netloc(site)}")
         process.start()
-        process.join()
+        # process.join()
     except Exception as e:
         return {"error": str(e)}, 500
 
 @scan_bp.route('/scan/', methods=['POST'])
 @scan_limiter.limit("1/minute" if DEBUG else "5/minute")
-@admin_required
+@jwt_required()
 def scan_website():
     data = request.args
     website = data.get("website", None, str)
@@ -58,10 +58,13 @@ def scan_website():
             except ValueError:
                 return {"error": "Invalid website ID"}, 400
 
-            website = db.session.query(Website).get(website_id)
+            website = db.session.get(Website,  website_id)
             if not website:
                 return {"error": "Invalid website URL"}, 400
             
+            # check if current user is admin or owner of the website
+            if not current_user.profile.is_admin and website.admin_id != current_user.id:
+                return {"error": "Unauthorized"}, 403
 
             # Check if scan is active
             if website.scanning:
@@ -75,10 +78,19 @@ def scan_website():
                 site_id = int(site)
             except ValueError:
                 return {"error": "Invalid site ID"}, 400
-            
-            site = db.session.query(Site).get(site_id)
+
+            site = db.session.get(Site, site_id)
             if not site:
                 return {"error": "Invalid site URL"}, 400
+
+
+            websites = site.websites
+            
+            admins = [w.admin_id for w in websites]
+            # check if current user is admin or owner of the website
+            if not current_user.profile.is_admin and current_user.id not in admins:
+                return {"error": "Unauthorized"}, 403
+
 
             if site.scanning:
                 return {"error": "Scan already in progress"}, 409
@@ -92,7 +104,7 @@ def scan_website():
     return jsonify({"error": "No valid website or site provided"}), 400
 
 @scan_bp.route('/status/', methods=['GET'])
-@admin_required
+@jwt_required()
 def get_scan_status():
     data = request.args
     website = data.get("website", None, int)
@@ -103,6 +115,10 @@ def get_scan_status():
         website = db.session.get(Website, website)
         if not website:
             return {"error": "Invalid website URL"}, 400
+
+        # check if current user is admin or owner of the website
+        if not current_user.profile.is_admin and website.admin_id != current_user.id:
+            return {"error": "Unauthorized"}, 403
 
         if not website.scanning:
             website = website.to_dict()

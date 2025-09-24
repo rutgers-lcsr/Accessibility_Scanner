@@ -12,7 +12,7 @@ import { Image } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { format } from 'date-fns';
 import useSWR from 'swr';
-import AdminReportItems from './AdminReportItems';
+import AdminReportItems from '../app/reports/[reportId]/components/AdminReportItems';
 import AuditAccessibilityItem from './AuditAccessibilityItem';
 import Console from './Console';
 import PageError from './PageError';
@@ -23,8 +23,7 @@ type Props = {
     user: User | null;
 };
 
-
-function Report({ report_id,user }: Props) {
+function Report({ report_id, user }: Props) {
     const { handlerUserApiRequest } = useUser();
 
     const {

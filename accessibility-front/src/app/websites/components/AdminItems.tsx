@@ -263,8 +263,13 @@ function AdminItems({ website, mutate }: Props) {
                 </Divider>
                 <Flex gap="16px" align="center" style={{ paddingTop: 8 }}>
                     <Tooltip title="Manually trigger a scan for this website. You will be notified when the scan is complete.">
-                        <Button onClick={handleScan} loading={loadingScan}>
-                            Scan Now
+                        <Button
+                            type="primary"
+                            loading={loadingScan}
+                            onClick={handleScan}
+                            disabled={loadingScan}
+                        >
+                            {loadingScan ? 'Scanning...' : 'Re-scan Website'}
                         </Button>
                     </Tooltip>
                     <Tooltip title="Enable or disable automatic scanning for this website.">

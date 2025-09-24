@@ -9,7 +9,7 @@ import {
 import { Content } from 'antd/es/layout/layout';
 import { headers } from 'next/headers';
 
-import AdminReportItems from '@/components/AdminReportItems';
+import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
@@ -67,7 +67,6 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                     <h1 className="mb-2 text-3xl font-extrabold">
                         Report for <HeaderLink url={report.url} />
                     </h1>
-                    {user && user.is_admin && <AdminReportItems report={report} />}
                     <h2 className="mb-2 text-lg text-gray-500">
                         Report Date:{' '}
                         {report?.timestamp ? new Date(report.timestamp).toLocaleString() : 'N/A'}
@@ -160,7 +159,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                             </div>
                         )}
                     </section>
-                    <section className="mt-6">
+                    <section className="mt-6 mb-6">
                         <Card
                             title={
                                 <span className="text-2xl font-semibold">
@@ -206,6 +205,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                             </p>
                         </Card>
                     </section>
+                    <AdminReportItems report={report} />
                 </Card>
             </Content>
             <Content className="mb-2">

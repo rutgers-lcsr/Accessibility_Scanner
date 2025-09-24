@@ -9,8 +9,9 @@
 import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 
+import { scanResponse } from '@/lib/types/scan';
 import { useAlerts } from '@/providers/Alerts';
-import { Descriptions, Select, Space } from 'antd';
+import { Button, Descriptions, Select, Space } from 'antd';
 import { useState } from 'react';
 
 type Props = {
@@ -21,8 +22,46 @@ type Props = {
 function WebsiteAdminItems({ website, mutate }: Props) {
     const { addAlert } = useAlerts();
     const [loading, setLoading] = useState(false);
+    const [loadingScan, setLoadingScan] = useState(false);
     const { handlerUserApiRequest } = useUser();
+    const handleScan = async () => {
+        setLoadingScan(true);
+        try {
+            const scanResponse = await handlerUserApiRequest<scanResponse>(
+                `/api/scans/scan?website=${website.id}`,
+                {
+                    method: 'POST',
+                }
+            );
+            addAlert('Scan initiated successfully, Please stay on this page.', 'info');
 
+            async function pollReport() {
+                await new Promise((resolve) => setTimeout(resolve, 2000)); // wait for 2 seconds
+                try {
+                    const newReport = await handlerUserApiRequest<Website>(
+                        scanResponse.polling_endpoint,
+                        {
+                            method: 'GET',
+                        }
+                    );
+                    if (newReport && newReport.id) {
+                        setLoadingScan(false);
+                        mutate();
+                        addAlert('Scan completed successfully', 'success');
+                    } else {
+                        return await pollReport(); // recursively poll until we get the report
+                    }
+                } catch {
+                    return await pollReport(); // in case of error, keep polling
+                }
+            }
+            await pollReport();
+        } catch (error) {
+            console.error('Failed to initiate scan:', error);
+            addAlert('Failed to initiate scan', 'error');
+            setLoadingScan(false);
+        }
+    };
     const handleUsersChange = async (value: string[] | null) => {
         if (value !== null) {
             setLoading(true);
@@ -46,6 +85,7 @@ function WebsiteAdminItems({ website, mutate }: Props) {
             setLoading(false);
         }
     };
+
     return (
         <div className="mb-4 rounded-md bg-gray-50 p-4 shadow">
             <Space className="w-full" size={'large'} direction="vertical">
@@ -107,6 +147,16 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                             Start typing to add users who can view this website. Users and Admin
                             will be notified when a scan finishes. Leave empty to remove all users.
                         </div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Actions">
+                        <Button
+                            type="primary"
+                            loading={loadingScan}
+                            onClick={handleScan}
+                            disabled={loadingScan}
+                        >
+                            {loadingScan ? 'Scanning...' : 'Re-scan Website'}
+                        </Button>
                     </Descriptions.Item>
                 </Descriptions>
             </Space>
