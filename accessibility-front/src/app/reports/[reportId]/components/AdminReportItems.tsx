@@ -78,7 +78,7 @@ function AdminReportItems({ report }: Props) {
                             onClick={handleScan}
                             disabled={loadingScan}
                         >
-                            {loadingScan ? 'Scanning...' : 'Re-scan Site'}
+                            {loadingScan ? 'Scanning...' : 'Re-scan Url'}
                         </Button>
                     </Descriptions.Item>
                 </Descriptions>

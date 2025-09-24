@@ -4,7 +4,7 @@ type Props = {
     url: string;
 };
 
-function SiteIframe({ url }: Props) {
+function PageIframe({ url }: Props) {
     console.log('Rendering iframe for URL:', url);
     return (
         <iframe
@@ -13,13 +13,13 @@ function SiteIframe({ url }: Props) {
             // onLoad={handleLoad}
             // ref={iframeRef}
             src={url}
-            title="Website Preview"
+            title="Page Preview"
             className="w-full min-h-[700px]"
             style={{ border: 'none' }}
             sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
-            allow="geolocation; microphone; camera; midi; vr; accelerometer; gyroscope; payment; ambient-light-sensor; autoplay; clipboard-read; clipboard-write"
+            allow="clipboard-read; clipboard-write"
         />
     );
 }
 
-export default SiteIframe;
+export default PageIframe;

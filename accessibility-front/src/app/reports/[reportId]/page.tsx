@@ -18,7 +18,7 @@ import { Card, Image, Tooltip } from 'antd';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
 import HeaderLink from './components/HeaderLink';
-import SiteIframe from './components/SiteIframe';
+import PageIframe from './components/PageIframe';
 
 // The reason this is a server component and the rest of them are not, is that all of them should have been really :0
 export const getReport = async (reportId: string) => {
@@ -71,7 +71,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         Report Date:{' '}
                         {report?.timestamp ? new Date(report.timestamp).toLocaleString() : 'N/A'}
                     </h2>
-                    <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
+                    <h3 className="mb-4 text-lg text-gray-500">Url: {report.base_url}</h3>
 
                     <section
                         role="region"
@@ -146,7 +146,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         {report.videos.length > 0 && (
                             <div className="mt-4 text-center text-sm text-gray-600">
                                 <ExclamationCircleOutlined className="mr-1 inline" />
-                                This site has videos please make sure they are properly tagged with{' '}
+                                This url has videos please make sure they are properly tagged with{' '}
                                 <code>role=&quot;video&quot;</code> and <code>aria-label</code>{' '}
                                 attributes.{' '}
                                 <a
@@ -170,7 +170,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                             <p className="mb-2 text-base text-gray-700">
                                 The{' '}
                                 <strong>
-                                    <a href="#website-preview">Website Preview</a>
+                                    <a href="#url-preview">Url Preview</a>
                                 </strong>{' '}
                                 gives you more information about each error, but may not show them
                                 all.
@@ -210,10 +210,10 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
             </Content>
             <Content className="mb-2">
                 <Card>
-                    <h1 className="mb-4 text-2xl font-semibold">Website Preview</h1>
+                    <h1 className="mb-4 text-2xl font-semibold">Url Preview</h1>
                     <div
                         className="mb-4 rounded-lg border max-h-[700px] overflow-auto w-full hover:shadow-lg transition-shadow relative"
-                        id="website-preview"
+                        id="url-preview"
                     >
                         <div className="right-1 top-0 p-2 absolute">
                             <Console
@@ -231,7 +231,7 @@ document.body.appendChild(accessScriptElement);`}
                                 </div>
                             }
                         >
-                            <SiteIframe
+                            <PageIframe
                                 url={'/proxy?url=' + report.url + '&reportId=' + report.id}
                             />
                         </Suspense>
