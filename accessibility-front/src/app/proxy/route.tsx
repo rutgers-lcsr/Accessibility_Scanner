@@ -73,6 +73,11 @@ function injectScript(body: string, url: string, reportId: string) {
         return `src="${redirectUrl(url, p1, 'src')}"`;
     });
 
+    if (!html.includes('</head>')) {
+        // if there is no head tag, we need to add one
+        html = html.replace(/<html([^>]*)>/, `<html$1><head>${reportScript}</head>`);
+        return html;
+    }
     html = html.replace('</head>', `${reportScript} </head>`);
 
     return html;
