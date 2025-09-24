@@ -102,9 +102,9 @@ export default function Home() {
                             Quick Start: Improving Website Accessibility
                         </Typography.Title>
                         <Typography.Paragraph>
-                            The following best practices will help ensure your Rutgers website is
-                            accessible to all users, including those with disabilities. These steps
-                            are recommended for all departmental web editors and content managers:
+                            The following best practices will help ensure your website is accessible
+                            to all users, including those with disabilities. These steps are
+                            recommended for all departmental web editors and content managers:
                         </Typography.Paragraph>
                         <List
                             dataSource={[
