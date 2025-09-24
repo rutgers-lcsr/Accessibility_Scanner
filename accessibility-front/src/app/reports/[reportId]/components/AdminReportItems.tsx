@@ -64,13 +64,7 @@ function AdminReportItems({ report }: Props) {
             aria-label="Report Overview Information"
         >
             <Space className="w-full" size={'large'} direction="vertical">
-                <Descriptions
-                    size="small"
-                    column={3}
-                    layout="horizontal"
-                    title="Site Info"
-                    bordered
-                >
+                <Descriptions size="small" column={3} layout="horizontal" title="Url Info" bordered>
                     <Descriptions.Item label="Actions">
                         <Button
                             type="primary"

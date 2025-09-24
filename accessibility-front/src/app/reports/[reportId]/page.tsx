@@ -71,7 +71,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         Report Date:{' '}
                         {report?.timestamp ? new Date(report.timestamp).toLocaleString() : 'N/A'}
                     </h2>
-                    <h3 className="mb-4 text-lg text-gray-500">Url: {report.base_url}</h3>
+                    <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
 
                     <section
                         role="region"
