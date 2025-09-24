@@ -182,7 +182,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 </strong>{' '}
                                 shows all the errors reported, but without explanations or context.
                             </p>
-                            <p className="mb-2 text-base text-gray-700">
+                            <div className="mb-2 text-base text-gray-700">
                                 To display all errors with explainations either use the{' '}
                                 <ul>
                                     <li className="list-disc ml-6">
@@ -196,7 +196,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                         </a>
                                     </li>
                                 </ul>{' '}
-                            </p>
+                            </div>
                             <p className="mt-4 text-base text-gray-700">
                                 At the{' '}
                                 <a href="#detailed-accessibility-issues">bottom of this page</a>,

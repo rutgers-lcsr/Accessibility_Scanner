@@ -4,20 +4,22 @@ from hashlib import md5
 import random
 import string
 from typing import List, Literal, TypedDict
+
+from flask import json
 from scanner.accessibility.ace import AxeResult
 from scanner.log import log_message
 
 LEVEL = {
-    'critical': 'border: 4px solid red; z-index: 9990; position: relative;',
-    'serious': 'border: 4px solid orange; z-index: 9990; position: relative;',
-    'moderate': 'border: 4px solid yellow; z-index: 9990; position: relative;',
-    'minor': 'border: 4px solid green; z-index: 9990; position: relative;',
+    'critical': 'border: 4px solid darkred; z-index: 9990; position: relative;',
+    'serious': 'border: 4px solid red; z-index: 9990; position: relative;',
+    'moderate': 'border: 4px solid orange; z-index: 9990; position: relative;',
+    'minor': 'border: 4px solid yellow; z-index: 9990; position: relative;',
     'null': 'border: 4px solid gray; z-index: 9990; position: relative;'
 }
 
 tooltip_style = "position: absolute; z-index: 9999;pointer-events: none; text-align: center; background-color: rgba(255, 255, 255, 0.9); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); color: black; padding: 5px; border-radius: 4px; font-size: 12px; font-family: Arial, sans-serif; top: 0; left: 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); min-width: 300px; overflow: 'auto'; font-weight: bold; cursor: pointer; font-size: 14px;"
 
-class Injection(TypedDict):
+class Injection():
     selector: str
     style: str
     impact: Literal['critical', 'serious', 'moderate', 'minor', 'null']
@@ -25,6 +27,29 @@ class Injection(TypedDict):
     message: str
     helping: str
     help_url: str
+    
+    def __init__(self, selector: str, style: str, impact: Literal['critical', 'serious', 'moderate', 'minor', 'null'], description: str, message: str, help: str, help_url: str):
+        self.selector = selector
+        self.style = style
+        self.impact = impact
+        
+        # escape quotes and new lines and html in description, message, help, help_url
+        self.description = description.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
+        self.message = message.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
+        self.help = help.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
+        self.help_url = help_url
+    
+    
+    def to_json(self):
+        return {
+            'selector': self.selector,
+            'style': self.style,
+            'impact': self.impact,
+            'description': self.description,
+            'message': self.message,
+            'help': self.help,
+            'help_url': self.help_url,
+        }
     
     
         
@@ -55,16 +80,19 @@ def report_to_js(report: List[AxeResult], report_url: str) -> str:
             
             for node in violation['nodes']:
                     selector = ", ".join(node['target'])
-
-                    injection = Injection(
-                    selector=selector,
-                    impact= violation['impact'] or 'minor',
-                    style=LEVEL[violation['impact']],
-                    message=node['failureSummary'],
-                    description=violation['description'],
-                    help=violation['help'],
-                    help_url=violation['helpUrl'],
+                    injection =  Injection(
+                        selector=selector,
+                        style=LEVEL[violation.get('impact', 'minor')],
+                        impact=violation.get('impact', 'minor'),
+                        description=violation.get('description', ""),
+                        message=violation.get('message', ""),
+                        help=violation.get('help', ""),
+                        help_url=violation.get('helpUrl', ""),
                     )
+                    print(injection.to_json())
+                    
+                    
+                    
                     injections.append(injection)
         return generate_js_list(injections, report_url)    
     except Exception as e:
@@ -89,9 +117,28 @@ def generate_random_string(length):
 def generate_js(injection: Injection) -> str:
     selector_hash = generate_random_string(10)
     selector_small_hash = generate_random_string(5)
+    selector_toolTip_hash = generate_random_string(5)
     js_code = f"""
 try {{
+    
+    
     var {selector_small_hash} = document.querySelector(`{str(injection['selector'])}`);
+    var {selector_toolTip_hash} = null;
+    if (!{selector_small_hash}) {{
+        accesslog(`Selector not found: {injection['selector']}`, "warning");
+        throw new Error('Selector not found');
+    }}
+    
+    
+    if (injections.has(`{injection['selector']}`)) {{
+        {selector_toolTip_hash} = injections.get(`{injection['selector']}`);
+    }} else {{
+        {selector_toolTip_hash} = document.createElement('div');
+    }}
+    
+    
+    
+    
     var {selector_small_hash}_old_style = {selector_small_hash}.getAttribute('style') || "";
     {selector_small_hash}.style = "{injection['style']}" + {selector_small_hash}_old_style;
     {selector_small_hash}.setAttribute('data-violation-description', `{injection['description']}`);
@@ -136,8 +183,15 @@ def generate_js_list(injections: List[Injection], report_url: str) -> str:
     Returns:
         str: A string containing the generated JavaScript code.
     """
+    
+    injections_json = [inj.to_json() for inj in injections]
 
-    injection_code = "\n".join(generate_js(injection) for injection in injections)
+    injections_json_str = json.dumps(injections_json).replace("`", "\\`").replace("\\n", " ")
+
+
+    with open("utils/styles.js", "r") as f:
+        base_js = f.read()
+    base_js = base_js.replace("var injections = [];", f"""var injections = {injections_json_str}""")
 
     js_code = f"""
 /* 
@@ -152,7 +206,7 @@ var accesslog = (message, level = "info", ...args) => {{
 }};
 if(currentUrl.includes(`{report_url}`)) {{
   
-    {injection_code}
+    {base_js}
 
 }} else {{
     accesslog(`The report URL does not match the current URL. Report URL: {report_url}, Current URL: ${{currentUrl}}`, "warning");
