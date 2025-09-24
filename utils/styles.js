@@ -34,6 +34,8 @@ function createToolTip(injections, element, selector) {
     let tooltipFocused = false;
     tooltip.addEventListener('mouseenter', () => {
         tooltipFocused = true;
+        currentFocus = tooltip;
+        tooltip.style.display = 'block';
         currentTooltipFocused = true;
     });
     tooltip.addEventListener('mouseleave', () => {
@@ -85,10 +87,27 @@ function createToolTip(injections, element, selector) {
             tooltip.appendChild(message);
         }
     });
-    // Append the tooltip to the body
-    document.body.appendChild(tooltip);
+    // Append the tooltip to the element
+    // Check if element is a img or input type image, if so, append tooltip to parent
+    if (element.tagName.toLowerCase() === 'img' ||
+        (element.tagName.toLowerCase() === 'input' &&
+            element.type === 'image')) {
+        if (element.parentElement) {
+            element.parentElement.style.position = 'relative';
+            element.parentElement.appendChild(tooltip);
+        }
+        else {
+            element.style.position = 'relative';
+            element.appendChild(tooltip);
+        }
+    }
+    else {
+        element.style.position = 'relative';
+        element.appendChild(tooltip);
+    }
     // Position the tooltip on hover
     element.addEventListener('mouseenter', (event) => {
+        event.stopPropagation();
         if (currentTooltipFocused) {
             return;
         }
@@ -105,6 +124,7 @@ function createToolTip(injections, element, selector) {
             currentFocus = null;
         }
         tooltip.style.display = 'block';
+        // Log all injections to the console for debugging
         injections.forEach((injection) => {
             //@ts-ignore
             accesslog(`[${injection.impact}] [${injection.description}] [${injection.help}] [${injection.help_url}] ${injection.message && injection.message.trim() !== ''
@@ -112,24 +132,14 @@ function createToolTip(injections, element, selector) {
                 : ''}`, 'info', element);
         });
         currentFocus = tooltip;
-        const rect = element.getBoundingClientRect();
-        // Set the tooltip to be relative to the hovered element
-        let top = rect.top + window.scrollY + 20; // 20px below the element
-        let left = rect.left + window.scrollX + 20; // 20px to the right of the element
-        // Adjust position if tooltip goes beyond viewport
-        if (left + tooltip.offsetWidth > window.innerWidth) {
-            left = rect.right + window.scrollX - tooltip.offsetWidth - 20; // Position to the left
-        }
-        if (top + tooltip.offsetHeight > window.innerHeight) {
-            top = rect.top + window.scrollY; // Position above
-        }
-        // Apply the calculated position
-        tooltip.style.top = `${top}px`;
-        tooltip.style.left = `${left}px`;
+        tooltip.style.position = 'absolute';
+        tooltip.style.top = '3px';
+        tooltip.style.left = '3px';
         tooltip.style.zIndex = '9998'; // Ensure the tooltip is above other content
         element.style.zIndex = '9900'; // Ensure the element is above other content
         // make sure all elements are below the tooltip
         tooltip.style.zIndex = '9999';
+        // make sure the tooltip is child of the element
         // Highlight the element with an animation based on the highest impact level
         const elementBorderColor = getImpactColor(injections
             .map((inj) => inj.impact)
@@ -154,12 +164,16 @@ function createToolTip(injections, element, selector) {
         };
     });
     element.addEventListener('mouseleave', () => {
+        if (currentFocus === tooltip && tooltipFocused) {
+            return;
+        }
         if (!tooltipFocused) {
             tooltip.style.display = 'none';
             element.style.zIndex = ''; // Reset z-index
         }
         if (currentFocus === tooltip) {
             currentFocus = null;
+            tooltip.style.display = 'none';
         }
         // remove element animation
         // element.style.boxShadow = 'none';
