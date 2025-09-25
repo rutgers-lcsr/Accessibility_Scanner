@@ -48,7 +48,7 @@ function makeZindexSafe() {
         }
         else {
             // set base z-index to 1
-            element.style.zIndex = '1';
+            element.style.zIndex = 'auto';
         }
     });
 }
@@ -60,16 +60,7 @@ function addAlert(message, timeout = 15000) {
         return;
     }
     const alert = document.createElement('div');
-    alert.style.position = 'fixed';
-    alert.style.top = '10px';
-    alert.style.right = '10px';
-    alert.style.backgroundColor = 'darkred';
-    alert.style.color = 'white';
-    alert.style.padding = '10px';
-    alert.style.borderRadius = '5px';
-    alert.style.zIndex = '10000';
-    alert.style.fontFamily = 'Arial, sans-serif';
-    alert.style.fontSize = '14px';
+    alert.className = 'a11y-alert';
     alert.innerText = message;
     // If there are already alerts, move the new one down
     if (alerts.length > 0) {
@@ -126,13 +117,6 @@ function createToolTip(injections, element, selector) {
     // Create a tooltip element
     const tooltip = document.createElement('div');
     tooltip.className = 'custom-tooltip';
-    tooltip.style.position = 'absolute';
-    tooltip.style.backgroundColor = 'rgba(255, 255, 255, 1)';
-    tooltip.style.color = 'black';
-    tooltip.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
-    tooltip.style.borderRadius = '4px';
-    tooltip.style.fontSize = '14px';
-    tooltip.style.display = 'none'; // Initially hidden
     let tooltipFocused = false;
     tooltip.addEventListener('mouseenter', () => {
         tooltipFocused = true;
@@ -177,13 +161,7 @@ function createToolTip(injections, element, selector) {
                     (Click anywhere on the highlighted element to learn more)
                 </div>`;
             }
-            message.style.lineHeight = '1.4';
-            message.style.fontSize = '14px';
-            message.style.zIndex = '9999';
-            message.style.position = 'relative';
-            message.style.cursor = 'pointer';
-            message.style.fontWeight = 'bold';
-            message.style.padding = '4px';
+            message.className = 'tooltip-message';
             message.title = injection.message;
             message.addEventListener('click', () => {
                 window.open(injection.help_url, '_blank');
@@ -245,11 +223,6 @@ function createToolTip(injections, element, selector) {
                 : ''}`, 'info', element);
         });
         currentFocus = tooltip;
-        tooltip.style.position = 'absolute';
-        tooltip.style.top = '3px';
-        tooltip.style.left = '3px';
-        tooltip.style.zIndex = '9998'; // Ensure the tooltip is above other content
-        tooltip.style.zIndex = '9999';
         // make sure the tooltip is child of the element
         // Highlight the element with an animation based on the highest impact level
         const elementBorderColor = getImpactColor(injections
@@ -355,10 +328,20 @@ style.innerHTML = `
         max-width: 500px;
         min-width: 300px;
         overflow-wrap: break-word;
-        z-index: 9999;
+        z-index: 9998;
         font-family: Arial, sans-serif;
         font-size: 14px;
         line-height: 1.4;
+        position: absolute;
+        background-color: rgba(255, 255, 255, 1);
+        color: black;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        display: none; /* Initially hidden */
+        max-height: 400px;
+        overflow: auto;
+        top: 3px;
+        left: 3px;
     }
     .custom-tooltip pre {
         white-space: pre-wrap; /* Allow line breaks */
@@ -376,6 +359,50 @@ style.innerHTML = `
     }
     .custom-tooltip a:hover {
         text-decoration: underline;
+    }
+    .tooltip-message:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    @media (max-width: 600px) {
+        .custom-tooltip {
+            max-width: 90%;
+            min-width: 200px;
+            font-size: 12px;
+        }
+        .tooltip-message {
+            font-size: 12px;
+        }
+        .custom-tooltip pre {
+            font-size: 11px;
+        }
+        .a11y-alert {
+            font-size: 12px;
+            overflow-wrap: break-word;
+            max-width: 200px;
+        }
+    }
+    .tooltip-message {
+        line-height: 1.4;
+        font-size: 14px;
+        z-index: 9999;
+        position: relative;
+        cursor: pointer;
+        font-weight: bold;
+        padding: 4px;
+        position: relative;
+    }
+    .a11y-alert {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background-color: darkred;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 `;
 document.head.appendChild(style);
