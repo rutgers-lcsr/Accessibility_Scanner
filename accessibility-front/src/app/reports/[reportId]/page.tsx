@@ -14,7 +14,7 @@ import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
 import { User } from '@/lib/types/user';
-import { Card, Image, Tooltip } from 'antd';
+import { Alert, Card, Image, Tooltip } from 'antd';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
 import HeaderLink from './components/HeaderLink';
@@ -211,6 +211,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
             <Content className="mb-2">
                 <Card>
                     <h1 className="mb-4 text-2xl font-semibold">Url Preview</h1>
+
                     <div
                         className="mb-4 rounded-lg border max-h-[700px] overflow-auto w-full hover:shadow-lg transition-shadow relative"
                         id="url-preview"
@@ -224,6 +225,7 @@ document.body.appendChild(accessScriptElement);`}
                                 mini
                             />
                         </div>
+
                         <Suspense
                             fallback={
                                 <div className="h-[500px] flex items-center justify-center">
@@ -236,6 +238,15 @@ document.body.appendChild(accessScriptElement);`}
                             />
                         </Suspense>
                     </div>
+                    <a href="#report-injection-script">
+                        <Alert
+                            message="Note: This is a preview of the page. Some elements may not display correctly. All accessibility issues found are listed in the Report Photo and Detailed Accessibility Issues sections below."
+                            type="info"
+                            showIcon
+                            className="m-4"
+                        />
+                    </a>
+
                     <div>
                         <h2 className="mb-4 text-2xl font-semibold">Inject Script</h2>
                         <p className="mb-2">

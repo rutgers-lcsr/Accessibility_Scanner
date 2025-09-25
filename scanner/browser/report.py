@@ -59,7 +59,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
         timestamp = time.time()
 
-        js_report = report_to_js(report['violations'], page.url)
+        js_report = report_to_js(report['violations'], page.url, report_mode=True)
         context = await page.evaluate(f"(function () {{ {js_report} }})()")
         
         photo = await page.screenshot(full_page=True)

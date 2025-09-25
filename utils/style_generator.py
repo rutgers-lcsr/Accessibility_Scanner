@@ -56,11 +56,13 @@ class Injection():
         
     
 
-def report_to_js(report: List[AxeResult], report_url: str) -> str:
+def report_to_js(report: List[AxeResult], report_url: str, report_mode:bool = False) -> str:
     """Generates javascript which can be used to find accessibility violations in a webpage.
 
     Args:
         report (List[AxeResult]): The accessibility report containing violation details.
+        report_url (str): The URL of the report to be included in the generated JavaScript.
+        report_mode (bool): If True, disables user messages in the generated script.
 
     Returns:
         str: A string containing the generated JavaScript code.
@@ -94,7 +96,14 @@ def report_to_js(report: List[AxeResult], report_url: str) -> str:
                     
                     
                     injections.append(injection)
-        return generate_js_list(injections, report_url)    
+        js_code= generate_js_list(injections, report_url)
+        
+        
+        if report_mode:
+            # Disable user messages in Report mode
+            js_code = js_code.replace("let showUserMessages = true;", "let showUserMessages = false;")
+            
+        return js_code    
     except Exception as e:
         log_message(f"Error processing report for JS generation: {e}", 'error')
         return ""
