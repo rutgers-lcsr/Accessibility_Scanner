@@ -1,5 +1,6 @@
 'use client';
 import PageError from '@/components/PageError';
+import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { Report as ReportType } from '@/lib/types/axe';
 import { useReports } from '@/providers/Reports';
 import { Flex, Input, Pagination, Table } from 'antd';
@@ -44,6 +45,7 @@ export default function ReportPage() {
         isLoading,
         setReportSearch,
         setReportPage,
+        ReportLimit,
         setReportLimit,
         reportsTotal,
         ReportPage,
@@ -92,8 +94,10 @@ export default function ReportPage() {
                         showSizeChanger
                         defaultCurrent={ReportPage}
                         total={reportsTotal}
+                        pageSize={ReportLimit}
+                        pageSizeOptions={pageSizeOptions}
                         onShowSizeChange={(current, pageSize) => {
-                            setReportLimit(pageSize);
+                            setReportLimit(pageSize as PageSize);
                         }}
                         onChange={(current) => setReportPage(current)}
                     />

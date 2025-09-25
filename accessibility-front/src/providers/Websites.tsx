@@ -1,5 +1,6 @@
 'use client';
 import { APIError, fetcherApi } from '@/lib/api';
+import { getInitalPageSize, PageSize } from '@/lib/browser';
 import { Paged } from '@/lib/types/Paged';
 import { User } from '@/lib/types/user';
 import { Website } from '@/lib/types/website';
@@ -19,7 +20,7 @@ type WebsitesContextType = {
     requestWebsite: (url: string) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
-    setWebsiteLimit: (limit: number) => void;
+    setWebsiteLimit: (limit: PageSize) => void;
     openWebsite: (id: number) => void;
 };
 
@@ -31,7 +32,9 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User 
 }) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+
+    const [limit, setLimit] = useState(getInitalPageSize);
+
     const [searchUrl, setSearchUrl] = useState('');
     const { handlerUserApiRequest } = useUser();
 

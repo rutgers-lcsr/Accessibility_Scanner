@@ -1,5 +1,6 @@
 'use client';
 import PageError from '@/components/PageError';
+import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { Domain } from '@/lib/types/domain';
 import { useDomains } from '@/providers/Domain';
 import { Button, Flex, Input, Pagination, Table, TableColumnsType } from 'antd';
@@ -14,6 +15,7 @@ export default function Domains() {
         domainPage,
         domainCount,
         setDomainPage,
+        domainLimit,
         setDomainLimit,
         setDomainFilters,
         patchDomain,
@@ -92,8 +94,10 @@ export default function Domains() {
                         showSizeChanger
                         defaultCurrent={domainPage}
                         total={domainCount}
+                        pageSize={domainLimit}
+                        pageSizeOptions={pageSizeOptions}
                         onShowSizeChange={(current, pageSize) => {
-                            setDomainLimit(pageSize);
+                            setDomainLimit(pageSize as PageSize);
                         }}
                         onChange={(current) => setDomainPage(current)}
                     />

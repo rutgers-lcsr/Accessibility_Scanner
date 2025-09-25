@@ -91,8 +91,6 @@ def report_to_js(report: List[AxeResult], report_url: str, report_mode:bool = Fa
                         help=violation.get('help', ""),
                         help_url=violation.get('helpUrl', ""),
                     )
-                    print(injection.to_json())
-                    
                     
                     
                     injections.append(injection)

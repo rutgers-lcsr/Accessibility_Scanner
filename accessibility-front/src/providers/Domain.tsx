@@ -1,5 +1,6 @@
 'use client';
 import { APIError } from '@/lib/api';
+import { getInitalPageSize, PageSize } from '@/lib/browser';
 import { Domain } from '@/lib/types/domain';
 import { Paged } from '@/lib/types/Paged';
 import React, { createContext, useContext } from 'react';
@@ -15,7 +16,7 @@ type DomainContextType = {
     domainLimit: number;
     createDomain: (domain: string) => Promise<void>;
     setDomainPage: (page: number) => void;
-    setDomainLimit: (limit: number) => void;
+    setDomainLimit: (limit: PageSize) => void;
     setDomainFilters: (filters: Record<string, string>) => void;
     resetDomainFilters: () => void;
     patchDomain: (id: string, data: Partial<Domain>) => Promise<void>;
@@ -28,7 +29,7 @@ export const DomainProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
     const [domainPage, setDomainPage] = React.useState<number>(1);
-    const [domainLimit, setDomainLimit] = React.useState<number>(10);
+    const [domainLimit, setDomainLimit] = React.useState<PageSize>(getInitalPageSize);
     const [domainFilters, setDomainFilters] = React.useState<Record<string, string>>({});
 
     const {

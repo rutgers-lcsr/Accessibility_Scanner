@@ -1,5 +1,6 @@
 'use client';
 import { APIError, fetcherApi } from '@/lib/api';
+import { getInitalPageSize, PageSize } from '@/lib/browser';
 import { Report } from '@/lib/types/axe';
 import { Paged } from '@/lib/types/Paged';
 import { User } from '@/lib/types/user';
@@ -17,17 +18,20 @@ type ReportsContextType = {
     ReportLimit: number;
     setReportSearch: (query: string) => void;
     setReportPage: (page: number) => void;
-    setReportLimit: (limit: number) => void;
+    setReportLimit: (limit: PageSize) => void;
     openReport: (id: string) => void;
     mutate: () => void;
 };
 
 const ReportsContext = createContext<ReportsContextType | undefined>(undefined);
 
-export const ReportsProvider: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
+export const ReportsProvider: React.FC<{ children: React.ReactNode; user: User | null }> = ({
+    children,
+    user,
+}) => {
     const router = useRouter();
     const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
+    const [limit, setLimit] = useState<PageSize>(getInitalPageSize);
     const [searchUrl, setSearchUrl] = useState('');
     const { handlerUserApiRequest } = useUser();
     const { data, error, isLoading, mutate } = useSWR<Paged<Report>>(

@@ -1,5 +1,6 @@
 'use client';
 import PageError from '@/components/PageError';
+import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { User } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useWebsites } from '@/providers/Websites';
@@ -60,6 +61,7 @@ function Websites({ user }: Props) {
         websites,
         websitesTotal,
         setWebsitePage,
+        WebsiteLimit,
         setWebsiteLimit,
         WebsitePage,
         isLoading,
@@ -108,8 +110,10 @@ function Websites({ user }: Props) {
                         defaultCurrent={WebsitePage}
                         total={websitesTotal || 0}
                         onShowSizeChange={(current, pageSize) => {
-                            setWebsiteLimit(pageSize);
+                            setWebsiteLimit(pageSize as PageSize);
                         }}
+                        pageSize={WebsiteLimit}
+                        pageSizeOptions={pageSizeOptions}
                         onChange={(current) => setWebsitePage(current)}
                     />
                 </Flex>
