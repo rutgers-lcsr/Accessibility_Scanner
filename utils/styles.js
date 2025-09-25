@@ -1,3 +1,12 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 /**
  * This script is intended to be used as a template for injection.
  *
@@ -113,7 +122,7 @@ function getImpactColor(impact) {
             return 'gray';
     }
 }
-function createMessage(injection, single) {
+function createMessage(injection, single, element) {
     const message = document.createElement('div');
     message.innerHTML = `
                 <div style="margin-bottom: 4px;">
@@ -138,7 +147,7 @@ function createMessage(injection, single) {
             `;
     if (single) {
         message.innerHTML += `<div style="margin-top: 8px; color: #2b2b2b; font-size: 12px;">
-                    (Click anywhere on the highlighted element to learn more)
+                    (Click anywhere on the highlighted element to learn more or press the "Get AI Prompt" button below to get a custom AI prompt for this issue.)
                 </div>`;
     }
     message.className = 'a11y-tooltip-message';
@@ -159,7 +168,44 @@ function createMessage(injection, single) {
     children.forEach((child) => {
         child.className = 'a11y-tooltip-message-content';
     });
+    if (element) {
+        // add a button to make an AI prompt for this issue
+        const aiButton = document.createElement('button');
+        aiButton.innerText = 'Get AI Prompt';
+        aiButton.className = 'a11y-message-ai-button';
+        aiButton.addEventListener('click', (e) => __awaiter(this, void 0, void 0, function* () {
+            e.stopPropagation();
+            aiButton.disabled = true;
+            aiButton.innerText = 'Loading...';
+            const prompt = makeAiPrompt(injection, element);
+            try {
+                navigator.clipboard.writeText(prompt);
+                addAlert('AI prompt copied to clipboard! Please paste it into the any AI tool. e.g. ChatGPT or Gemini', 5000);
+            }
+            catch (error) {
+                console.error('Error calling AI API:', error);
+            }
+            finally {
+                aiButton.disabled = false;
+                aiButton.innerText = 'Get AI Prompt';
+            }
+        }));
+        message.appendChild(aiButton);
+    }
     return message;
+}
+function makeAiPrompt(injection, element) {
+    const prompt = `You are a web accessibility expert. Please review the following issue and provide guidance on how to fix it:
+
+    Issue Description: ${injection.description}
+    Impact Level: ${injection.impact}
+    Suggested Fix: ${injection.help}
+    Help URL: ${injection.help_url}
+    Affected Element: ${element.outerHTML}
+    Additional Information: ${injection.message}
+
+    Please provide a detailed response with code examples where applicable.`;
+    return prompt;
 }
 function createToolTip(injections, element, selector) {
     // Create a tooltip element
@@ -182,7 +228,7 @@ function createToolTip(injections, element, selector) {
         if (injection.selector === selector) {
             // sometimes help has html tags, so we need to escape them
             // Compose a more readable and visually clear tooltip message
-            const message = createMessage(injection, numberOfInjections === 1);
+            const message = createMessage(injection, numberOfInjections === 1, element);
             tooltip.appendChild(message);
         }
     });
@@ -372,7 +418,7 @@ style.innerHTML = `
         max-width: 420px;
         min-width: 240px;
         overflow-wrap: break-word;
-        z-index: 9998;
+        z-index: 9997;
         font-family: 'Segoe UI', Arial, sans-serif;
         font-size: 15px;
         line-height: 1.5;
@@ -435,7 +481,7 @@ style.innerHTML = `
     .a11y-tooltip-message {
         line-height: 1.5;
         font-size: 15px;
-        z-index: 9999;
+        z-index: 9998;
         position: relative;
         cursor: pointer;
         font-weight: 500;
@@ -444,6 +490,26 @@ style.innerHTML = `
         border: 1.5px solid transparent;
         background: transparent;
         transition: background 0.15s, border 0.15s;
+    }
+    .a11y-tooltip-message-content {
+        cursor: pointer;
+    }
+    .a11y-message-ai-button {
+        margin-top: 8px;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        background-color: #1976d2;
+        color: white;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        z-index: 9999;
+    }
+    .a11y-message-ai-button:hover {
+        background-color: #0d47a1;
     }
     .a11y-alert {
         position: fixed;

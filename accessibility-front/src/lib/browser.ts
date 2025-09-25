@@ -1,4 +1,8 @@
+'use client';
 function getInitalPageSize(): PageSize {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return 5;
+    }
     const saved = localStorage.getItem('websitePageSize');
     if (saved) {
         const parsed = parseInt(saved, 10);
@@ -6,7 +10,7 @@ function getInitalPageSize(): PageSize {
             if (pageSizeOptions.map(Number).includes(parsed)) {
                 return parsed as PageSize;
             }
-            return 5; // Default to 30 if not one of the expected values
+            return 5; // Default to 5 if not one of the expected values
         }
     }
 
