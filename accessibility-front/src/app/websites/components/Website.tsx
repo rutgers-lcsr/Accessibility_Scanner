@@ -10,7 +10,7 @@ import {
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
-import { Tabs, TabsProps, Tooltip, Typography } from 'antd';
+import { Alert, Tabs, TabsProps, Tooltip, Typography } from 'antd';
 import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -153,20 +153,13 @@ const Website = ({ websiteId, user }: Props) => {
                     </div>
                     {violations.total > 15 && (
                         // Give some advice if there are too many violations
-                        <div className="mt-6 rounded-md bg-blue-50 p-4">
-                            <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <InfoCircleOutlined className="text-blue-400" />
-                                </div>
-                                <div className="ml-3">
-                                    <h3 className="text-sm font-medium text-blue-800">
-                                        Consider prioritizing the most critical issues first to make
-                                        the biggest impact on your websites accessibility. Take a
-                                        look a the violations tab to get started. This will show you
-                                        a list of common issues and how to fix them.
-                                    </h3>
-                                </div>
-                            </div>
+                        <div className="mt-6 rounded-md p-4">
+                            <Alert
+                                message="Consider prioritizing the most critical issues first to make the biggest impact on your websites accessibility. Take a look a the violations tab to get started. This will show you a list of common issues and how to fix them."
+                                type="info"
+                                style={{}}
+                                showIcon
+                            />
                         </div>
                     )}
                 </section>

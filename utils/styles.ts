@@ -137,34 +137,10 @@ function getImpactColor(impact: string): string {
     }
 }
 
-function createToolTip(injections: Injection[], element: HTMLElement, selector: string) {
-    // Create a tooltip element
-    const tooltip = document.createElement('div');
+function createMessage(injection: Injection, single: boolean) {
+    const message = document.createElement('div');
 
-    tooltip.className = 'custom-tooltip';
-
-    let tooltipFocused = false;
-    tooltip.addEventListener('mouseenter', () => {
-        tooltipFocused = true;
-        currentFocus = tooltip;
-        tooltip.style.display = 'block';
-        currentTooltipFocused = true;
-    });
-    tooltip.addEventListener('mouseleave', () => {
-        tooltipFocused = false;
-        currentTooltipFocused = false;
-    });
-
-    const numberOfInjections = injections.length;
-    // Populate the tooltip with injection messages
-    injections.forEach((injection) => {
-        if (injection.selector === selector) {
-            const message = document.createElement('div');
-
-            // sometimes help has html tags, so we need to escape them
-
-            // Compose a more readable and visually clear tooltip message
-            message.innerHTML = `
+    message.innerHTML = `
                 <div style="margin-bottom: 4px;">
                     <span style="font-weight: bold; color: ${getImpactColor(injection.impact)};">
                         ${injection.impact.toUpperCase()}
@@ -191,26 +167,62 @@ function createToolTip(injections: Injection[], element: HTMLElement, selector: 
                     Learn more
                 </a>
             `;
-            if (injections.length == 1) {
-                message.innerHTML += `<div style="margin-top: 8px; color: #2b2b2b; font-size: 12px;">
+    if (single) {
+        message.innerHTML += `<div style="margin-top: 8px; color: #2b2b2b; font-size: 12px;">
                     (Click anywhere on the highlighted element to learn more)
                 </div>`;
-            }
+    }
 
-            message.className = 'tooltip-message';
-            message.title = injection.message;
-            message.addEventListener('click', () => {
-                window.open(injection.help_url, '_blank');
-            });
-            message.addEventListener('mouseenter', () => {
-                message.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
-            });
-            message.addEventListener('mouseleave', () => {
-                message.style.backgroundColor = 'transparent';
-            });
-            if (numberOfInjections > 1) {
-                message.style.borderBottom = '2px solid #ccc';
-            }
+    message.className = 'a11y-tooltip-message';
+
+    message.addEventListener('click', () => {
+        window.open(injection.help_url, '_blank');
+    });
+    message.addEventListener('mouseenter', () => {
+        message.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+    });
+    message.addEventListener('mouseleave', () => {
+        message.style.backgroundColor = 'transparent';
+    });
+    if (!single) {
+        message.style.borderBottom = '2px solid #ccc';
+    }
+
+    // Label all children of message as a11y-tooltip-message-content
+    const children = message.querySelectorAll('*');
+    children.forEach((child) => {
+        child.className = 'a11y-tooltip-message-content';
+    });
+
+    return message;
+}
+
+function createToolTip(injections: Injection[], element: HTMLElement, selector: string) {
+    // Create a tooltip element
+    const tooltip = document.createElement('div');
+
+    tooltip.className = 'a11y-tooltip';
+
+    let tooltipFocused = false;
+    tooltip.addEventListener('mouseenter', () => {
+        tooltipFocused = true;
+        currentFocus = tooltip;
+        tooltip.style.display = 'block';
+        currentTooltipFocused = true;
+    });
+    tooltip.addEventListener('mouseleave', () => {
+        tooltipFocused = false;
+        currentTooltipFocused = false;
+    });
+
+    const numberOfInjections = injections.length;
+    // Populate the tooltip with injection messages
+    injections.forEach((injection) => {
+        if (injection.selector === selector) {
+            // sometimes help has html tags, so we need to escape them
+
+            // Compose a more readable and visually clear tooltip message
+            const message = createMessage(injection, numberOfInjections === 1);
             tooltip.appendChild(message);
         }
     });
@@ -369,9 +381,16 @@ for (const [selector, injections] of elementMap.entries()) {
     try {
         const elements = document.querySelectorAll(selector);
         elements.forEach((element) => {
+            // check if element is our tooltip, or is parent to our tooltip, if so, skip it
+            // Skip if the element or any of its ancestors up to 3 levels are a tooltip
+            if (element.classList.value.includes('a11y')) {
+                // all elements used in the script have a11y in their class name, so skip them
+                return;
+            }
+
             // Apply styles
             injections.forEach((injection) => {
-                (element as HTMLElement).style.cssText += injection.style;
+                (element as HTMLElement).classList.add(`a11y-${injection.impact}`);
             });
             // Create tooltip
             const tooltip = createToolTip(injections, element as HTMLElement, selector);
@@ -394,85 +413,130 @@ document.addEventListener('click', (event) => {
 // Add some global styles for the tooltip
 const style = document.createElement('style');
 style.innerHTML = `
-    .custom-tooltip {
-        max-width: 500px;
-        min-width: 300px;
+    .a11y-minor {
+        border: 3px solid #ffe066 !important;
+        box-shadow: 0 0 6px 1px #ffe06655 !important;
+    }
+    .a11y-moderate {
+        border: 3px solid #ffa94d !important;
+        box-shadow: 0 0 6px 1px #ffa94d55 !important;
+    }
+    .a11y-serious {
+        border: 3px solid #fa5252 !important;
+        box-shadow: 0 0 6px 1px #fa525255 !important;
+    }
+    .a11y-critical {
+        border: 3px solid #800f2f !important;
+        box-shadow: 0 0 8px 2px #800f2f88 !important;
+    }
+    .animation-highlight {
+        animation: highlight 1.5s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes highlight {
+        0% {
+            box-shadow: 0 0 8px 2px #ffe066;
+        }
+        50% {
+            box-shadow: 0 0 16px 6px #ffa94d;
+        }
+        100% {
+            box-shadow: 0 0 8px 2px #ffe066;
+        }
+    }
+    .a11y-tooltip {
+        max-width: 420px;
+        min-width: 240px;
         overflow-wrap: break-word;
         z-index: 9998;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.4;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 15px;
+        line-height: 1.5;
         position: absolute;
-        background-color: rgba(255, 255, 255, 1);
-        color: black;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        border-radius: 4px;
-        display: none; /* Initially hidden */
+        background: linear-gradient(135deg, #fffbe6 0%, #f8f9fa 100%);
+        color: #222;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 1.5px 4px rgba(0,0,0,0.08);
+        display: none;
         max-height: 400px;
         overflow: auto;
-        top: 3px;
-        left: 3px;
+        top: 8px;
+        left: 8px;
+        transition: box-shadow 0.2s;
     }
-    .custom-tooltip pre {
-        white-space: pre-wrap; /* Allow line breaks */
-        word-wrap: break-word; /* Break long words */
-        background-color: #f4f4f4;
-        padding: 4px;
+    .a11y-tooltip pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        background-color: #f1f3f5;
+        padding: 6px 8px;
         border-radius: 4px;
-        font-family: monospace;
+        font-family: 'Fira Mono', 'Consolas', monospace;
         font-size: 13px;
-        max-height: 200px;
+        max-height: 180px;
         overflow: auto;
+        margin-bottom: 6px;
     }
-    .custom-tooltip a {
-        text-decoration: none;
+    .a11y-tooltip a {
+        color: #1976d2;
+        text-decoration: underline;
+        font-weight: 500;
+        transition: color 0.15s;
     }
-    .custom-tooltip a:hover {
+    .a11y-tooltip a:hover {
+        color: #0d47a1;
         text-decoration: underline;
     }
-    .tooltip-message:hover {
-        background-color: rgba(0, 0, 0, 0.1);
+    .a11y-tooltip-message:hover {
+        background-color: #f3f0ff;
     }
     @media (max-width: 600px) {
-        .custom-tooltip {
-            max-width: 90%;
-            min-width: 200px;
-            font-size: 12px;
+        .a11y-tooltip {
+            max-width: 96vw;
+            min-width: 140px;
+            font-size: 13px;
         }
-        .tooltip-message {
-            font-size: 12px;
+        .a11y-tooltip-message {
+            font-size: 13px;
         }
-        .custom-tooltip pre {
+        .a11y-tooltip pre {
             font-size: 11px;
         }
         .a11y-alert {
             font-size: 12px;
             overflow-wrap: break-word;
-            max-width: 200px;
+            max-width: 180px;
         }
     }
-    .tooltip-message {
-        line-height: 1.4;
-        font-size: 14px;
+    .a11y-tooltip-message {
+        line-height: 1.5;
+        font-size: 15px;
         z-index: 9999;
         position: relative;
         cursor: pointer;
-        font-weight: bold;
-        padding: 4px;
-        position: relative;
+        font-weight: 500;
+        padding: 7px 6px 7px 6px;
+        border-radius: 6px;
+        border: 1.5px solid transparent;
+        background: transparent;
+        transition: background 0.15s, border 0.15s;
     }
     .a11y-alert {
         position: fixed;
-        top: 10px;
-        right: 10px;
-        background-color: darkred;
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
+        top: 18px;
+        right: 18px;
+        background: linear-gradient(90deg, #d7263d 0%, #a41313 100%);
+        color: #fff;
+        padding: 13px 18px;
+        border-radius: 7px;
         z-index: 10000;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        border: 1px solid #fff3;
+        opacity: 0.97;
+        transition: opacity 0.3s;
     }
 `;
 document.head.appendChild(style);
