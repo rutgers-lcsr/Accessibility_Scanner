@@ -199,6 +199,8 @@ function createMessage(injection: Injection, single: boolean, element?: HTMLElem
         const aiButton = document.createElement('button');
         aiButton.innerText = 'Get AI Prompt';
         aiButton.className = 'a11y-message-ai-button';
+        aiButton.type = 'button';
+        aiButton.title = 'Get a custom AI prompt for this issue';
 
         aiButton.addEventListener('click', async (e) => {
             e.stopPropagation();
