@@ -62,6 +62,14 @@ class Site(db.Model):
             return report
         return None
 
+    def can_scan(self, user: User) -> bool:
+        if not self.websites:
+            return False
+        for website in self.websites:
+            if website.can_scan(user):
+                return True
+        return False
+    
     @hybrid_method
     def can_view(self, user: User) -> bool:
         if not self.websites:
@@ -220,12 +228,42 @@ class Website(db.Model):
             return True
         return False
     
+    @hybrid_method
     def can_view(self, user: User) -> bool:
         if self.public:
             return True
         if user and self.admin_id == user.id:
             return True
         if user and user.profile and user.profile.is_admin:
+            return True
+        if user and user in self.users:
+            return True
+        return False
+    
+    @can_view.expression
+    def can_view(cls, user: User):
+        from sqlalchemy import select, exists
+        if not user:
+            return False
+        return (
+            select(exists().where(
+                cls.id == Website.id,
+                or_(
+                    cls.public == True,
+                    cls.admin_id == user.id,
+                    or_(UserWebsiteAssoc.c.user_id == user.id, UserWebsiteAssoc.c.website_id == cls.id)
+                )
+            ))
+            .scalar_subquery()
+        )
+    
+    
+    def can_scan(self, user: User) -> bool:
+        if user and self.admin_id == user.id:
+            return True
+        if user and user.profile and user.profile.is_admin:
+            return True
+        if user and user in self.users:
             return True
         return False
 

@@ -61,9 +61,9 @@ def scan_website():
             website = db.session.get(Website,  website_id)
             if not website:
                 return {"error": "Invalid website URL"}, 400
-            
-            # check if current user is admin or owner of the website
-            if not current_user.profile.is_admin and website.admin_id != current_user.id:
+
+            # check current user can scan
+            if not website.can_scan(current_user):
                 return {"error": "Unauthorized"}, 403
 
             # Check if scan is active
@@ -83,12 +83,8 @@ def scan_website():
             if not site:
                 return {"error": "Invalid site URL"}, 400
 
-
-            websites = site.websites
-            
-            admins = [w.admin_id for w in websites]
-            # check if current user is admin or owner of the website
-            if not current_user.profile.is_admin and current_user.id not in admins:
+            # check if current user can scan
+            if not site.can_scan(current_user):
                 return {"error": "Unauthorized"}, 403
 
 
@@ -116,8 +112,8 @@ def get_scan_status():
         if not website:
             return {"error": "Invalid website URL"}, 400
 
-        # check if current user is admin or owner of the website
-        if not current_user.profile.is_admin and website.admin_id != current_user.id:
+        # check if current user can view
+        if not website.can_view(current_user):
             return {"error": "Unauthorized"}, 403
 
         if not website.scanning:
@@ -132,8 +128,10 @@ def get_scan_status():
         site = db.session.get(Site, site)
         if not site:
             return {"error": "Invalid site URL"}, 400
-
-
+        # check if current user can view
+        if not site.can_view(current_user):
+            return {"error": "Unauthorized"}, 403
+        
         if not site.scanning:
             report = site.get_recent_report()
             return jsonify(report), 200

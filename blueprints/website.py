@@ -12,6 +12,7 @@ from models.website import Domain, Site, Site_Website_Assoc, Website
 from models import db
 from scanner.accessibility.ace import AxeReportKeys
 from sqlalchemy import case, desc, func
+from flask_sqlalchemy import pagination
 
 from scanner.utils.service import check_url
 from utils.urls import get_netloc, is_valid_url
@@ -223,6 +224,7 @@ def update_website(website_id):
 
     if not current_user:
         return jsonify({'error': 'User is not authenticated'}), 401
+    
     if not website.can_edit(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
     
@@ -449,10 +451,11 @@ def get_websites():
         w_query = w_query.filter(Website.public == True)
 
     if current_user and not current_user.profile.is_admin:
-        w_query = w_query.filter(Website.admin_id == current_user.id).union(w_query.filter(Website.users.any(id=current_user.id)))
+        w_query = w_query.filter(Website.query.filter(Website.can_view(current_user)))
 
-    w = w_query.paginate(page=page, per_page=limit)
-
+    w: pagination.Pagination[Website] = w_query.paginate(page=page, per_page=limit)
+    if not w.items and page != 1 and w.total > 0:
+        return jsonify({'error': 'Page number out of range'}), 400
 
     return jsonify({
         'count': w.total,
@@ -518,7 +521,7 @@ def get_website_sites(website_id):
         return jsonify({'error': 'Website not found'}), 404
 
     if current_user:
-        if not current_user.profile.is_admin and website.user_id != current_user.id:
+        if not website.can_view(current_user):
             return jsonify({'error': 'Unauthorized'}), 403
 
     if not current_user or not current_user.profile.is_admin:
@@ -666,6 +669,7 @@ def delete_website(website_id):
     website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
+
 
     # Add Deleteing website email
     website.delete()
