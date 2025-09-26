@@ -103,24 +103,23 @@ class Report(db.Model):
         return False
 
     @can_view.expression
-    def can_view(cls, user):
+    def can_view(cls, user: User):
         from sqlalchemy import select, case
         from models.website import Site, UserWebsiteAssoc
         return case(
-            [
-                (cls.public == True, True),
-                (user == None, False),
-                (user.profile.is_admin == True, True),
-                (
-                    select(UserWebsiteAssoc.c.user_id)
-                    .where(
-                        (UserWebsiteAssoc.c.website_id == cls.site_id) &
-                        (UserWebsiteAssoc.c.user_id == user.id)
-                    )
-                    .exists(),
-                    True
+            (cls.public == True, True),
+            (user == None, False),
+            (user.profile.is_admin == True, True),
+            (
+                select(UserWebsiteAssoc.c.user_id)
+                .where(
+                    (UserWebsiteAssoc.c.website_id == cls.site_id) &
+                    (UserWebsiteAssoc.c.user_id == user.id)
                 )
-            ],
+                .exists(),
+                True
+            )
+            ,
             else_=False
         )
 

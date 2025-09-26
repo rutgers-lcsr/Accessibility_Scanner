@@ -1,7 +1,7 @@
 
 from datetime import datetime
 from typing import List, TypedDict
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, case, func, or_
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
@@ -84,17 +84,33 @@ class Site(db.Model):
         from models.website import Website
         if not user:
             return False
-        return (
-            select(exists().where(
+        
+        # Assume user.profile.is_admin is a column, not a Python property
+        is_admin = select(User.profile.is_admin).where(User.id == user.id).scalar_subquery()
+
+        # User is admin of this website
+        is_website_admin = exists().where(
+            and_(
                 Site_Website_Assoc.c.site_id == cls.id,
                 Site_Website_Assoc.c.website_id == Website.id,
-                or_(
-                    Website.public == True,
-                    Website.admin_id == user.id,
-                    or_(UserWebsiteAssoc.c.user_id == user.id, UserWebsiteAssoc.c.website_id == Website.id)
-                )
-            ))
-            .scalar_subquery()
+                Website.admin_id == user.id
+            )
+        )
+
+        # User has explicit view permission
+        has_view_permission = exists().where(
+            and_(
+                UserWebsiteAssoc.c.user_id == user.id,
+                UserWebsiteAssoc.c.website_id == Website.id
+            )
+        )
+        
+        return case(
+            (cls.public == True, True),
+            (is_admin == True, True),
+            (is_website_admin == True, True),
+            (has_view_permission == True, True),
+            else_=False
         )
 
     @hybrid_property
@@ -245,16 +261,16 @@ class Website(db.Model):
         from sqlalchemy import select, exists
         if not user:
             return False
-        return (
-            select(exists().where(
-                cls.id == Website.id,
-                or_(
-                    cls.public == True,
-                    cls.admin_id == user.id,
-                    or_(UserWebsiteAssoc.c.user_id == user.id, UserWebsiteAssoc.c.website_id == cls.id)
-                )
-            ))
-            .scalar_subquery()
+        return case(
+            (cls.public == True, True),
+            (user == None, False),
+            (user.profile.is_admin == True, True),
+            (cls.admin_id == user.id, True),
+            (exists().where(
+                UserWebsiteAssoc.c.user_id == user.id,
+                UserWebsiteAssoc.c.website_id == cls.id
+            ), True),
+            else_=False
         )
     
     

@@ -11,7 +11,6 @@ import { headers } from 'next/headers';
 import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
-import PageHeading from '@/components/PageHeading';
 import PageLoading from '@/components/PageLoading';
 import { User } from '@/lib/types/user';
 import { Alert, Card, Image, Space, Tooltip } from 'antd';
@@ -40,7 +39,9 @@ export const getReport = async (reportId: string) => {
     );
 
     if (!response.ok) {
-        throw new Error('Failed to fetch report');
+        if (response.status === 404) return null;
+        if (response.status === 403) return "You don't have access to this report";
+        return 'Error fetching report';
     }
     return response.json() as Promise<ReportType>;
 };
@@ -51,8 +52,8 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const { reportId } = await params;
 
     const report = await getReport(reportId);
-    const user = await getCurrentUser<User>();
-
+    if (typeof report === 'string') return <PageError title={report} status={403} />;
+    if (report === null) return <PageError status={404} />;
     if (!report) return <PageError status={404} />;
 
     const violations = report.report_counts.violations;
@@ -63,7 +64,6 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
 
     return (
         <>
-            <PageHeading title="Accessibility Report" />
             <Content className="mb-8 p-4">
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     <Card>

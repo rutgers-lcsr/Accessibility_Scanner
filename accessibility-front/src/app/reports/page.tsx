@@ -1,6 +1,5 @@
 'use client';
 import PageError from '@/components/PageError';
-import PageHeading from '@/components/PageHeading';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { Report as ReportType } from '@/lib/types/axe';
 import { useReports } from '@/providers/Reports';
@@ -53,10 +52,6 @@ export default function ReportPage() {
 
     return (
         <>
-            <PageHeading
-                title="Accessibility Reports"
-                subtitle="Individual accessibility reports."
-            />
             <div className="p-6">
                 <Flex
                     className="mb-4"

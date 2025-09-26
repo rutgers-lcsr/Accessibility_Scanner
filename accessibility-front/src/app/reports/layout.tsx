@@ -1,3 +1,4 @@
+import PageHeading from '@/components/PageHeading';
 import { User } from '@/lib/types/user';
 import { ReportsProvider } from '@/providers/Reports';
 import { getCurrentUser } from 'next-cas-client/app';
@@ -8,7 +9,13 @@ export default async function Layout({ children }: { children: ReactNode }) {
 
     return (
         <>
-            <ReportsProvider user={user}>{children}</ReportsProvider>
+            <ReportsProvider user={user}>
+                <PageHeading
+                    title="Accessibility Reports"
+                    subtitle="Individual accessibility reports."
+                />
+                {children}
+            </ReportsProvider>
         </>
     );
 }

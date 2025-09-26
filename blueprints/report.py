@@ -7,6 +7,7 @@ from models import db
 from PIL import Image
 import io
 
+from models.user import User
 from models.website import Site
 from utils.style_generator import report_to_js
 
@@ -32,8 +33,9 @@ def get_reports():
 
     if not current_user or not current_user.profile.is_admin:
         reports_q = reports_q.filter(Report.public)
-    
-    if current_user and not current_user.profile.is_admin:
+
+    if current_user:
+
         reports_q = reports_q.filter(Report.can_view(current_user))
 
     reports = reports_q.paginate(page=page, per_page=limit)
