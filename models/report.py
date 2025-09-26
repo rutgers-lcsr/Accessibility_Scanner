@@ -104,31 +104,28 @@ class Report(db.Model):
 
     @can_view.expression
     def can_view(cls, user: User):
-        from sqlalchemy import select, case
+        from sqlalchemy import select, case, exists, literal
         from models.website import Site, UserWebsiteAssoc, Website
 
-        websites = select(Website.id).where(
-            Website.sites.any(Site.id == cls.site_id)
-            ).scalar_subquery()
-        admin_id = select(Website.admin_id).where(
+        # Subquery: does the user have access to any website for this site?
+        user_has_access = exists().where(
+            UserWebsiteAssoc.c.website_id.in_(
+                select(Website.id).where(Website.sites.any(Site.id == cls.site_id))
+            ) & (UserWebsiteAssoc.c.user_id == user.id)
+        )
+
+        # Subquery: get admin_id for website of this site
+        admin_ids = select(Website.admin_id).where(
             Website.sites.any(Site.id == cls.site_id)
         ).scalar_subquery()
 
         return case(
-            (cls.public == True, True),
-            (user == None, False),
-            (user.profile.is_admin == True, True),
-            (
-                select(UserWebsiteAssoc.c.user_id)
-                .where(
-                    (UserWebsiteAssoc.c.website_id.in_(websites)) &
-                    (UserWebsiteAssoc.c.user_id == user.id)
-                )
-                .exists(),
-                True
-            ),
-            (admin_id.contains(user.id), True),
-            else_=False
+            (cls.public == True, literal(True)),
+            (user == None, literal(False)),
+            (user.profile.is_admin == True, literal(True)),
+            (user_has_access, literal(True)),
+            (admin_ids.any() == user.id, literal(True)),
+            else_=literal(False)
         )
 
     @public.expression
