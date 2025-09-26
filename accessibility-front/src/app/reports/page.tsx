@@ -76,6 +76,7 @@ export default function ReportPage() {
                             loading={isLoading}
                             size="large"
                             allowClear
+                            aria-label="Search reports"
                         />
                     </Flex>
                 </Flex>

@@ -22,7 +22,7 @@ function Rules() {
             <PageHeading title="Accessibility Rules" />
             <Flex justify="center" align="stretch" style={{ width: '100%' }}>
                 <Space direction="vertical" size="large" style={{ alignContent: 'center' }}>
-                    <div className="text-gray-500 mb-4">
+                    <div className="text-gray-600 mb-4">
                         Manage your custom accessibility rules here. You can add, edit, or delete
                         rules to tailor the accessibility checks to your needs.
                         <FloatButton
@@ -39,6 +39,7 @@ function Rules() {
                                 mode="tags"
                                 style={{ width: '100%', marginTop: '10px' }}
                                 placeholder="Filter by tags"
+                                aria-label="Tags Select"
                                 allowClear
                                 onChange={(value) => {
                                     // Implement tag filtering logic here

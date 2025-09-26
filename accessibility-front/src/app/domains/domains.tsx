@@ -82,6 +82,7 @@ export default function Domains() {
                             loading={loadingDomain}
                             allowClear
                             size="large"
+                            aria-label="Search domains"
                         />
                     </Flex>
                 </Flex>

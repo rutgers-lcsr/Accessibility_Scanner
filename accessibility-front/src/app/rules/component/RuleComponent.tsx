@@ -153,6 +153,7 @@ export default function RuleComponent({ rule }: Props) {
                         style={{ width: '100%' }}
                         value={rule.tags}
                         onChange={(value) => updateRuleField('tags', value)}
+                        aria-label="Tags Select"
                     >
                         {rule.tags.map((tag) => (
                             <Select.Option key={tag} value={tag} label={<span>{tag}</span>}>
@@ -174,6 +175,7 @@ export default function RuleComponent({ rule }: Props) {
                         style={{ width: '100%', marginTop: '10px' }}
                         value={rule.impact}
                         onChange={(value) => updateRuleField('impact', value)}
+                        aria-label="Impact Select"
                     >
                         <Select.Option value="minor">Minor</Select.Option>
                         <Select.Option value="moderate">Moderate</Select.Option>

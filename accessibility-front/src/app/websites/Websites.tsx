@@ -89,6 +89,7 @@ function Websites({ user }: Props) {
                             loading={isLoading}
                             allowClear
                             size="large"
+                            aria-label="Search websites"
                         />
                     </Flex>
                 </Flex>
