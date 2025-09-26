@@ -1,16 +1,21 @@
 'use client';
 import ResourceCard from '@/components/Resource';
+import { getAxeLink } from '@/lib/browser';
 import { Card, Carousel, Divider, List, Typography } from 'antd';
-import { Content, Header } from 'antd/es/layout/layout';
-import Head from 'next/head';
+import { Header } from 'antd/es/layout/layout';
+import { useEffect, useState } from 'react';
 
 export default function Home() {
+    // check if browser is chrome or firefox
+    const [axeLink, setAxeLink] = useState(getAxeLink());
+
+    useEffect(() => {
+        setAxeLink(getAxeLink());
+    }, []);
+
     return (
         <>
-            <Head>
-                <title>LCSR Accessibility Audit Tool</title>
-            </Head>
-            <Header />
+            <Header title="LCSR Accessibility Audit Tool"></Header>
             <Carousel
                 arrows
                 infinite={true}
@@ -18,9 +23,9 @@ export default function Home() {
                 autoplaySpeed={10000}
                 easing="ease-in-out"
                 waitForAnimate
-                className="max-w-7xl mx-auto"
+                className="max-w-6xl mx-auto"
             >
-                <Content className="mx-auto p-6" role="main">
+                <div className="mx-auto p-6">
                     <Card variant="borderless" style={{ marginTop: 24 }}>
                         <Typography.Title level={2}>CS Accessibility Audit Tool</Typography.Title>
                         <Typography.Paragraph>
@@ -65,9 +70,14 @@ export default function Home() {
                                 link="https://it.rutgers.edu/digital-accessibility/knowledgebase/sensusaccess/"
                             />
                             <ResourceCard
-                                title="Deque Axe DevTools for Chrome"
+                                title="Deque Axe DevTools Extension"
                                 description="Browser extension for testing web accessibility."
-                                link="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd"
+                                link={axeLink}
+                            />
+                            <ResourceCard
+                                title="Interactive Accessibility Help"
+                                description='Learn more about accessibility through interactive tutorials on the "Help" tab.'
+                                link="/help"
                             />
                         </div>
                         <Divider />
@@ -77,8 +87,8 @@ export default function Home() {
                             <a href="mailto:a11y@cs.rutgers.edu">a11y@cs.rutgers.edu</a>.
                         </Typography.Paragraph>
                     </Card>
-                </Content>
-                <Content className="mx-auto p-6" role="main">
+                </div>
+                <div className="mx-auto p-6">
                     <Card variant="borderless" style={{ marginTop: 24 }}>
                         <Typography.Title level={2}>About Accessibility</Typography.Title>
                         <Typography.Paragraph>
@@ -120,8 +130,8 @@ export default function Home() {
                             renderItem={(item) => <List.Item>{item}</List.Item>}
                         />
                     </Card>
-                </Content>
-                <Content className="mx-auto p-6" role="main">
+                </div>
+                <div className="mx-auto p-6">
                     <Card variant="borderless" style={{ marginTop: 24 }}>
                         <Typography.Title level={2}>Rutgers Requirements</Typography.Title>
                         <Typography.Paragraph>
@@ -139,7 +149,7 @@ export default function Home() {
                             renderItem={(item) => <List.Item>{item}</List.Item>}
                         />
                     </Card>
-                </Content>
+                </div>
             </Carousel>
         </>
     );

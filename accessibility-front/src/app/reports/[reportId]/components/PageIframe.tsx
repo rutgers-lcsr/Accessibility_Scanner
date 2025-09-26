@@ -8,7 +8,7 @@ function PageIframe({ url }: Props) {
     console.log('Rendering iframe for URL:', url);
     return (
         <iframe
-            tabIndex={-1}
+            tabIndex={0}
             onError={(e) => console.error('Iframe error:', e)}
             // onLoad={handleLoad}
             // ref={iframeRef}
@@ -16,8 +16,7 @@ function PageIframe({ url }: Props) {
             title="Page Preview"
             className="w-full min-h-[700px]"
             style={{ border: 'none' }}
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
-            allow="clipboard-read; clipboard-write"
+            allow="*"
         />
     );
 }

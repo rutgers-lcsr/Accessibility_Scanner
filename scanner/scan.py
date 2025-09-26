@@ -241,7 +241,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                         website.sites.remove(site)
                         # Its safe to delete the site
                         
-                        Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == site.id).execute()
+                        Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id == site.id)
                         
                         db.session.delete(site)
                         db.session.add(website)

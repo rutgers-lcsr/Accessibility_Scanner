@@ -1,12 +1,3 @@
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 /**
  * This script is intended to be used as a template for injection.
  *
@@ -19,6 +10,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
  * tsc utils/styles.ts --outFile utils/styles.js --lib DOM,es2021 --target es2015
  *
  */
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var _a;
 let showUserMessages = true;
 // Assistent function for preparing the dom
@@ -147,7 +147,7 @@ function createMessage(injection, single, element) {
             `;
     if (single) {
         message.innerHTML += `<div style="margin-top: 8px; color: #2b2b2b; font-size: 12px;">
-                    (Click anywhere on the highlighted element to learn more or press the "Get AI Prompt" button below to get a custom AI prompt for this issue.)
+                    (Click anywhere on the highlighted element to learn more or press the "Open AI Copilot" button below to get a custom AI prompt for this issue. This will copy the prompt to clipboard and open the AI Copilot in a new tab.)
                 </div>`;
     }
     message.className = 'a11y-tooltip-message';
@@ -171,10 +171,10 @@ function createMessage(injection, single, element) {
     if (element) {
         // add a button to make an AI prompt for this issue
         const aiButton = document.createElement('button');
-        aiButton.innerText = 'Get AI Prompt';
+        aiButton.innerText = 'Open AI Copilot';
         aiButton.className = 'a11y-message-ai-button';
         aiButton.type = 'button';
-        aiButton.title = 'Get a custom AI prompt for this issue';
+        aiButton.title = 'Open AI Copilot, and copy the prompt to clipboard';
         aiButton.addEventListener('click', (e) => __awaiter(this, void 0, void 0, function* () {
             e.stopPropagation();
             aiButton.disabled = true;
@@ -182,14 +182,16 @@ function createMessage(injection, single, element) {
             const prompt = makeAiPrompt(injection, element);
             try {
                 navigator.clipboard.writeText(prompt);
-                addAlert('AI prompt copied to clipboard! Please paste it into the any AI tool. e.g. ChatGPT or Gemini', 5000);
+                addAlert('AI prompt copied to clipboard! Please paste it into the any AI tool. e.g. Gemini or Microsoft Copilot.', 5000);
+                // see if tab already has copilot open, if so, focus it, otherwise open it
+                window.open('https://copilot.microsoft.com/', 'copilot', 'noopener,noreferrer');
             }
             catch (error) {
                 console.error('Error calling AI API:', error);
             }
             finally {
                 aiButton.disabled = false;
-                aiButton.innerText = 'Get AI Prompt';
+                aiButton.innerText = 'Open AI Copilot';
             }
         }));
         message.appendChild(aiButton);
@@ -535,3 +537,5 @@ style.innerHTML = `
 document.head.appendChild(style);
 // Log summary of injections applied
 console.log(`Applied ${injections.length} style injections to ${elementMap.size} unique selectors.`);
+addAlert(`Click on highlighted elements to learn more about the changes made.`, 15000);
+addAlert(`Click the "Open AI Copilot" button in the tooltip, this will copy the prompt to clipboard and open the AI Copilot.`, 20000);

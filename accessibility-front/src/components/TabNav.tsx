@@ -12,6 +12,7 @@ import {
     HomeOutlined,
     LoginOutlined,
     LogoutOutlined,
+    QuestionCircleOutlined,
     SettingOutlined,
     SolutionOutlined,
 } from '@ant-design/icons';
@@ -45,6 +46,7 @@ export default function TabNav({ user }: Props) {
         { key: '5', path: user && user.is_admin ? '/domains' : '/login' },
         { key: '6', path: '/login' },
         { key: '7', path: '/settings' },
+        { key: '8', path: '/help' },
     ];
 
     // Find the active tab key based on current pathname
@@ -69,11 +71,13 @@ export default function TabNav({ user }: Props) {
                       key: '7',
                       icon: <SettingOutlined />,
                   },
+                  { label: 'Help', key: '8', icon: <QuestionCircleOutlined /> },
               ]
             : [
                   { label: 'Home', key: '1', icon: <HomeOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
                   { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
+                  { label: 'Help', key: '8', icon: <QuestionCircleOutlined /> },
               ];
 
     // Add login/logout item
@@ -104,21 +108,24 @@ export default function TabNav({ user }: Props) {
     return (
         <Sider
             style={{ position: 'sticky' }}
-            role="navigation"
             className="scrollbar-thin scrollbar-gutter sticky top-0 bottom-0 h-[100vh] overflow-auto"
             theme="light"
             collapsible
-            aria-label="Tab Navigation"
             collapsed={collapsed}
             onCollapse={setCollapsed}
+            role="complementary"
+            aria-label="Tab Navigation"
+            title="Accessibility Audit Tool Navigation"
+            tabIndex={0}
         >
-            <div className="p-4 pl-3 text-xl font-bold">A11y</div>
+            <div className="p-4 pl-3 text-2xl font-bold">A11y</div>
             <Menu
                 onClick={handleSelect}
                 selectedKeys={[activeKey]}
                 mode="inline"
                 items={items}
                 theme="light"
+                style={{ marginTop: '20px' }}
             />
         </Sider>
     );

@@ -170,7 +170,7 @@ function createMessage(injection: Injection, single: boolean, element?: HTMLElem
 
     if (single) {
         message.innerHTML += `<div style="margin-top: 8px; color: #2b2b2b; font-size: 12px;">
-                    (Click anywhere on the highlighted element to learn more or press the "Get AI Prompt" button below to get a custom AI prompt for this issue.)
+                    (Click anywhere on the highlighted element to learn more or press the "Open AI Copilot" button below to get a custom AI prompt for this issue. This will copy the prompt to clipboard and open the AI Copilot in a new tab.)
                 </div>`;
     }
 
@@ -197,10 +197,10 @@ function createMessage(injection: Injection, single: boolean, element?: HTMLElem
     if (element) {
         // add a button to make an AI prompt for this issue
         const aiButton = document.createElement('button');
-        aiButton.innerText = 'Get AI Prompt';
+        aiButton.innerText = 'Open AI Copilot';
         aiButton.className = 'a11y-message-ai-button';
         aiButton.type = 'button';
-        aiButton.title = 'Get a custom AI prompt for this issue';
+        aiButton.title = 'Open AI Copilot, and copy the prompt to clipboard';
 
         aiButton.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -210,14 +210,17 @@ function createMessage(injection: Injection, single: boolean, element?: HTMLElem
             try {
                 navigator.clipboard.writeText(prompt);
                 addAlert(
-                    'AI prompt copied to clipboard! Please paste it into the any AI tool. e.g. ChatGPT or Gemini',
+                    'AI prompt copied to clipboard! Please paste it into the any AI tool. e.g. Gemini or Microsoft Copilot.',
                     5000
                 );
+                // see if tab already has copilot open, if so, focus it, otherwise open it
+
+                window.open('https://copilot.microsoft.com/', 'copilot', 'noopener,noreferrer');
             } catch (error) {
                 console.error('Error calling AI API:', error);
             } finally {
                 aiButton.disabled = false;
-                aiButton.innerText = 'Get AI Prompt';
+                aiButton.innerText = 'Open AI Copilot';
             }
         });
         message.appendChild(aiButton);
@@ -606,4 +609,10 @@ document.head.appendChild(style);
 // Log summary of injections applied
 console.log(
     `Applied ${injections.length} style injections to ${elementMap.size} unique selectors.`
+);
+
+addAlert(`Click on highlighted elements to learn more about the changes made.`, 15000);
+addAlert(
+    `Click the "Open AI Copilot" button in the tooltip, this will copy the prompt to clipboard and open the AI Copilot.`,
+    20000
 );

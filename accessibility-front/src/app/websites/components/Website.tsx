@@ -1,5 +1,6 @@
 'use client';
 import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
+import PageHeading from '@/components/PageHeading';
 import { fetcherApi } from '@/lib/api';
 import { User } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
@@ -10,7 +11,7 @@ import {
     InfoCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
-import { Alert, Tabs, TabsProps, Tooltip, Typography } from 'antd';
+import { Alert, Layout, Tabs, TabsProps, Tooltip } from 'antd';
 import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -18,6 +19,7 @@ import AdminItems from './AdminItems';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteReport from './WebsiteReport';
 import WebsiteSiteTable from './WebsiteSiteTable';
+const { Content } = Layout;
 
 type Props = {
     websiteId: number;
@@ -71,11 +73,13 @@ const Website = ({ websiteId, user }: Props) => {
         },
     ];
     return (
-        <div>
-            <header className="mb-8">
-                <h1 className="mb-2 text-3xl font-extrabold">
+        <>
+            <PageHeading title="Website Report" />
+            <Content className="mb-8 p-4">
+                <h2 className="mb-10 text-3xl font-extrabold">
                     Website Report for <HeaderLink url={`${websiteReport.url}`} />
-                </h1>
+                </h2>
+
                 {user && user.is_admin && <AdminItems website={websiteReport} mutate={mutate} />}
                 {/** Admin items for the website For Regular Users Usually the Owner of the site */}
                 {(user && !user.is_admin && websiteReport.admin == user.user) ||
@@ -163,20 +167,12 @@ const Website = ({ websiteId, user }: Props) => {
                         </div>
                     )}
                 </section>
-            </header>
 
-            <section aria-labelledby="website-report">
-                <Tabs defaultActiveKey="1" items={WebsiteReportItems} />
-            </section>
-            <section className="mt-8">
-                <Typography.Paragraph>
-                    For technical assistance, feel free to contact the LCSR at{' '}
-                    <a href="mailto:a11y@cs.rutgers.edu">a11y@cs.rutgers.edu</a>. We are here to
-                    help you improve the accessibility of your website and ensure compliance with
-                    accessibility standards.
-                </Typography.Paragraph>
-            </section>
-        </div>
+                <section aria-labelledby="website-report">
+                    <Tabs defaultActiveKey="1" items={WebsiteReportItems} />
+                </section>
+            </Content>
+        </>
     );
 };
 

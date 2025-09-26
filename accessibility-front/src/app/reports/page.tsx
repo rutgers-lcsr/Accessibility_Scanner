@@ -1,10 +1,10 @@
 'use client';
 import PageError from '@/components/PageError';
+import PageHeading from '@/components/PageHeading';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { Report as ReportType } from '@/lib/types/axe';
 import { useReports } from '@/providers/Reports';
 import { Flex, Input, Pagination, Table } from 'antd';
-import { Content } from 'antd/es/layout/layout';
 import { format } from 'date-fns';
 const columns = [
     {
@@ -52,57 +52,68 @@ export default function ReportPage() {
     } = useReports();
 
     return (
-        <Content className="p-6">
-            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <h1 className="text-3xl font-bold text-gray-800">Accessibility Reports</h1>
-                <div>
-                    <Input.Search
-                        className="w-64"
-                        placeholder="Search reports"
-                        onSearch={(value) => {
-                            // console.log(value);
-                            setReportSearch(value);
-                        }}
-                        loading={isLoading}
-                        size="large"
-                        allowClear
-                    />
-                </div>
-            </header>
-            <Content>
-                <Table<ReportType>
-                    rowKey="id"
-                    columns={columns}
-                    dataSource={reports || []}
-                    loading={isLoading}
-                    pagination={false}
-                    bordered
-                    size="middle"
-                    className="bg-white rounded-lg"
-                    locale={{
-                        emptyText: (
-                            <PageError
-                                status={'info'}
-                                title="No Reports Found"
-                                subTitle="It seems we couldn't find any reports."
-                            />
-                        ),
-                    }}
-                />
-                <Flex style={{ padding: '16px 0' }} justify="center">
-                    <Pagination
-                        showSizeChanger
-                        defaultCurrent={ReportPage}
-                        total={reportsTotal}
-                        pageSize={ReportLimit}
-                        pageSizeOptions={pageSizeOptions}
-                        onShowSizeChange={(current, pageSize) => {
-                            setReportLimit(pageSize as PageSize);
-                        }}
-                        onChange={(current) => setReportPage(current)}
-                    />
+        <>
+            <PageHeading
+                title="Accessibility Reports"
+                subtitle="Individual accessibility reports."
+            />
+            <div className="p-6">
+                <Flex
+                    className="mb-4"
+                    justify="end"
+                    align="flex-end"
+                    gap="small"
+                    style={{ minWidth: '300px', marginBottom: '16px' }}
+                >
+                    <Flex gap="middle" align="center">
+                        <Input.Search
+                            className="w-64"
+                            placeholder="Search reports"
+                            onSearch={(value) => {
+                                // console.log(value);
+                                setReportSearch(value);
+                            }}
+                            loading={isLoading}
+                            size="large"
+                            allowClear
+                        />
+                    </Flex>
                 </Flex>
-            </Content>
-        </Content>
+                <div className="bg-white p-4 rounded-lg shadow">
+                    <Table<ReportType>
+                        rowKey="id"
+                        columns={columns}
+                        dataSource={reports || []}
+                        loading={isLoading}
+                        pagination={false}
+                        bordered
+                        size="middle"
+                        className="bg-white rounded-lg"
+                        locale={{
+                            emptyText: (
+                                <PageError
+                                    status={'info'}
+                                    title="No Reports Found"
+                                    subTitle="It seems we couldn't find any reports."
+                                />
+                            ),
+                        }}
+                    />
+                    <Flex style={{ padding: '16px 0' }} justify="center">
+                        <Pagination
+                            showSizeChanger
+                            defaultCurrent={ReportPage}
+                            total={reportsTotal}
+                            pageSize={ReportLimit}
+                            pageSizeOptions={pageSizeOptions}
+                            onShowSizeChange={(current, pageSize) => {
+                                setReportLimit(pageSize as PageSize);
+                            }}
+                            onChange={(current) => setReportPage(current)}
+                        />
+                    </Flex>
+                </div>
+            </div>
+        </>
     );
 }

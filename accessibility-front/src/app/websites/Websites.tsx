@@ -1,5 +1,6 @@
 'use client';
 import PageError from '@/components/PageError';
+import PageHeading from '@/components/PageHeading';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { User } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
@@ -69,56 +70,65 @@ function Websites({ user }: Props) {
     } = useWebsites();
 
     return (
-        <Content className="p-6">
-            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <h1 className="text-3xl font-bold text-gray-800">Websites</h1>
-                <div className="flex items-center gap-3">
-                    <CreateWebsite user={user} />
-                    <Input.Search
-                        className="w-72"
-                        placeholder="Search websites"
-                        onSearch={(value) => setWebsiteSearch(value)}
-                        loading={isLoading}
-                        allowClear
-                        size="large"
-                    />
-                </div>
-            </header>
-            <Content>
-                <Table<WebsiteType>
-                    rowKey="id"
-                    columns={columns}
-                    dataSource={websites || []}
-                    loading={isLoading}
-                    pagination={false}
-                    bordered
-                    size="middle"
-                    className="bg-white rounded-lg"
-                    locale={{
-                        emptyText: (
-                            <PageError
-                                status={'info'}
-                                title="No Websites Found"
-                                subTitle="It seems we couldn't find any websites."
-                            />
-                        ),
-                    }}
-                />
-                <Flex style={{ padding: '16px 0' }} justify="center">
-                    <Pagination
-                        showSizeChanger
-                        defaultCurrent={WebsitePage}
-                        total={websitesTotal || 0}
-                        onShowSizeChange={(current, pageSize) => {
-                            setWebsiteLimit(pageSize as PageSize);
-                        }}
-                        pageSize={WebsiteLimit}
-                        pageSizeOptions={pageSizeOptions}
-                        onChange={(current) => setWebsitePage(current)}
-                    />
+        <>
+            <PageHeading title="Websites" />
+            <Content className="p-6">
+                <Flex
+                    className="mb-4"
+                    justify="end"
+                    align="flex-end"
+                    gap="small"
+                    style={{ minWidth: '300px', marginBottom: '16px' }}
+                >
+                    <Flex gap="middle" align="center">
+                        <CreateWebsite user={user} />
+                        <Input.Search
+                            className="w-72"
+                            placeholder="Search websites"
+                            onSearch={(value) => setWebsiteSearch(value)}
+                            loading={isLoading}
+                            allowClear
+                            size="large"
+                        />
+                    </Flex>
                 </Flex>
+
+                <div className="bg-white p-4 rounded-lg shadow">
+                    <Table<WebsiteType>
+                        rowKey="id"
+                        columns={columns}
+                        dataSource={websites || []}
+                        loading={isLoading}
+                        pagination={false}
+                        bordered
+                        size="middle"
+                        className="bg-white rounded-lg"
+                        locale={{
+                            emptyText: (
+                                <PageError
+                                    status={'info'}
+                                    title="No Websites Found"
+                                    subTitle="It seems we couldn't find any websites."
+                                />
+                            ),
+                        }}
+                    />
+                    <Flex style={{ padding: '16px 0' }} justify="center">
+                        <Pagination
+                            showSizeChanger
+                            defaultCurrent={WebsitePage}
+                            total={websitesTotal || 0}
+                            onShowSizeChange={(current, pageSize) => {
+                                setWebsiteLimit(pageSize as PageSize);
+                            }}
+                            pageSize={WebsiteLimit}
+                            pageSizeOptions={pageSizeOptions}
+                            onChange={(current) => setWebsitePage(current)}
+                        />
+                    </Flex>
+                </div>
             </Content>
-        </Content>
+        </>
     );
 }
 

@@ -1,5 +1,6 @@
 'use client';
 import PageError from '@/components/PageError';
+import PageHeading from '@/components/PageHeading';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { Domain } from '@/lib/types/domain';
 import { useDomains } from '@/providers/Domain';
@@ -59,50 +60,59 @@ export default function Domains() {
     ];
 
     return (
-        <Content className="p-6">
-            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <h1 className="text-3xl font-bold text-gray-800">Domains</h1>
-                <div></div>
-                <div className="flex items-center gap-3">
-                    <AddDomain />
-                    <Input.Search
-                        className="w-72"
-                        placeholder="Search domains"
-                        onSearch={(value) => {
-                            // console.log(value);
-                            setDomainFilters({ search: value });
-                        }}
-                        loading={loadingDomain}
-                        allowClear
-                        size="large"
-                    />
-                </div>
-            </header>
-            <Content>
-                <Table<Domain>
-                    rowKey="id"
-                    columns={columns}
-                    dataSource={domains || []}
-                    bordered
-                    size="middle"
-                    loading={loadingDomain}
-                    pagination={false}
-                    locale={{ emptyText: <PageError status={'info'} title="No Domains found." /> }}
-                />
-                <Flex style={{ padding: '16px 0' }} justify="center">
-                    <Pagination
-                        showSizeChanger
-                        defaultCurrent={domainPage}
-                        total={domainCount}
-                        pageSize={domainLimit}
-                        pageSizeOptions={pageSizeOptions}
-                        onShowSizeChange={(current, pageSize) => {
-                            setDomainLimit(pageSize as PageSize);
-                        }}
-                        onChange={(current) => setDomainPage(current)}
-                    />
+        <>
+            <PageHeading title="Domains" />
+            <Content className="p-4 w-full">
+                <Flex
+                    className="mb-4"
+                    justify="end"
+                    align="flex-end"
+                    gap="small"
+                    style={{ minWidth: '300px', marginBottom: '16px' }}
+                >
+                    <Flex gap="middle" align="center">
+                        <AddDomain />
+                        <Input.Search
+                            className="w-72"
+                            placeholder="Search domains"
+                            onSearch={(value) => {
+                                // console.log(value);
+                                setDomainFilters({ search: value });
+                            }}
+                            loading={loadingDomain}
+                            allowClear
+                            size="large"
+                        />
+                    </Flex>
                 </Flex>
+                <div className="bg-white p-4 rounded-lg shadow">
+                    <Table<Domain>
+                        rowKey="id"
+                        columns={columns}
+                        dataSource={domains || []}
+                        bordered
+                        size="middle"
+                        loading={loadingDomain}
+                        pagination={false}
+                        locale={{
+                            emptyText: <PageError status={'info'} title="No Domains found." />,
+                        }}
+                    />
+                    <Flex style={{ padding: '16px 0' }} justify="center">
+                        <Pagination
+                            showSizeChanger
+                            defaultCurrent={domainPage}
+                            total={domainCount}
+                            pageSize={domainLimit}
+                            pageSizeOptions={pageSizeOptions}
+                            onShowSizeChange={(current, pageSize) => {
+                                setDomainLimit(pageSize as PageSize);
+                            }}
+                            onChange={(current) => setDomainPage(current)}
+                        />
+                    </Flex>
+                </div>
             </Content>
-        </Content>
+        </>
     );
 }

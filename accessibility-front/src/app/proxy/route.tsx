@@ -1,4 +1,5 @@
 import ProxyError from '@/components/ProxyError';
+import { Browser, getAxeLink, getCurrentBrowser } from '@/lib/browserServerSide';
 import axios from 'axios';
 import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
@@ -47,17 +48,17 @@ function redirectUrl(url: string, link: string, linkType: 'href' | 'src') {
     // this is the hard part, links are usually handled relative to the base URL of the page, but we need to make it an absolute URL
     let baseUrl = url;
 
+    const urlObj = new URL(baseUrl);
+
     // if baseUrl ends with a file (e.g. .html, .php, .aspx, etc.), remove the file part
-    const endsWithFile = baseUrl.match(/\/[^\/]+\.[a-zA-Z0-9]+$/);
+    const endsWithFile = urlObj.pathname.match(/\/[^\/]+\.[^\/]+$/);
     if (endsWithFile) {
         baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
     }
     if (!baseUrl.endsWith('/') && !link.startsWith('/')) {
         baseUrl = baseUrl + '/';
     }
-
     const newUrl = new URL(link, baseUrl).href;
-    console.log(`Redirecting ${linkType} from ${link} to ${newUrl}`);
     return newUrl;
 }
 
@@ -94,7 +95,7 @@ function injectScript(body: string, url: string, reportId: string) {
     return html;
 }
 
-function proxyError(status: Response['status']) {
+function proxyError(status: Response['status'], browser?: Browser) {
     switch (status) {
         case 400:
             return (
@@ -160,13 +161,15 @@ function proxyError(status: Response['status']) {
                 />
             );
         case 502:
+            const link = getAxeLink(browser as 'Chrome' | 'Firefox' | null);
+
             return (
                 <ProxyError
                     status={502}
                     title="Bad Gateway"
                     subTitle="Received an invalid response from the upstream server."
                     details="This may be a temporary issue with the website or network. This could be due to SSL issues or the server being down. If it is an SSL issue, please ensure the site has a valid SSL certificate. Or use the following extension to bypass CORS and SSL issues."
-                    link="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd"
+                    link={link}
                     linkName="Axe DevTools Extension"
                 />
             );
@@ -188,10 +191,13 @@ export async function GET(req: NextRequest) {
     const url = searchParams.get('url') || '';
     const reportId = searchParams.get('reportId') || '';
     const { renderToString } = await import('react-dom/server');
+    const userAgent = req.headers.get('User-Agent') || 'Mozilla/5.0';
+
+    const browser = getCurrentBrowser(userAgent);
 
     try {
         const requestHeaders = new Headers();
-        requestHeaders.set('User-Agent', req.headers.get('User-Agent') || 'Mozilla/5.0');
+        requestHeaders.set('User-Agent', userAgent);
         requestHeaders.set(
             'Accept-Language',
             req.headers.get('Accept-Language') || 'en-US,en;q=0.9'
@@ -209,13 +215,41 @@ export async function GET(req: NextRequest) {
         });
 
         if (!response.status || response.status >= 400) {
-            return new NextResponse(renderToString(proxyError(response.status)), {
+            return new NextResponse(renderToString(proxyError(response.status, browser)), {
                 status: response.status,
                 headers: { 'Content-Type': 'text/html' },
             });
         }
 
         let body = await response.data;
+        // Check script tags for any inner html which redirects right away and remove them
+        body = body.replace(
+            /<script[^>]*>[\s\S]*?window\.location[^;]*;?[\s\S]*?<\/script>/gi,
+            '<!-- Removed redirect script -->'
+        );
+        body = body.replace(
+            /<script[^>]*>[\s\S]*?document\.location[^;]*;?[\s\S]*?<\/script>/gi,
+            '<!-- Removed redirect script -->'
+        );
+        body = body.replace(
+            /<script[^>]*>[\s\S]*?location\.href[^;]*;?[\s\S]*?<\/script>/gi,
+            '<!-- Removed redirect script -->'
+        );
+
+        // if body has meta refresh tag, remove it
+        body = body.replace(
+            /<meta[^>]*http-equiv=["']?refresh["']?[^>]*>/gi,
+            '<!-- Removed meta refresh tag -->'
+        );
+
+        // if body has noscript tag with meta refresh, remove it
+        body = body.replace(
+            /<noscript>[\s\S]*?<meta[^>]*http-equiv=["']?refresh["']?[^>]*>[\s\S]*?<\/noscript>/gi,
+            '<!-- Removed noscript meta refresh tag -->'
+        );
+
+        body = body.replace(/<base href="[^"]*">/gi, ''); // Remove any base href tags to prevent issues with relative links
+        body = body.replace(/<link[^>]*rel=["']?icon["']?[^>]*>/gi, ''); // Remove any favicon link tags
 
         // If the reportId is present, we can use it to modify the response
         if (reportId) {
@@ -231,22 +265,24 @@ export async function GET(req: NextRequest) {
                     ? response.headers['content-type'] || 'text/html'
                     : 'text/html',
                 'Access-Control-Allow-Origin': '*',
-                'Content-Security-Policy': "frame-ancestors 'self' *",
+                'Content-Security-Policy': 'frame-ancestors *',
+                'Content-Security-Policy-Report-Only':
+                    "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;",
+                'Content-Origin-Policy': 'cross-origin',
                 'X-Frame-Options': 'ALLOWALL',
-                'Referrer-Policy': 'no-referrer',
             },
         });
     } catch (err) {
         console.log(err);
 
         if (err instanceof TypeError) {
-            return new NextResponse(renderToString(proxyError(502)), {
+            return new NextResponse(renderToString(proxyError(502, browser)), {
                 status: 502,
                 headers: { 'Content-Type': 'text/html' },
             });
         }
 
-        return new NextResponse(renderToString(proxyError(500)), {
+        return new NextResponse(renderToString(proxyError(500, browser)), {
             status: 500,
             headers: { 'Content-Type': 'text/html' },
         });
