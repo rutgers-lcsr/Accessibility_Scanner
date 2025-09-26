@@ -446,12 +446,14 @@ def get_websites():
     if search:
         w_query = w_query.filter(Website.url.icontains(f"%{search}%"))
 
-    if not current_user or not current_user.profile.is_admin:
-        # make sure that non-admin users can only see public websites
-        w_query = w_query.filter(Website.public == True)
+   
 
     if current_user and not current_user.profile.is_admin:
         w_query = w_query.filter(Website.can_view(current_user))
+
+    if not current_user:
+        # make sure that non-admin users can only see public websites
+        w_query = w_query.filter(Website.public == True)
 
     w: pagination.Pagination[Website] = w_query.paginate(page=page, per_page=limit)
     if not w.items and page != 1 and w.total > 0:
@@ -524,7 +526,7 @@ def get_website_sites(website_id):
         if not website.can_view(current_user):
             return jsonify({'error': 'Unauthorized'}), 403
 
-    if not current_user or not current_user.profile.is_admin:
+    if not current_user:
         # make sure that non-admin users can only see public websites
         if not website.public:
             return jsonify({'error': 'Unauthorized'}), 403
