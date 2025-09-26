@@ -124,7 +124,7 @@ class Report(db.Model):
             (user == None, literal(False)),
             (user.profile.is_admin == True, literal(True)),
             (user_has_access, literal(True)),
-            (admin_ids.any() == user.id, literal(True)),
+            (admin_ids.contains([user.id]), literal(True)),
             else_=literal(False)
         )
 
