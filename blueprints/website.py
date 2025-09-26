@@ -451,7 +451,7 @@ def get_websites():
         w_query = w_query.filter(Website.public == True)
 
     if current_user and not current_user.profile.is_admin:
-        w_query = w_query.filter(Website.query.filter(Website.can_view(current_user)))
+        w_query = w_query.filter(Website.can_view(current_user))
 
     w: pagination.Pagination[Website] = w_query.paginate(page=page, per_page=limit)
     if not w.items and page != 1 and w.total > 0:
