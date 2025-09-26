@@ -78,8 +78,7 @@ const Website = ({ websiteId, user }: Props) => {
 
     const isUserPartOfUsers =
         user &&
-        (websiteReport.users.some((u) => u === user.username) ||
-            websiteReport.admin === user.username) &&
+        (websiteReport.users.some((u) => u === user.user) || websiteReport.admin === user.user) &&
         !user.is_admin;
 
     return (
@@ -92,10 +91,9 @@ const Website = ({ websiteId, user }: Props) => {
 
                 {user && user.is_admin && <AdminItems website={websiteReport} mutate={mutate} />}
                 {/** Admin items for the website For Regular Users Usually the Owner of the site */}
-                {isUserPartOfUsers ||
-                    (process.env['NODE_ENV'] === 'development' && (
-                        <WebsiteAdminItems website={websiteReport} mutate={mutate} />
-                    ))}
+                {(isUserPartOfUsers || process.env['NODE_ENV'] === 'development') && (
+                    <WebsiteAdminItems website={websiteReport} mutate={mutate} />
+                )}
                 <h2 className="mb-4 text-lg text-gray-500">
                     Last Scanned:{' '}
                     {websiteReport?.last_scanned
