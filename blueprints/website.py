@@ -449,7 +449,7 @@ def get_websites():
         w_query = w_query.filter(Website.public == True)
 
     if current_user and not current_user.profile.is_admin:
-        w_query = w_query.filter(Website.user_id == current_user.id)
+        w_query = w_query.filter(Website.user_id == current_user.id).union(w_query.filter(Website.users.any(id=current_user.id)))
 
     w = w_query.paginate(page=page, per_page=limit)
 

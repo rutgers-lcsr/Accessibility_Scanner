@@ -72,6 +72,10 @@ const Website = ({ websiteId, user }: Props) => {
             children: <WebsiteReport report={websiteReport.report} />,
         },
     ];
+
+    const isUserPartOfUsers =
+        user && websiteReport.users.some((u) => u === user.user) && !user.is_admin;
+
     return (
         <>
             <PageHeading title="Website Report" />
@@ -82,7 +86,7 @@ const Website = ({ websiteId, user }: Props) => {
 
                 {user && user.is_admin && <AdminItems website={websiteReport} mutate={mutate} />}
                 {/** Admin items for the website For Regular Users Usually the Owner of the site */}
-                {(user && !user.is_admin && websiteReport.admin == user.user) ||
+                {isUserPartOfUsers ||
                     (process.env['NODE_ENV'] === 'development' && (
                         <WebsiteAdminItems website={websiteReport} mutate={mutate} />
                     ))}
