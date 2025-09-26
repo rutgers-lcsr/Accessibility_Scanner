@@ -106,6 +106,9 @@ class Report(db.Model):
     def can_view(cls, user: User):
         from sqlalchemy import select, case
         from models.website import Site, UserWebsiteAssoc
+        
+        websites = select(Site.id).where(Site.id == cls.site_id).scalar_subquery()
+        
         return case(
             (cls.public == True, True),
             (user == None, False),
@@ -113,13 +116,12 @@ class Report(db.Model):
             (
                 select(UserWebsiteAssoc.c.user_id)
                 .where(
-                    (UserWebsiteAssoc.c.website_id == cls.site_id) &
+                    (UserWebsiteAssoc.c.website_id.in_(websites)) &
                     (UserWebsiteAssoc.c.user_id == user.id)
                 )
                 .exists(),
                 True
-            )
-            ,
+            ),
             else_=False
         )
 
