@@ -73,9 +73,13 @@ const Website = ({ websiteId, user }: Props) => {
         },
     ];
 
+    console.log(websiteReport);
+    console.log(user);
+
     const isUserPartOfUsers =
         user &&
-        (websiteReport.users.some((u) => u === user.user) || websiteReport.admin === user.user) &&
+        (websiteReport.users.some((u) => u === user.username) ||
+            websiteReport.admin === user.username) &&
         !user.is_admin;
 
     return (
