@@ -90,7 +90,7 @@ def create_app():
 
 def init_scanner():
     from scanner.queue_process import queue_scanner 
-    p = Process(target=queue_scanner,daemon=True)
+    p = Process(target=queue_scanner)
     p.start()
     p.join()
     
