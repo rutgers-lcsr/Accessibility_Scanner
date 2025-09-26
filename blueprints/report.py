@@ -34,8 +34,7 @@ def get_reports():
     if not current_user or not current_user.profile.is_admin:
         reports_q = reports_q.filter(Report.public)
 
-    if current_user:
-
+    if current_user and not current_user.profile.is_admin:
         reports_q = reports_q.filter(Report.can_view(current_user))
 
     reports = reports_q.paginate(page=page, per_page=limit)
