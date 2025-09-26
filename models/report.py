@@ -115,16 +115,18 @@ class Report(db.Model):
         )
 
         # Subquery: get admin_id for website of this site
-        admin_ids = select(Website.admin_id).where(
-            Website.sites.any(Site.id == cls.site_id)
-        ).scalar_subquery()
+        is_admin = exists().where(
+            Website.id.in_(
+                select(Website.id).where(Website.sites.any(Site.id == cls.site_id))
+            ) & (Website.admin_id == user.id)
+        )
 
         return case(
             (cls.public == True, literal(True)),
             (user == None, literal(False)),
             (user.profile.is_admin == True, literal(True)),
             (user_has_access, literal(True)),
-            (admin_ids.contains([user.id]), literal(True)),
+            (is_admin, literal(True)),
             else_=literal(False)
         )
 
