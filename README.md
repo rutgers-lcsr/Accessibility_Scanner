@@ -37,10 +37,10 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
    The `.env` file in `accessibility-front` should look something like this:
 
     ```bash
-     API_URL=http://localhost:5000  # Backend API URL
+     API_URL=http://localhost:5000  # URL of the backend api e.g. http://a11y-api:5000 if using docker
      JWT_SECRET_KEY="KHJADoishdjfo" # random string
      NEXT_CAS_CLIENT_SECRET="heA1hsrnQ6mrNe7eaqxsz3i74vAKZhM0" # 32 character random string used for session encryption
-     NEXT_PUBLIC_BASE_URL="http://localhost:3000" # Frontend URL
+     NEXT_PUBLIC_BASE_URL="http://localhost:3000" # Public URL for the frontend e.g. http://a11y.example.com
      NEXT_PUBLIC_CAS_URL="https://localhost:8443/cas" # CAS server URL
      NODE_TLS_REJECT_UNAUTHORIZED=0 # needed if using self-signed certificates for cas server
     ```
