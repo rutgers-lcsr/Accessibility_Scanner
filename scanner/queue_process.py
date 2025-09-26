@@ -55,7 +55,7 @@ def queue_scanner():
             log_message("Scheduled website scanning executed.", 'info')
             time.sleep(interval)
 
-    t = threading.Thread(target=run_periodically, daemon=True)
+    t = threading.Thread(target=run_periodically)
     t.start()
     log_message("Started website scanning thread.", 'info')
     while True:
