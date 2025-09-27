@@ -16,3 +16,6 @@ mariadb
 Flask_Migrate
 alembic
 esprima
+reportlab
+pycairo
+svglib

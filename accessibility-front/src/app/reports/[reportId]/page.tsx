@@ -13,7 +13,7 @@ import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
 import { User } from '@/lib/types/user';
-import { Alert, Card, Image, Space, Tooltip } from 'antd';
+import { Alert, Card, Flex, Image, Space, Tooltip } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
@@ -83,12 +83,26 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                             aria-labelledby="accessibility-report"
                             className="rounded-lg bg-gray-50 p-6"
                         >
-                            <h2
-                                id="accessibility-report"
-                                className="mb-6 text-2xl font-semibold text-gray-800"
-                            >
-                                Accessibility Report
-                            </h2>
+                            <Flex justify="space-between" className="mb-4">
+                                <h2
+                                    id="accessibility-report"
+                                    className="mb-6 text-2xl font-semibold text-gray-800"
+                                >
+                                    Accessibility Report
+                                </h2>
+                                <div>
+                                    <Tooltip title="Download Full Report as PDF">
+                                        <a
+                                            href={`/api/reports/${report.id}/pdf/`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        >
+                                            Download PDF
+                                        </a>
+                                    </Tooltip>
+                                </div>
+                            </Flex>
 
                             <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
                                 <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">

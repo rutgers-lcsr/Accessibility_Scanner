@@ -60,6 +60,29 @@ def get_report_by_id(report_id):
 
     return jsonify(report.to_dict()), 200
 
+@report_bp.route('/<int:report_id>/pdf/', methods=['GET'])
+@jwt_required(optional=True)
+def get_report_pdf(report_id):
+    report = db.session.get(Report, report_id)  
+    if not report:
+        return jsonify({'error': 'Report not found'}), 404
+
+    if not current_user:
+        if not report.public:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+    if not report.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    pdf_data = report.generate_pdf()
+    
+    escaped_url = report.url.replace("/", "_").replace(":", "_")
+
+    pdfName = f"report_{escaped_url}.pdf"
+
+    return Response(pdf_data, mimetype='application/pdf',
+                    headers={"Content-Disposition": f"attachment;filename={pdfName}"})
+
 @report_bp.route('/<int:report_id>/script/', methods=['GET'])
 def get_report_script(report_id):
     # Note, Anyone can access this endpoint

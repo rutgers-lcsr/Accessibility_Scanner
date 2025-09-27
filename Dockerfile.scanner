@@ -2,7 +2,7 @@ FROM python:latest
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       libmariadb-dev build-essential pkg-config
+       libmariadb-dev build-essential pkg-config libcairo2-dev
 
 RUN python3 -m pip install --upgrade pip
 
@@ -21,6 +21,7 @@ COPY models/ ./models/
 COPY templates/ ./templates/
 COPY migrations/ ./migrations/
 COPY utils/ ./utils/
+COPY static/ ./static/
 COPY app.py .
 COPY config.py .
 COPY scanner.sh .

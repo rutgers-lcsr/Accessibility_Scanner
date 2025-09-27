@@ -9,6 +9,7 @@ import { Footer } from 'antd/es/layout/layout';
 import type { Metadata } from 'next';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Geist, Geist_Mono } from 'next/font/google';
+import Link from 'next/link';
 import TabNav from '../components/TabNav';
 import { UserProvider } from '../providers/User';
 import './globals.css';
@@ -59,27 +60,48 @@ export default async function RootLayout({
                                                 backgroundColor: 'rgba(251, 255, 255, 1)',
                                             }}
                                         >
+                                            Rutgers is an equal access/equal opportunity
+                                            institution. Individuals with disabilities are
+                                            encouraged to direct suggestions, comments, or
+                                            complaints concerning any accessibility issues with
+                                            Rutgers web sites to:{' '}
+                                            <Link
+                                                className="font-bold hover:underline"
+                                                href="mailto:accessibility@rutgers.edu"
+                                            >
+                                                accessibility@rutgers.edu
+                                            </Link>{' '}
+                                            or complete the{' '}
+                                            <Link
+                                                className="font-bold hover:underline"
+                                                href="https://docs.google.com/forms/d/e/1FAIpQLSerZBvG2JK0S3-Dg-sAufXLr2NETVs1JAcGeODvRTLCKNQnsA/viewformr"
+                                            >
+                                                Report Accessibility Barrier or Provide Feedback
+                                                Form
+                                            </Link>
+                                            .
+                                            <br />
                                             <br />
                                             For technical assistance, feel free to contact the LCSR
                                             at{' '}
-                                            <a
+                                            <Link
                                                 className="font-bold hover:underline"
                                                 href="mailto:a11y@cs.rutgers.edu"
                                             >
                                                 a11y@cs.rutgers.edu
-                                            </a>
+                                            </Link>
                                             . We are here to help you improve the accessibility of
                                             your website and ensure compliance with accessibility
                                             standards.
                                             <br />
                                             &copy; {new Date().getFullYear()} LCSR CS Department
                                             Rutgers University -{' '}
-                                            <a
+                                            <Link
                                                 href="https://accessibility.rutgers.edu/"
                                                 className="font-bold hover:underline"
                                             >
                                                 University Accessibility
-                                            </a>
+                                            </Link>
                                         </Footer>
                                     </Layout>
                                 </UserProvider>

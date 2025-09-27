@@ -3,7 +3,7 @@ import { Report, ReportMinimized } from '@/lib/types/axe';
 import { scanResponse } from '@/lib/types/scan';
 import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
-import { Button, Descriptions, Space } from 'antd';
+import { Button, Descriptions, Space, Tooltip } from 'antd';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -74,6 +74,14 @@ function AdminReportItems({ report }: Props) {
                         >
                             {loadingScan ? 'Scanning...' : 'Re-scan Url'}
                         </Button>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Tags">
+                        <Tooltip
+                            title={'Rule tags which are applied to this report'}
+                            placement="top"
+                        >
+                            <span>{report.tags.join(', ')}</span>
+                        </Tooltip>
                     </Descriptions.Item>
                 </Descriptions>
             </Space>

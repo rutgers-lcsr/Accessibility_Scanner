@@ -3,6 +3,7 @@ import ResourceCard from '@/components/Resource';
 import { getAxeLink } from '@/lib/browser';
 import { Card, Carousel, Divider, List, Typography } from 'antd';
 import { Header } from 'antd/es/layout/layout';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 export default function Home() {
@@ -80,12 +81,6 @@ export default function Home() {
                                 link="/help"
                             />
                         </div>
-                        <Divider />
-                        <Typography.Title level={4}>Additional Help</Typography.Title>
-                        <Typography.Paragraph>
-                            For technical assistance, contact the LCSR at{' '}
-                            <a href="mailto:a11y@cs.rutgers.edu">a11y@cs.rutgers.edu</a>.
-                        </Typography.Paragraph>
                     </Card>
                 </div>
                 <div className="mx-auto p-6">
@@ -144,10 +139,54 @@ export default function Home() {
                                 'Ensure that all multimedia content (videos, audio) includes captions and transcripts.',
                                 'Make sure that all documents (PDFs, Word files) are accessible and properly tagged.',
                                 'Regularly test the website using accessibility evaluation tools and address any issues identified.',
-                                'Provide an accessibility statement on the website outlining the commitment to accessibility and contact information for reporting issues. Usually in the footer of the site.',
+                                'Each page must include an acccessibility statement with contact information for reporting issues. See the example below.',
                             ]}
                             renderItem={(item) => <List.Item>{item}</List.Item>}
                         />
+                        <Divider />
+                        <Typography.Title level={4}>
+                            Official Rutgers Accessibility Statement
+                        </Typography.Title>
+                        <Typography.Paragraph>
+                            Rutgers is an equal access/equal opportunity institution. Individuals
+                            with disabilities are encouraged to direct suggestions, comments, or
+                            complaints concerning any accessibility issues with Rutgers web sites
+                            to:{' '}
+                            <Link
+                                className="font-bold hover:underline"
+                                href="mailto:accessibility@rutgers.edu"
+                            >
+                                accessibility@rutgers.edu
+                            </Link>{' '}
+                            or complete the{' '}
+                            <Link
+                                className="font-bold hover:underline"
+                                href="https://docs.google.com/forms/d/e/1FAIpQLSerZBvG2JK0S3-Dg-sAufXLr2NETVs1JAcGeODvRTLCKNQnsA/viewformr"
+                            >
+                                Report Accessibility Barrier or Provide Feedback Form
+                            </Link>
+                            .
+                        </Typography.Paragraph>
+                        <Typography.Title level={4}>
+                            For more information on Rutgers Accessibility
+                        </Typography.Title>
+                        <Typography.Paragraph>
+                            Visit the{' '}
+                            <Link
+                                className="font-bold hover:underline"
+                                href="https://accessibility.rutgers.edu/"
+                            >
+                                University Accessibility
+                            </Link>{' '}
+                            website or view Rutgers Policy 70.1.5,{' '}
+                            <Link
+                                className="font-bold hover:underline"
+                                href="https://policies.rutgers.edu/B.aspx?BookId=12021&PageId=459372"
+                            >
+                                Digital Accessibility
+                            </Link>
+                            .
+                        </Typography.Paragraph>
                     </Card>
                 </div>
             </Carousel>

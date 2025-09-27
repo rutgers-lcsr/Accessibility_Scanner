@@ -20,6 +20,7 @@ class AccessibilityReport(TypedDict, total=False):
     tabable: bool
     timestamp: float
     photo: bytes
+    tags: List[str]
     
     
 
@@ -77,6 +78,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         result['has_img'] = has_img
         result['timestamp'] = timestamp
         result['photo'] = photo
+        result['tags'] = tags or []
 
         return result
     except Exception as e:

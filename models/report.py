@@ -59,6 +59,7 @@ class Report(db.Model):
     imgs: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     tabable: Mapped[bool] = db.Column(db.Boolean, nullable=False)
     photo: Mapped[bytes] = db.Column(LargeBinary(2**32 -1), nullable=True)
+    tags: Mapped[List[str]] = db.Column(db.JSON, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -197,6 +198,11 @@ class Report(db.Model):
         self.imgs = data['imgs']
         self.tabable = data['tabable']
         self.photo = data['photo']
+        self.tags = data.get('tags', [])
+    def generate_pdf(self) -> bytes:
+        from utils.pdf import generate_pdf
+        pdf_data = generate_pdf(self)
+        return pdf_data
 
     def to_dict_without_report(self):
            return {
@@ -210,6 +216,7 @@ class Report(db.Model):
             'videos': self.videos,
             'imgs': self.imgs,
             'tabable': self.tabable,
+            'tags': self.tags,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
@@ -228,6 +235,5 @@ class Report(db.Model):
             'videos': self.videos,
             'imgs': self.imgs,
             'tabable': self.tabable,
-            # 'created_at': self.created_at.isoformat(),
-            # 'updated_at': self.updated_at.isoformat()
+            'tags': self.tags,
         }

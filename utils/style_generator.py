@@ -27,19 +27,26 @@ class Injection():
     message: str
     helping: str
     help_url: str
-    
-    def __init__(self, selector: str, style: str, impact: Literal['critical', 'serious', 'moderate', 'minor', 'null'], description: str, message: str, help: str, help_url: str):
+    html: str
+    failure_summary: str
+
+
+    def sanitize_js_string(s: str) -> str:
+        return s.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
+
+    def __init__(self, selector: str, style: str, impact: Literal['critical', 'serious', 'moderate', 'minor', 'null'], description: str, message: str, help: str, help_url: str, html: str, failure_summary: str):
         self.selector = selector
         self.style = style
         self.impact = impact
         
         # escape quotes and new lines and html in description, message, help, help_url
-        self.description = description.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
-        self.message = message.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
-        self.help = help.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
+        self.description = self.sanitize_js_string(description)
+        self.message = self.sanitize_js_string(message)
+        self.help = self.sanitize_js_string(help)
         self.help_url = help_url
-    
-    
+        self.html = self.sanitize_js_string(html) if html else ""
+        self.failure_summary = self.sanitize_js_string(failure_summary) if failure_summary else ""
+
     def to_json(self):
         return {
             'selector': self.selector,
@@ -49,24 +56,13 @@ class Injection():
             'message': self.message,
             'help': self.help,
             'help_url': self.help_url,
+            'html': self.html or "",
+            'failure_summary': self.failure_summary or "",
         }
     
     
         
-        
-    
-
-def report_to_js(report: List[AxeResult], report_url: str, report_mode:bool = False) -> str:
-    """Generates javascript which can be used to find accessibility violations in a webpage.
-
-    Args:
-        report (List[AxeResult]): The accessibility report containing violation details.
-        report_url (str): The URL of the report to be included in the generated JavaScript.
-        report_mode (bool): If True, disables user messages in the generated script.
-
-    Returns:
-        str: A string containing the generated JavaScript code.
-    """
+def get_injections(report: List[AxeResult]) -> List[Injection]:
     injections = []
     try:
         for violation in report:
@@ -90,10 +86,60 @@ def report_to_js(report: List[AxeResult], report_url: str, report_mode:bool = Fa
                         message=violation.get('message', ""),
                         help=violation.get('help', ""),
                         help_url=violation.get('helpUrl', ""),
+                        html=node.get('html', ""),
+                        failure_summary=node.get('failureSummary', "")
                     )
                     
                     
                     injections.append(injection)
+        return injections    
+    except Exception as e:
+        log_message(f"Error processing report: {e}", 'error')
+        return []
+    
+
+def report_to_js(report: List[AxeResult], report_url: str, report_mode:bool = False) -> str:
+    """Generates javascript which can be used to find accessibility violations in a webpage.
+
+    Args:
+        report (List[AxeResult]): The accessibility report containing violation details.
+        report_url (str): The URL of the report to be included in the generated JavaScript.
+        report_mode (bool): If True, disables user messages in the generated script.
+
+    Returns:
+        str: A string containing the generated JavaScript code.
+    """
+    # injections = []
+    try:
+        # for violation in report:
+        #     if violation['impact'] not in LEVEL:
+        #         log_message(f"Unknown impact level '{violation['impact']}' found. Defaulting to 'minor'.", 'warning')
+        #         violation['impact'] = 'minor'
+        #     if violation['description'] is None:
+        #         violation['description'] = "No description provided."
+        #     if violation['help'] is None:
+        #         violation['help'] = "No help provided."
+        #     if violation['helpUrl'] is None:
+        #         violation['helpUrl'] = "No help URL provided."
+            
+        #     for node in violation['nodes']:
+        #             selector = ", ".join(node['target'])
+        #             injection =  Injection(
+        #                 selector=selector,
+        #                 style=LEVEL[violation.get('impact', 'minor')],
+        #                 impact=violation.get('impact', 'minor'),
+        #                 description=violation.get('description', ""),
+        #                 message=violation.get('message', ""),
+        #                 help=violation.get('help', ""),
+        #                 help_url=violation.get('helpUrl', ""),
+        #                 html=node.get('html', ""),
+        #                 failure_summary=node.get('failureSummary', "")
+        #             )
+                    
+                    
+        #             injections.append(injection)
+
+        injections = get_injections(report)
         js_code= generate_js_list(injections, report_url)
         
         

@@ -77,6 +77,7 @@ export type Report = {
     videos: string[];
     imgs: string[];
     tabable: boolean;
+    tags: string[];
     created_at: string;
     updated_at: string;
 };

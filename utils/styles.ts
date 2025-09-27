@@ -51,7 +51,7 @@ style.innerHTML = `
         min-width: 300px ;
         overflow-wrap: break-word ;
         z-index: 9997 ;
-        font-family: 'Segoe UI', Arial, sans-serif ; 
+        font-family: 'Segoe UI', Arial, sans-serif !important; 
         font-size: 15px ;
         line-height: 1.5 ;
         position: absolute ;
@@ -67,6 +67,7 @@ style.innerHTML = `
         left: 10px ;
         transition: box-shadow 0.2s ;
         animation: fadeIn 0.3s ease-in-out ;
+
     }
     .a11y-tooltip pre {
         white-space: pre-wrap ;
