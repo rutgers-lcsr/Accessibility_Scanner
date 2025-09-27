@@ -4,10 +4,10 @@ import axios from 'axios';
 import https from 'https';
 import { NextRequest, NextResponse } from 'next/server';
 function makeHtmlPage(body: string) {
-    if (body.includes('<html')) {
+    if (body.match(/<html/gi)) {
         return body;
     }
-    if (body.includes('<body')) {
+    if (body.match(/<body/gi)) {
         return `
         <!DOCTYPE html>
         <html lang="en">
@@ -66,31 +66,31 @@ function injectScript(body: string, url: string, reportId: string) {
     const reportScript = `<script defer src="${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/${reportId}/script/"></script>`;
     let html = makeHtmlPage(body);
 
-    html = html.replace(/href="([^"]+)"/g, (match, p1) => {
+    html = html.replace(/href="([^"]+)"/gi, (match, p1) => {
         return `href="${redirectUrl(url, p1, 'href')}"`;
     });
 
-    html = html.replace(/src="([^"]+)"/g, (match, p1) => {
+    html = html.replace(/src="([^"]+)"/gi, (match, p1) => {
         return `src="${redirectUrl(url, p1, 'src')}"`;
     });
 
     // for the single page without a head tag, we need to add one
-    if (!html.includes('</head>')) {
+    if (!html.match(/<\/head>/i)) {
         // if there is no head tag, we need to add one
         html = html.replace(/<html([^>]*)>/, `<html$1><head>${reportScript}</head>`);
 
-        if (!html.includes('<head>')) {
+        if (!html.match(/<head>/i)) {
             // if there is no head tag, we need to add one
             html = html.replace(/<body([^>]*)>/, `<body$1><head>${reportScript}</head>`);
         }
-        if (!html.includes('<head>')) {
+        if (!html.match(/<head>/i)) {
             // if there is still no head tag, we need to add one at the top
             html = html.replace(/<html([^>]*)>/, `<html$1><head>${reportScript}</head><body>`);
         }
 
         return html;
     }
-    html = html.replace('</head>', `${reportScript} </head>`);
+    html = html.replace(/<\/head>/i, `${reportScript} </head>`);
 
     return html;
 }
