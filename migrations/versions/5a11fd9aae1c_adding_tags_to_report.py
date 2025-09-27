@@ -24,7 +24,7 @@ def upgrade():
         if 'tags' not in columns:
             batch_op.add_column(sa.Column('tags', sa.JSON(), nullable=True))
             # Fetch default_tags from settings table
-            result = conn.execute(sa.text("SELECT value FROM settings WHERE key = 'default_tags'")).fetchone()
+            result = conn.execute(sa.text("SELECT value FROM settings WHERE `key` = 'default_tags'")).fetchone()
             default_tags = result[0] if result else '[]'
             # Convert comma-separated string to JSON array format
             default_tags = [tag.strip() for tag in default_tags.split(',') if tag.strip()]
