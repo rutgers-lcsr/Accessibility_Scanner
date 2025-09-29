@@ -1,11 +1,13 @@
 
+import re
 from typing import List
 from typing_extensions import Literal
 from models.report import Report
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, Flowable
+from PIL import Image as PILImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle, StyleSheet1
 from reportlab.lib import colors
 import io
@@ -154,6 +156,20 @@ def escape_html(text: str) -> str:
         ">": "&gt;",
         "<": "&lt;",
     }
+    
+    # remove img sources to prevent long data urls
+    if "<img" in text:
+        # get the first 100 base characters of the src
+        src = re.search(r'<img[^>]+src="([^">]+)"', text)
+        if src:
+            src = src.group(1)
+            if len(src) > 100:
+                src = src[:100] + "..."
+                text = re.sub(r'<img[^>]+src="([^">]+)"', f'<img src="{src}">', text)
+                text += "    [Image source has been truncated]"
+    
+    
+
     return "".join(html_escape_table.get(c, c) for c in text)
 
 
@@ -161,7 +177,7 @@ def generate_pdf(report:Report) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getStyleSheet()
-    elements = []
+    elements: List[Flowable] = []
 
 
 
@@ -250,8 +266,24 @@ def generate_pdf(report:Report) -> bytes:
 
         img_stream = io.BytesIO(report.photo)
         try:
+            pil_image = PILImage.open(img_stream)
+            orig_width, orig_height = pil_image.size
+            print(f"Original image size: {orig_width}x{orig_height}")
+            max_width, max_height = 450, 600
+            scale = min(max_width / orig_width, max_height / orig_height, 1.0)
+            width = int(orig_width * scale)
+            height = int(orig_height * scale)
+            
+            # save new image to stream
+            img_stream.seek(0)
+            pil_image.save(img_stream, format='PNG')
+            img_stream.seek(0)
+            
+            # check if image is too large
+            print(f"Scaled image size: {width}x{height}")
+            
             elements.append(Paragraph("Screenshot:", styles["Heading2"]))
-            elements.append(Image(img_stream , width=500, height=600))
+            elements.append(Image(img_stream, width=width, height=height))
             elements.append(Spacer(1, 20))
             elements.append(Paragraph("This screenshot captures the full page as it appeared during the accessibility scan. It provides visual context for the issues identified in the report. There are different colors highlighting the elements based on the impact of the violations. Darkred indicates critical issues, Red indicates serious issues, Orange indicates moderate issues, and Yellow indicates minor issues.", styles["Caption"]))
             elements.append(Spacer(1, 12))
@@ -294,6 +326,8 @@ def generate_pdf(report:Report) -> bytes:
             
             # Use Paragraph for HTML and Target to enable wrapping
             html_paragraph = Paragraph(html if html.strip() else "⚠ No HTML content available", styles['NormalXSmall'])
+            
+            
             target_paragraph = Paragraph(target, styles['NormalXSmall'])
             failure_paragraph = Paragraph(failure_summary, styles['NormalSmall'])
             node_data.append([html_paragraph, target_paragraph])
@@ -419,9 +453,19 @@ def generate_pdf(report:Report) -> bytes:
     elements.append(Spacer(1, 12))
  
 
+    try:
+        # build PDF
+        doc.build(elements)
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        return pdf_data
+    except Exception as e:
+        
+        # print elements for debugging
+        for index, elem in enumerate(elements):
+            if 'text' in dir(elem):
+                if "<img" in elem.text:
+                    print(f"Element {index} is an image element with text: {elem}")
 
-    # build PDF
-    doc.build(elements)
-    pdf_data = buffer.getvalue()
-    buffer.close()
-    return pdf_data
+        print(f"Error generating PDF: {e}")
+        return None  # Return None on error

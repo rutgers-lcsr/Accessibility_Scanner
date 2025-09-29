@@ -75,6 +75,9 @@ def get_report_pdf(report_id):
         return jsonify({'error': 'Unauthorized'}), 403
 
     pdf_data = report.generate_pdf()
+
+    if not pdf_data:
+        return jsonify({'error': 'Error generating PDF, Please try again later.'}), 500
     
     escaped_url = report.url.replace("/", "_").replace(":", "_")
 

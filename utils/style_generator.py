@@ -31,21 +31,20 @@ class Injection():
     failure_summary: str
 
 
-    def sanitize_js_string(s: str) -> str:
+    def sanitize_script_string(self,s: str) -> str:
         return s.replace("`", "\\`").replace("\n", " ").replace("<", "&lt;").replace(">", "&gt;")
 
     def __init__(self, selector: str, style: str, impact: Literal['critical', 'serious', 'moderate', 'minor', 'null'], description: str, message: str, help: str, help_url: str, html: str, failure_summary: str):
         self.selector = selector
         self.style = style
         self.impact = impact
-        
         # escape quotes and new lines and html in description, message, help, help_url
-        self.description = self.sanitize_js_string(description)
-        self.message = self.sanitize_js_string(message)
-        self.help = self.sanitize_js_string(help)
+        self.description = self.sanitize_script_string(description)
+        self.message = self.sanitize_script_string(message)
+        self.help = self.sanitize_script_string(help)
         self.help_url = help_url
-        self.html = self.sanitize_js_string(html) if html else ""
-        self.failure_summary = self.sanitize_js_string(failure_summary) if failure_summary else ""
+        self.html = self.sanitize_script_string(html) if html else ""
+        self.failure_summary = self.sanitize_script_string(failure_summary) if failure_summary else ""
 
     def to_json(self):
         return {
