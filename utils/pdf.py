@@ -268,7 +268,6 @@ def generate_pdf(report:Report) -> bytes:
         try:
             pil_image = PILImage.open(img_stream)
             orig_width, orig_height = pil_image.size
-            print(f"Original image size: {orig_width}x{orig_height}")
             max_width, max_height = 450, 600
             scale = min(max_width / orig_width, max_height / orig_height, 1.0)
             width = int(orig_width * scale)
@@ -279,8 +278,6 @@ def generate_pdf(report:Report) -> bytes:
             pil_image.save(img_stream, format='PNG')
             img_stream.seek(0)
             
-            # check if image is too large
-            print(f"Scaled image size: {width}x{height}")
             
             elements.append(Paragraph("Screenshot:", styles["Heading2"]))
             elements.append(Image(img_stream, width=width, height=height))
@@ -460,12 +457,6 @@ def generate_pdf(report:Report) -> bytes:
         buffer.close()
         return pdf_data
     except Exception as e:
-        
-        # print elements for debugging
-        for index, elem in enumerate(elements):
-            if 'text' in dir(elem):
-                if "<img" in elem.text:
-                    print(f"Element {index} is an image element with text: {elem}")
 
         print(f"Error generating PDF: {e}")
         return None  # Return None on error
