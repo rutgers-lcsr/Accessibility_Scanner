@@ -444,7 +444,7 @@ def get_websites():
     
     match order_by:
         case 'last_scanned':
-            w_query = w_query.order_by(Website.last_scanned.desc().nulls_last())
+            w_query = w_query.order_by(Website.last_scanned.desc())
         case 'violations':
             subq = Website.get_report_counts()
             w_query = w_query.outerjoin(subq, Website.id == subq.c.website_id).order_by(func.coalesce(subq.c.violations_total, 0).desc())
