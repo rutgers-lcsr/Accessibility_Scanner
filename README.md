@@ -94,6 +94,10 @@ Currently the Scanner uses a custom user-agent string to identify itself to the 
 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0
 ```
 
+## Deployment using docker
+
+The application can be deployed using Docker. A sample `docker-compose.yml` file as well as a `.env.docker.example`. For more details visit the .env.docker.example file.
+
 ## Notes
 
 -   Ensure that Backend API is not publicly accessible without proper authentication and authorization. Frontend should handle user authentication and restrict access to authorized users only.
