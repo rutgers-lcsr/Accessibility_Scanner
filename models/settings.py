@@ -49,6 +49,19 @@ class Settings(db.Model):
         db.session.commit()
 
     @staticmethod
+    def getList(key: AppSetting, default: str = "") -> list[str]:
+        if key not in APP_SETTINGS:
+            raise ValueError(f"Invalid setting key: {key}")
+        
+        if key not in ["default_tags"]:
+            raise ValueError(f"Setting {key} is not a list type setting")
+        
+        setting = db.session.query(Settings).filter_by(key=key).first()
+        if setting and setting.value:
+            return [s.strip() for s in setting.value.split(",") if s.strip()]
+        return [s.strip() for s in default.split(",") if s.strip()]
+    
+    @staticmethod
     def to_dict() -> dict:
         settings = db.session.query(Settings).all()
         return {setting.key: setting.value for setting in settings}

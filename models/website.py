@@ -1,7 +1,7 @@
 
 from datetime import datetime
 from typing import List, TypedDict
-from sqlalchemy import and_, case, func, or_
+from sqlalchemy import and_, case, func, or_, select
 from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
@@ -55,6 +55,27 @@ class Site(db.Model):
             'timestamp': report.timestamp.isoformat() if report.timestamp else None
         }
         return report
+    
+    @get_recent_report.expression
+    def get_recent_report(cls):
+        from models.report import Report
+        from sqlalchemy import select
+        # Subquery: get the latest report timestamp for this site
+        latest_report_ts = (
+            select(func.max(Report.timestamp))
+            .where(Report.site_id == cls.id)
+            .scalar_subquery()
+        )
+        # Subquery: get the report with that timestamp for this site
+        return (
+            select(Report)
+            .where(
+                Report.site_id == cls.id,
+                Report.timestamp == latest_report_ts
+            )
+            .limit(1)
+            .scalar_subquery()
+        )
     
     def get_full_current_report(self) -> Report | None:
         report:Report = self.reports.order_by(Report.timestamp.desc()).first()
@@ -231,6 +252,8 @@ class Website(db.Model):
     users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)
     # storing tags as comma separated values
     tags: Mapped[str] = db.Column(db.Text, nullable=True) # comma separated list of tags
+    categories: Mapped[str] = db.Column(db.Text, default="") # comma separated list of categories
+    description: Mapped[str] = db.Column(db.Text, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -315,7 +338,17 @@ class Website(db.Model):
         websiteTags = [tag.strip() for tag in self.tags.split(",")] if self.tags else []
         all_tags = sorted(set(websiteTags + defaultTags))
         return all_tags 
-        
+
+    @hybrid_method
+    def get_categories(self) -> List[str]:
+        if not self.categories:
+            return []
+        return [cat.strip() for cat in self.categories.split(",")] if self.categories else []
+    
+    @get_categories.expression
+    def get_categories(cls):
+        return func.string_to_array(func.coalesce(cls.categories, ''), ',')
+    
     def get_ace_config(self) -> str:
 
         all_tags = self.get_tags()
@@ -360,6 +393,54 @@ class Website(db.Model):
         return total_counts
     
     
+    @get_report_counts.expression
+    def get_report_counts(cls):
+        from sqlalchemy import select, func, cast, Integer
+
+        # Get all site IDs for this website
+        # Subquery: get latest report timestamp per site
+        latest_report_subq = (
+            db.session.query(
+                Report.site_id,
+                func.max(Report.timestamp).label('max_timestamp')
+            )
+            .group_by(Report.site_id)
+            .subquery()
+        )
+       
+        # Join reports to latest_report_subq to get only the latest report per site
+        latest_reports = (
+            db.session.query(Report)
+            .join(
+                latest_report_subq,
+                and_(
+                    Report.site_id == latest_report_subq.c.site_id,
+                    Report.timestamp == latest_report_subq.c.max_timestamp
+                )
+            )
+            .subquery()
+        )
+        
+        # 3. Join: website -> site_website_assoc -> site -> latest_reports
+        result = (
+            db.session.query(
+                Website.id.label('website_id'),
+                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.total')), 0).label('violations_total'),
+                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.critical')), 0).label('violations_critical'),
+                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.serious')), 0).label('violations_serious'),
+                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.moderate')), 0).label('violations_moderate'),
+                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.minor')), 0).label('violations_minor'),
+            )
+            .join(Site_Website_Assoc, Site_Website_Assoc.c.website_id == Website.id)
+            .join(Site, Site.id == Site_Website_Assoc.c.site_id)
+            .join(latest_reports, latest_reports.c.site_id == Site.id)
+            .group_by(Website.id)
+        ).subquery()
+
+        return result
+
+
+
     def get_report(self) -> WebsiteAxeReport:
         report = {}
         for site in self.sites:
@@ -420,6 +501,8 @@ class Website(db.Model):
             'active': self.active,
             'rate_limit': self.rate_limit,
             'public': self.public,
+            'description': self.description,
+            'categories': [cat.strip() for cat in self.categories.split(",")] if self.categories else [],
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
         }
@@ -461,11 +544,13 @@ class Website(db.Model):
         self.admin_id = user_id
         self.domain = subdomain_obj
         
+        
         # set defaults from settings
 
         self.rate_limit = Settings.get(key='default_rate_limit', default=30)
         self.active = Settings.get(key='default_should_auto_activate', default='true').lower() == 'true'
         self.should_email = Settings.get(key='default_notify_on_completion', default='false').lower() == 'true'
+        self.tags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
 
     def delete(self, delete_domain: bool = True):
         try:
@@ -489,7 +574,7 @@ class Website(db.Model):
             raise e
 
     def __repr__(self):
-        return f'<Website {self.id} url={self.url} admin={self.admin_id}>'
+        return f'<Website {self.id} url={self.url} admin={self.admin_id} categories={self.categories} tags={self.tags}>'
 
 
 # Domains can only be created by the admins

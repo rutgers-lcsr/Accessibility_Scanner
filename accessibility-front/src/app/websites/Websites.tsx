@@ -5,57 +5,13 @@ import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { User } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useWebsites } from '@/providers/Websites';
-import { Flex, Input, Pagination, Table } from 'antd';
+import { Flex, Input, Pagination, Select, Table, TableColumnType, Tag, Tooltip } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { formatDate } from 'date-fns';
 import CreateWebsite from './modals/createWebsite';
 type Props = {
     user: User | null;
 };
-
-const columns = [
-    {
-        title: 'URL',
-        dataIndex: 'url',
-        key: 'url',
-        render: (text: string, record: WebsiteType) => (
-            <a href={`/websites/${record.id}`}>{text}</a>
-        ),
-    },
-    {
-        title: 'Last Scanned',
-        dataIndex: 'last_scanned',
-        key: 'last_scanned',
-        render: (date: string) => {
-            if (!date) return 'Never';
-            return formatDate(new Date(date), 'MMMM dd, yyyy');
-        },
-    },
-    {
-        title: 'Passes',
-        dataIndex: 'passes',
-        key: 'passes',
-        render: (text: string, record: WebsiteType) => (
-            <span>{record.report_counts.passes.total}</span>
-        ),
-    },
-    {
-        title: 'Violations',
-        dataIndex: 'violations',
-        key: 'violations',
-        render: (text: string, record: WebsiteType) => (
-            <span>{record.report_counts.violations.total}</span>
-        ),
-        sorter: (a: WebsiteType, b: WebsiteType) =>
-            a.report_counts.violations.total - b.report_counts.violations.total,
-    },
-    {
-        title: 'Active',
-        dataIndex: 'active',
-        key: 'active',
-        render: (active: boolean) => (active ? 'Yes' : 'No'),
-    },
-];
 
 function Websites({ user }: Props) {
     const {
@@ -64,10 +20,67 @@ function Websites({ user }: Props) {
         setWebsitePage,
         WebsiteLimit,
         setWebsiteLimit,
+        setWebsiteCategories,
+        setWebsiteOrderBy,
+        categories,
         WebsitePage,
         isLoading,
         setWebsiteSearch,
     } = useWebsites();
+
+    const columns: TableColumnType<WebsiteType>[] = [
+        {
+            title: 'URL',
+            dataIndex: 'url',
+            key: 'url',
+            render: (text: string, record: WebsiteType) => (
+                <a href={`/websites/${record.id}`}>{text}</a>
+            ),
+        },
+        {
+            title: 'Last Scanned',
+            dataIndex: 'last_scanned',
+            key: 'last_scanned',
+            render: (date: string) => {
+                if (!date) return 'Never';
+                return formatDate(new Date(date), 'MMMM dd, yyyy');
+            },
+        },
+        {
+            title: 'Passes',
+            dataIndex: 'passes',
+            key: 'passes',
+            render: (text: string, record: WebsiteType) => (
+                <span>{record.report_counts.passes.total}</span>
+            ),
+        },
+        {
+            title: 'Violations',
+            dataIndex: 'violations',
+            key: 'violations',
+            render: (text: string, record: WebsiteType) => (
+                <span>{record.report_counts.violations.total}</span>
+            ),
+        },
+        {
+            title: 'Active',
+            dataIndex: 'active',
+            key: 'active',
+            render: (active: boolean) => (active ? 'Yes' : 'No'),
+        },
+        {
+            title: 'Categories',
+            dataIndex: 'categories',
+            key: 'categories',
+            render: (categories: string[]) => (
+                <span>
+                    {categories.map((category) => (
+                        <Tag key={category}>{category}</Tag>
+                    ))}
+                </span>
+            ),
+        },
+    ];
 
     return (
         <>
@@ -83,7 +96,7 @@ function Websites({ user }: Props) {
                     <Flex gap="middle" align="center">
                         <CreateWebsite user={user} />
                         <Input.Search
-                            className="w-72"
+                            className="w-96"
                             placeholder="Search websites"
                             onSearch={(value) => setWebsiteSearch(value)}
                             loading={isLoading}
@@ -91,6 +104,40 @@ function Websites({ user }: Props) {
                             size="large"
                             aria-label="Search websites"
                         />
+                        <Select
+                            className="w-96"
+                            placeholder="Filter by category"
+                            onChange={(value) => setWebsiteCategories(value)}
+                            allowClear
+                            mode="multiple"
+                        >
+                            {categories?.map((category) => (
+                                <Select.Option key={category} value={category}>
+                                    {category}
+                                </Select.Option>
+                            ))}
+                        </Select>
+                        <Tooltip title="Sort By">
+                            <Select
+                                className="w-96"
+                                placeholder="Order by"
+                                onChange={(value) => {
+                                    if (
+                                        value === 'url' ||
+                                        value === 'violations' ||
+                                        value === 'last_scanned'
+                                    ) {
+                                        setWebsiteOrderBy(value);
+                                    }
+                                }}
+                                defaultValue="url"
+                                size="large"
+                            >
+                                <Select.Option value="url">URL</Select.Option>
+                                <Select.Option value="violations">Violations</Select.Option>
+                                <Select.Option value="last_scanned">Last Scanned</Select.Option>
+                            </Select>
+                        </Tooltip>
                     </Flex>
                 </Flex>
 

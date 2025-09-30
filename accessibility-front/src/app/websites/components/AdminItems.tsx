@@ -4,7 +4,9 @@ import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 
 import { useAlerts } from '@/providers/Alerts';
+import { useWebsites } from '@/providers/Websites';
 import { Button, Divider, Flex, Input, InputNumber, Modal, Select, Space, Tooltip } from 'antd';
+import TextArea from 'antd/es/input/TextArea';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
@@ -26,6 +28,28 @@ function AdminItems({ website, mutate }: Props) {
     const [loadingPublic, setLoadingPublic] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const { handlerUserApiRequest } = useUser();
+    const { categories } = useWebsites();
+
+    const handleWebsiteUpdate = async (
+        updateWebsite: Partial<Website>,
+        successMessage: string,
+        failureMessage: string
+    ) => {
+        try {
+            const response = await handlerUserApiRequest<Website>(`/api/websites/${website.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updateWebsite),
+            });
+            mutate(response);
+            addAlert(successMessage, 'success');
+        } catch (error) {
+            addAlert(failureMessage, 'error');
+            console.error(failureMessage, error);
+        }
+    };
 
     const handleScan = async () => {
         setLoadingScan(true);
@@ -249,6 +273,46 @@ function AdminItems({ website, mutate }: Props) {
         }
         setLoadingEmail(false);
     };
+    const handleCategoriesChange = async (value: string[]) => {
+        setLoadingEmail(true);
+        try {
+            const updatedWebsite = await handlerUserApiRequest<Website>(
+                `/api/websites/${website.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ categories: value.join(',') }),
+                }
+            );
+            mutate(updatedWebsite);
+            addAlert('Categories updated successfully', 'success');
+        } catch {
+            addAlert('Failed to update categories', 'error');
+        }
+        setLoadingEmail(false);
+    };
+    const handleDescriptionChange = async (value: string) => {
+        setLoadingEmail(true);
+        try {
+            const updatedWebsite = await handlerUserApiRequest<Website>(
+                `/api/websites/${website.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ description: value }),
+                }
+            );
+            mutate(updatedWebsite);
+            addAlert('Description updated successfully', 'success');
+        } catch {
+            addAlert('Failed to update description', 'error');
+        }
+        setLoadingEmail(false);
+    };
 
     const { data: allTags } = useSWR(`/api/axe/rules/tags/`, handlerUserApiRequest<string[]>);
 
@@ -301,33 +365,86 @@ function AdminItems({ website, mutate }: Props) {
                     </Tooltip>
                 </Flex>
 
-                {/* Tags Section */}
+                {/* Website Tags and Categories Section */}
                 <Divider orientation="left" orientationMargin={0}>
-                    <span>Tags</span>
+                    <span>Tags and Categories</span>
                 </Divider>
-                <Flex gap="8px" align="center">
-                    <label htmlFor="tags" style={{ minWidth: 80 }}>
-                        Active Tags
-                    </label>
-                    <Tooltip title="Tags applied to this website, used in addition to the default tags for the application. Default tags are automatically applied to all websites and cannot be removed here.">
-                        <Select
-                            mode="tags"
-                            style={{ maxWidth: 400, minWidth: 200 }}
-                            id="tags"
-                            aria-label="Tags"
-                            placeholder="Tags"
-                            value={Array.from(new Set([...website.tags, ...website.default_tags]))}
-                            options={Array.from(
-                                new Set([
-                                    ...website.tags,
-                                    ...website.default_tags,
-                                    ...(allTags || []),
-                                ])
-                            ).map((tag) => ({ label: tag, value: tag }))}
-                            disabled={loadingEmail}
-                            onChange={handleTagsChange}
-                        />
-                    </Tooltip>
+                <Flex gap="24px" align="start" wrap="wrap">
+                    {/* Tags */}
+                    <div style={{ minWidth: 320, flex: 1 }}>
+                        <label htmlFor="tags" className="block font-medium mb-1">
+                            Active Tags
+                        </label>
+                        <Tooltip title="Tags applied to this website, used in addition to the default tags for which rule sets to apply. Default tags are automatically applied to all websites and cannot be removed here.">
+                            <Select
+                                mode="tags"
+                                style={{ width: '100%' }}
+                                id="tags"
+                                aria-label="Tags"
+                                placeholder="Add or select tags"
+                                value={Array.from(
+                                    new Set([...website.tags, ...website.default_tags])
+                                )}
+                                options={Array.from(
+                                    new Set([
+                                        ...website.tags,
+                                        ...website.default_tags,
+                                        ...(allTags || []),
+                                    ])
+                                ).map((tag) => ({ label: tag, value: tag }))}
+                                disabled={loadingEmail}
+                                onChange={handleTagsChange}
+                            />
+                        </Tooltip>
+                        <div className="text-xs text-gray-500 mt-1">
+                            <span className="font-semibold">Default Tags:</span>{' '}
+                            {website.default_tags.join(', ')}
+                        </div>
+                    </div>
+                    {/* Categories */}
+                    <div style={{ minWidth: 320, flex: 1 }}>
+                        <label htmlFor="categories" className="block font-medium mb-1">
+                            Categories
+                        </label>
+                        <Tooltip title="Categories are used to classify websites. For use in filtering and organization.">
+                            <Select
+                                mode="tags"
+                                style={{ width: '100%' }}
+                                id="categories"
+                                aria-label="Categories"
+                                placeholder="Add or select categories"
+                                value={
+                                    website.categories.length > 0 ? website.categories : undefined
+                                }
+                                options={Array.from(
+                                    new Set([...(categories || []), ...(website.categories || [])])
+                                ).map((category) => ({
+                                    label: category,
+                                    value: category,
+                                }))}
+                                disabled={loadingEmail}
+                                onChange={handleCategoriesChange}
+                            ></Select>
+                        </Tooltip>
+                    </div>
+                    <div style={{ minWidth: 320, flex: 1 }}>
+                        <label htmlFor="description" className="block font-medium mb-1">
+                            Description
+                        </label>
+                        <Tooltip title="A brief description of the website's purpose or content.">
+                            <TextArea
+                                style={{ width: '100%' }}
+                                id="description"
+                                aria-label="Description"
+                                placeholder="Website Description"
+                                defaultValue={website.description}
+                                disabled={loadingEmail}
+                                onPressEnter={async (e) => {
+                                    handleDescriptionChange((e.target as HTMLInputElement).value);
+                                }}
+                            />
+                        </Tooltip>
+                    </div>
                 </Flex>
 
                 {/* Admin & Users Section */}

@@ -27,6 +27,13 @@ class AccessEmails():
             print("To:", self.msg.recipients)
             log_message(f"Message was not sent", 'info')
             # print("Body:", self.msg.html)
+            
+            
+        # dont send if recipients is localhost
+        if any("localhost" in recipient for recipient in self.msg.recipients):
+            log_message(f"Email not sent to localhost address: {self.msg.recipients}", 'warning')
+            return
+        
         try:
             mail.send(self.msg)
             log_message(f"Email sent to {self.msg.recipients}", 'info')

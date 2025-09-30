@@ -12,6 +12,8 @@ export type Website = {
     last_scanned: string;
     tags: string[];
     default_tags: string[];
+    categories: string[];
+    description: string;
     report: WebsiteAxeReport;
     report_counts: Record<AxeReportKeys, AxeReportCounts>;
     domain_id: string;

@@ -17,10 +17,13 @@ type WebsitesContextType = {
     isLoading: boolean;
     WebsitePage: number;
     WebsiteLimit: number;
+    categories?: string[];
     requestWebsite: (url: string) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: PageSize) => void;
+    setWebsiteCategories: (categories: string[]) => void;
+    setWebsiteOrderBy: (orderBy: 'url' | 'violations' | 'last_scanned') => void;
     openWebsite: (id: number) => void;
 };
 
@@ -31,17 +34,24 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User 
     user,
 }) => {
     const router = useRouter();
+
+    // website query options
     const [page, setPage] = useState(1);
-
     const [limit, setLimit] = useState(getInitalPageSize);
-
     const [searchUrl, setSearchUrl] = useState('');
+    const [searchCategories, setSearchCategories] = useState<string[]>([]);
+    const [orderBy, setOrderBy] = useState<'url' | 'violations' | 'last_scanned'>('url');
+
     const { handlerUserApiRequest } = useUser();
 
     const { addAlert } = useAlerts();
     const { data, error, isLoading, mutate } = useSWR(
-        `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`,
+        `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}${searchCategories.length ? `&category=${searchCategories.join(',')}` : ''}&orderBy=${orderBy}`,
         user ? handlerUserApiRequest<Paged<Website>> : fetcherApi<Paged<Website>>
+    );
+    const { data: categories } = useSWR(
+        `/api/websites/categories`,
+        user ? handlerUserApiRequest<string[]> : fetcherApi<string[]>
     );
 
     const openWebsite = (id: number) => {
@@ -74,14 +84,18 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User 
             value={{
                 websites: data?.items ?? null,
                 websitesTotal: data?.count ?? 0,
+
                 error,
                 isLoading,
                 openWebsite,
+                categories: categories,
                 WebsitePage: page,
                 WebsiteLimit: limit,
                 setWebsitePage: setPage,
                 setWebsiteLimit: setLimit,
                 setWebsiteSearch: setSearchUrl,
+                setWebsiteCategories: setSearchCategories,
+                setWebsiteOrderBy: setOrderBy,
                 requestWebsite,
             }}
         >
