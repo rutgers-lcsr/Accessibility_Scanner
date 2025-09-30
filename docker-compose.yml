@@ -30,7 +30,8 @@ services:
             - NEXT_CAS_CLIENT_SAML_TOLERANCE=180000
             - NEXT_CAS_CLIENT_SECRET=${NEXT_CAS_CLIENT_SECRET}
         depends_on:
-            - a11y-db
+            a11y-db:
+                condition: service_healthy
         restart: unless-stopped
         logging:
             driver: json-file
@@ -76,7 +77,8 @@ services:
             - ADMIN_EMAIL=${ADMIN_EMAIL}
             - ADMIN_PASSWORD=${ADMIN_PASSWORD}
         depends_on:
-            - a11y-db
+            a11y-db:
+                condition: service_healthy
         restart: unless-stopped
         logging:
             driver: json-file
@@ -101,14 +103,8 @@ services:
         healthcheck:
             test:
                 [
-                    'CMD',
-                    'mariadb-admin',
-                    'ping',
-                    '-h',
-                    'a11y-db',
-                    '--silent',
-                    '--user=root',
-                    '--password=${DB_ROOT_PASSWORD}',
+                    "CMD-SHELL",
+                    "mariadb-admin ping -h 127.0.0.1 --silent --user=ally-user --password=${DB_PASSWORD} && mariadb -u ally-user --password=${DB_PASSWORD} -e 'SELECT 1;' a11y"
                 ]
             interval: 10s
             timeout: 10s
