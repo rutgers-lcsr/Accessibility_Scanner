@@ -103,16 +103,17 @@ class ScanFinishedEmail(AccessEmails):
         if not force:
             # check if we should email based on report counts
             counts = self.report_counts
+            violations = self.report_counts.get('violations', {})
             should_email = False
-            if counts.get('critical', 0) > 0:
+            if violations.get('critical', 0) > 0:
                 should_email = True
-            if counts.get('serious', 0) >= 5:
+            if violations.get('serious', 0) >= 5:
                 should_email = True
-            if counts.get('moderate', 0) >= 10:
+            if violations.get('moderate', 0) >= 10:
                 should_email = True
-            if counts.get('minor', 0) >= 10:
+            if violations.get('minor', 0) >= 10:
                 should_email = True
-            if counts.get('total', 0) > 15:
+            if violations.get('total', 0) > 15:
                 should_email = True
             if not should_email:
                 log_message(f"Scan finished email not sent for website {self.website.id} due to no significant issues found.", 'info')
