@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
     }
     if (req.nextUrl.pathname === '/api/axe_js') {
         const response = await fetch(
-            'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.9.1/axe.min.js'
+            'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.3/axe.min.js'
         );
         const data = await response.text();
         return new NextResponse(data, {
