@@ -5,13 +5,12 @@ from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
 from blueprints.scan import conduct_scan_website, loop
 from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail, ScanFinishedEmail
-from models.report import AxeReportCounts, Report
+from models.report import  Report
 from models.settings import Settings
 from models.user import Profile, User
 from models.website import Domain, Site, Site_Website_Assoc, Website 
 from models import db
-from scanner.accessibility.ace import AxeReportKeys
-from sqlalchemy import case, desc, func, select
+from sqlalchemy import case, func
 from flask_sqlalchemy import pagination
 
 from scanner.utils.service import check_url
@@ -408,6 +407,26 @@ def get_websites():
             name: search
             type: string
             required: false
+        - in: query
+            name: category
+            type: string
+            required: false
+        - in: query
+            name: orderBy
+            type: string
+            required: false
+            default: url
+            enum: [url, last_scanned, violations]
+        - in: query
+            name: format
+            type: string
+            required: false
+            enum: [csv]
+        - in: query
+            name: keys
+            type: string
+            required: false
+            description: Comma separated list of keys to include in CSV export. If not provided, all keys will be included.
     responses:
         200:
             description: List of websites
@@ -434,6 +453,14 @@ def get_websites():
     search = params.get('search', default=None, type=str)
     categories = params.get('category', default=None, type=str)
     order_by = params.get('orderBy', default='url', type=str)
+    
+    # params for csv export
+    format = params.get('format', default='', type=str)
+    keys = params.get('keys', default='', type=str)
+    keys = [k.strip() for k in keys.split(",") if k.strip()]
+    # add id to keys
+    if 'id' not in keys and len(keys) > 0:
+        keys = ['id'] + keys
 
     if categories:
         categories = [c.strip() for c in categories.split(",") if c.strip()]
@@ -472,9 +499,48 @@ def get_websites():
         # make sure that non-admin users can only see public websites
         w_query = w_query.filter(Website.public == True)
 
+
+
+    if format == 'csv':
+        from sqlalchemy.orm import joinedload
+
+        w: pagination.Pagination[Website] = w_query.options(joinedload(Website.admin),joinedload(Website.users) ).paginate(page=page, per_page=limit)
+        items: list[Website] = w.items
+
+
+        items: list[dict] = []
+        for website in w.items:
+            items.append(website.to_dict())
+
+        def generate():
+            # Generate CSV header
+            if keys:
+                yield ",".join(keys) + "\n"
+            else:
+                columns = items[0].keys()
+                # remove report key because its too complex for a csv
+                columns = [c for c in columns if c != 'report']
+                
+                yield ','.join(columns) + "\n"
+            for website in items:
+
+                if keys:
+                    website = {k: website[k] for k in keys if k in website}
+                    yield ",".join(str(website[k]) if k in website and website[k] is not None else "" for k in keys) + "\n"
+                else:
+                    yield ",".join(str(website[k]) if k in website and website[k] is not None else "" for k in columns) + "\n"
+
+        return Response(generate(), mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=websites.csv"})
+
+
     w: pagination.Pagination[Website] = w_query.paginate(page=page, per_page=limit)
     if not w.items and page != 1 and w.total > 0:
         return jsonify({'error': 'Page number out of range'}), 400
+
+    if not w:
+        return jsonify({'count': 0, 'items': []}), 200
+
+   
 
     return jsonify({
         'count': w.total,
