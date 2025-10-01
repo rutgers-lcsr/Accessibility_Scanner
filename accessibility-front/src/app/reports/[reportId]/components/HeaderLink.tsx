@@ -5,7 +5,9 @@ interface Props {
 }
 
 export default function HeaderLink({ url }: Props) {
-    const openLink = () => {
+    const openLink = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         window.open(url, '_blank');
     };
 
