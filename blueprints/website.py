@@ -511,12 +511,16 @@ def get_websites():
         items: list[dict] = []
         for website in w.items:
             items.append(website.to_dict())
+            
+        if not items or len(items) == 0:
+            return jsonify({'error': 'No websites found to export'}), 400
 
         def generate():
             # Generate CSV header
             if keys:
                 yield ",".join(keys) + "\n"
             else:
+                
                 columns = items[0].keys()
 
                 keys_to_remove = ['created_at', 'updated_at', 'description', 'report', 'should_email']
