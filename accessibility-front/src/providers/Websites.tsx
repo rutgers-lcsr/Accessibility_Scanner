@@ -25,6 +25,7 @@ type WebsitesContextType = {
     setWebsiteCategories: (categories: string[]) => void;
     setWebsiteOrderBy: (orderBy: 'url' | 'violations' | 'last_scanned') => void;
     openWebsite: (id: number) => void;
+    exportCSV: () => void;
 };
 
 const WebsitesContext = createContext<WebsitesContextType | undefined>(undefined);
@@ -53,6 +54,11 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User 
         `/api/websites/categories`,
         user ? handlerUserApiRequest<string[]> : fetcherApi<string[]>
     );
+
+    const exportCSV = () => {
+        const url = `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}${searchCategories.length ? `&category=${searchCategories.join(',')}` : ''}&orderBy=${orderBy}&format=csv`;
+        window.open(url, '_blank');
+    };
 
     const openWebsite = (id: number) => {
         // Logic to open the website
@@ -97,6 +103,7 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User 
                 setWebsiteCategories: setSearchCategories,
                 setWebsiteOrderBy: setOrderBy,
                 requestWebsite,
+                exportCSV,
             }}
         >
             {children}

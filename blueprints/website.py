@@ -1,5 +1,5 @@
 import asyncio
-import re
+import json
 from flask import Blueprint, jsonify, request, Response
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
@@ -518,8 +518,11 @@ def get_websites():
                 yield ",".join(keys) + "\n"
             else:
                 columns = items[0].keys()
+
+                keys_to_remove = ['created_at', 'updated_at', 'description', 'report', 'should_email']
                 # remove report key because its too complex for a csv
-                columns = [c for c in columns if c != 'report']
+
+                columns = [c for c in columns if c not in keys_to_remove]
                 
                 yield ','.join(columns) + "\n"
             for website in items:
@@ -528,7 +531,16 @@ def get_websites():
                     website = {k: website[k] for k in keys if k in website}
                     yield ",".join(str(website[k]) if k in website and website[k] is not None else "" for k in keys) + "\n"
                 else:
-                    yield ",".join(str(website[k]) if k in website and website[k] is not None else "" for k in columns) + "\n"
+
+                    def serialize_value(val):
+                        if isinstance(val, (list, dict)):
+                            # Escape double quotes by doubling them for CSV
+                            json_str = json.dumps(val, ensure_ascii=False).replace('"', '""')
+                            return f'"{json_str}"'
+                        return str(val) if val is not None else ""
+                    values = [serialize_value(website[k]) if k in website else "" for k in columns]
+
+                    yield ",".join(values) + "\n"
 
         return Response(generate(), mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=websites.csv"})
 

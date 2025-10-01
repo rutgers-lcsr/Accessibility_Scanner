@@ -5,7 +5,17 @@ import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { User } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useWebsites } from '@/providers/Websites';
-import { Flex, Input, Pagination, Select, Table, TableColumnType, Tag, Tooltip } from 'antd';
+import {
+    Button,
+    Flex,
+    Input,
+    Pagination,
+    Select,
+    Table,
+    TableColumnType,
+    Tag,
+    Tooltip,
+} from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { formatDate } from 'date-fns';
 import CreateWebsite from './modals/createWebsite';
@@ -26,6 +36,7 @@ function Websites({ user }: Props) {
         WebsitePage,
         isLoading,
         setWebsiteSearch,
+        exportCSV,
     } = useWebsites();
 
     const columns: TableColumnType<WebsiteType>[] = [
@@ -95,15 +106,6 @@ function Websites({ user }: Props) {
                 >
                     <Flex gap="middle" align="center">
                         <CreateWebsite user={user} />
-                        <Input.Search
-                            className="w-96"
-                            placeholder="Search websites"
-                            onSearch={(value) => setWebsiteSearch(value)}
-                            loading={isLoading}
-                            allowClear
-                            size="large"
-                            aria-label="Search websites"
-                        />
                         <Select
                             className="w-96"
                             placeholder="Filter by category"
@@ -131,13 +133,39 @@ function Websites({ user }: Props) {
                                     }
                                 }}
                                 defaultValue="url"
-                                size="large"
+                                size="middle"
                             >
                                 <Select.Option value="url">URL</Select.Option>
                                 <Select.Option value="violations">Violations</Select.Option>
                                 <Select.Option value="last_scanned">Last Scanned</Select.Option>
                             </Select>
                         </Tooltip>
+
+                        <Input.Search
+                            className="w-96"
+                            placeholder="Search websites"
+                            onSearch={(value) => setWebsiteSearch(value)}
+                            loading={isLoading}
+                            allowClear
+                            size="large"
+                            aria-label="Search websites"
+                        />
+                        {user?.is_admin && (
+                            <Tooltip title="Export Current Page as CSV">
+                                <Button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        exportCSV();
+                                    }}
+                                    size="middle"
+                                    aria-label="Export websites as CSV"
+                                    disabled={isLoading || (websites?.length || 0) === 0}
+                                    type="primary"
+                                >
+                                    Export CSV
+                                </Button>
+                            </Tooltip>
+                        )}
                     </Flex>
                 </Flex>
 
