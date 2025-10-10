@@ -14,7 +14,7 @@ function WebsiteReport({ report }: Props) {
 
     if (!report) return <div>No report data available.</div>;
 
-    if (report.violations.length === 0)
+    if (!report.violations || report.violations.length === 0)
         return (
             <div className="mt-2">
                 <Card title="Accessibility Violations">

@@ -476,9 +476,15 @@ class Website(db.Model):
 
         return report
 
-    def to_dict(self)-> WebsiteDict:
-        
-        
+    def to_dict(self, with_report: bool = False) -> WebsiteDict:
+
+
+        # Get the report only if requested, getting the report for a website can be expensive
+        if with_report:
+            report = self.get_report()
+        else:
+            report = None
+
         defaultTags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
         if defaultTags == '':
             defaultTags = []
@@ -496,7 +502,7 @@ class Website(db.Model):
             'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
             'tags': [tag.strip() for tag in self.tags.split(",")] if self.tags else [],
             'default_tags': defaultTags,
-            'report': self.get_report(),
+            'report': report,
             'report_counts': self.get_report_counts(),
             'active': self.active,
             'rate_limit': self.rate_limit,

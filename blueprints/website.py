@@ -477,7 +477,6 @@ def get_websites():
             w_query = w_query.outerjoin(subq, Website.id == subq.c.website_id).order_by(func.coalesce(subq.c.violations_total, 0).desc())
         case 'url':
             w_query = w_query.order_by(Website.url.asc())
-            
         case _:
             w_query = w_query.order_by(Website.url.asc())
 
@@ -728,7 +727,7 @@ def get_overall_website(website_id):
     if current_user:
         website.can_view(current_user) or jsonify({'error': 'Unauthorized'}), 403
 
-    return jsonify(website.to_dict()), 200
+    return jsonify(website.to_dict(with_report=True)), 200
 
 @website_bp.route('/<int:website_id>/axe/', methods=['GET'])
 @jwt_required(optional=True)

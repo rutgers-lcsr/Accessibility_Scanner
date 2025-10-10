@@ -69,16 +69,23 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User 
         try {
             const getter = user ? handlerUserApiRequest<Website> : fetcherApi<Website>;
 
-            const data = await getter(`/api/websites/`, {
+            const newWebsite = await getter(`/api/websites/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ base_url: url }),
             });
+            // Optimistically update the cache
+            mutate(
+                {
+                    items: [...(data?.items ?? []), newWebsite],
+                    count: (data?.count ?? 0) + 1,
+                },
+                { revalidate: true }
+            );
             addAlert('Website created successfully', 'success');
-            mutate();
-            return data;
+            return newWebsite;
         } catch (error) {
             addAlert(`Failed to add website ${(error as APIError).getReason()}`, 'error');
             return null;

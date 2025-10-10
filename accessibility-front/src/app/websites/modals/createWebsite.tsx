@@ -5,9 +5,10 @@ import '@ant-design/v5-patch-for-react-19';
 import { Button, Form, Input, Modal, Select } from 'antd';
 import React, { useState } from 'react';
 
-const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
+const CreateWebsite: React.FC<{ user: User | null }> = ({ user }) => {
     const { requestWebsite } = useWebsites();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [form] = Form.useForm();
 
     const showModal = () => {
@@ -16,6 +17,7 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
 
     const handleSubmit = async () => {
         try {
+            setLoading(true);
             const values = await form.validateFields();
             await requestWebsite(values.protocol + values.websiteName);
 
@@ -23,6 +25,8 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
             setIsModalOpen(false);
         } catch {
             // Validation error, do nothing
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -33,17 +37,14 @@ const CreateWebsite: React.FC<{ user: User|null }> = ({ user }) => {
             </Button>
 
             <Modal
+                confirmLoading={loading}
                 title={user && user.is_admin ? 'Add Website' : 'Request Website'}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={handleSubmit}
                 okText={user && user.is_admin ? 'Add' : 'Request'}
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    initialValues={{ protocol: 'https://' }}
-                >
+                <Form form={form} layout="vertical" initialValues={{ protocol: 'https://' }}>
                     <Form.Item
                         label="Website Url"
                         name="websiteName"
