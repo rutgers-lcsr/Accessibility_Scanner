@@ -35,7 +35,7 @@ function makeHtmlPage(body: string) {
     `;
 }
 
-function redirectUrl(url: string, link: string, linkType: 'href' | 'src') {
+function redirectUrl(url: string, link: string) {
     if (link.startsWith('http') || link.startsWith('https')) {
         return link; // Don't change absolute URLs
     }
@@ -67,11 +67,11 @@ function injectScript(body: string, url: string, reportId: string) {
     let html = makeHtmlPage(body);
 
     html = html.replace(/href="([^"]+)"/gi, (match, p1) => {
-        return `href="${redirectUrl(url, p1, 'href')}"`;
+        return `href="${redirectUrl(url, p1)}"`;
     });
 
     html = html.replace(/src="([^"]+)"/gi, (match, p1) => {
-        return `src="${redirectUrl(url, p1, 'src')}"`;
+        return `src="${redirectUrl(url, p1)}"`;
     });
 
     // for the single page without a head tag, we need to add one
@@ -273,8 +273,6 @@ export async function GET(req: NextRequest) {
             },
         });
     } catch (err) {
-        console.log(err);
-
         if (err instanceof TypeError) {
             return new NextResponse(renderToString(proxyError(502, browser)), {
                 status: 502,

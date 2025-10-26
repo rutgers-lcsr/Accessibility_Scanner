@@ -1,7 +1,7 @@
-"use client"
+'use client';
 import { APIError, handleRequest } from '@/lib/api';
 import { User } from '@/lib/types/user';
-import "@ant-design/v5-patch-for-react-19";
+import '@ant-design/v5-patch-for-react-19';
 import { login } from 'next-cas-client';
 import { createContext, ReactNode, useContext } from 'react';
 
@@ -11,22 +11,19 @@ type UserContextType = {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-
 type UserProviderProps = {
     children: ReactNode;
     user: User | null;
 };
 
-export const UserProvider = ({ children,user }: UserProviderProps) => {
-
+export const UserProvider = ({ children, user }: UserProviderProps) => {
     const handlerUserApiRequest = async function <T>(
         url: string,
         options: RequestInit = {
             method: 'GET',
         }
     ) {
-
-        if(!user) {
+        if (!user) {
             throw new Error('User is not authenticated');
         }
 
@@ -40,7 +37,6 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
 
             const response = await handleRequest<T>(url, options);
             if (!response) {
-                console.log('Failed to fetch user data');
                 throw new Error('Failed to fetch user data');
             }
             return response;
@@ -51,8 +47,8 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
             return await doRequest();
         } catch (error) {
             // dont fail if its not 401
-            if(!(error instanceof APIError)){
-                throw new Error("Unknown Error occured")    
+            if (!(error instanceof APIError)) {
+                throw new Error('Unknown Error occured');
             }
             if (error.response.status === 401) {
                 login();
@@ -60,7 +56,6 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
             throw error;
         }
     };
-
 
     return (
         <UserContext.Provider
@@ -72,7 +67,6 @@ export const UserProvider = ({ children,user }: UserProviderProps) => {
         </UserContext.Provider>
     );
 };
-
 
 export const useUser = () => {
     const context = useContext(UserContext);

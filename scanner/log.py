@@ -1,19 +1,26 @@
 import typing
-from datetime import datetime
-import os
+import logging
 from multiprocessing import current_process
-LogType = typing.Literal['info', 'warning', 'error']
+
+LogType = typing.Literal['info', 'warning', 'error', 'debug']
+
+# Get logger for scanner module
+logger = logging.getLogger('scanner')
 
 def log_message(message: str, type: LogType) -> None:
-
+    """
+    Log a message using Python's logging module.
+    This ensures proper integration with Celery's logging system.
+    """
     if current_process().name != 'MainProcess': 
         process_id = current_process().name
         message = f"[{process_id}] {message}"
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if type == 'info':
-        print(f"[{timestamp}] INFO: {message}")
+        logger.info(message)
     elif type == 'warning':
-        print(f"[{timestamp}] WARNING: {message}")
+        logger.warning(message)
     elif type == 'error':
-        print(f"[{timestamp}] ERROR: {message}")
+        logger.error(message)
+    elif type == 'debug':
+        logger.debug(message)

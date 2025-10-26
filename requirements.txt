@@ -19,3 +19,6 @@ esprima
 reportlab
 pycairo
 svglib
+celery
+redis
+flower

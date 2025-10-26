@@ -42,6 +42,9 @@ def create_app():
     db.init_app(app)
     migrate = Migrate(app, db)
     jwt.init_app(app)
+    
+    
+    
     app.static_folder = 'static'
 
     from blueprints.auth import auth_bp
@@ -88,11 +91,6 @@ def create_app():
 
     return app
 
-def init_scanner():
-    from scanner.queue_process import queue_scanner 
-    p = Process(target=queue_scanner)
-    p.start()
-    p.join()
     
 if __name__ == '__main__':
     app = create_app()

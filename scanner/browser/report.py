@@ -22,7 +22,18 @@ class AccessibilityReport(TypedDict, total=False):
     photo: bytes
     tags: List[str]
     
+class AccessibilitySummary(TypedDict, total=False):
+    """
+    A summary of the accessibility report for a given URL.
+    this is a lightweight version of the full AccessibilityReport. 
     
+    to prevent large websites from consuming too much memory when storing multiple reports. 
+    """
+    def __init__(self, accessibility_report: AccessibilityReport):
+        self.url: str = accessibility_report.get('url', '')
+        self.response_code: int = accessibility_report.get('response_code', 0)
+        self.error: str = accessibility_report.get('error', '')
+        self.base_url: str = accessibility_report.get('base_url', '')
 
 
 

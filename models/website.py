@@ -246,7 +246,7 @@ class Website(db.Model):
     should_email: Mapped[bool] = db.Column(db.Boolean, default=True)
     # Whether the website reports are public 
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
-    scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
+    current_task_id: Mapped[str] = db.Column(db.String(100), nullable=True)
     admin_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     admin: Mapped['User'] = db.relationship('User', back_populates='admin_websites', lazy=True)
     users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)

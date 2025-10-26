@@ -15,10 +15,15 @@ An accessibility website scanner built for auditing and monitoring websites for 
 -   **Backend**: Flask application handling API requests, user authentication, and database interactions.
 -   **Frontend**: Nextjs application providing a user interface for managing sites, viewing reports, and configuring settings.
 -   **Database**: Mariadb database for storing user data, site information, and accessibility reports.
--   **Scanner**: Playwright-based scanner that performs accessibility tests on web pages.
-    Note: scanner container doesn't need to be run for application to work, it can be run separately as needed. The scanner is for automatic scans which happen based on the rate limit.
+-   **Scanner**: Celery-based background workers that perform accessibility tests on web pages using Playwright.
+-   **Redis**: Message broker for Celery task queue.
+-   **Flower**: Web-based monitoring tool for Celery tasks (optional).
 -   **Adminer**: A separate admin interface for managing database and setting users as admins.
 -   **Deployment**: Docker and Docker Compose for easy deployment and management of the application.
+
+## Background Task Processing
+
+The scanner uses **Celery** with Redis for background task processing.
 
 ## Deployment
 

@@ -8,11 +8,11 @@
 
 import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
-
-import { scanResponse } from '@/lib/types/scan';
+import ScanProgressModal from '@/components/ScanProgressModal';
 import { useAlerts } from '@/providers/Alerts';
 import { Button, Descriptions, Select, Space } from 'antd';
 import { useState } from 'react';
+import { useScan } from '@/hooks/useScan';
 
 type Props = {
     website: Website;
@@ -22,45 +22,25 @@ type Props = {
 function WebsiteAdminItems({ website, mutate }: Props) {
     const { addAlert } = useAlerts();
     const [loading, setLoading] = useState(false);
-    const [loadingScan, setLoadingScan] = useState(false);
     const { handlerUserApiRequest } = useUser();
-    const handleScan = async () => {
-        setLoadingScan(true);
-        try {
-            const scanResponse = await handlerUserApiRequest<scanResponse>(
-                `/api/scans/scan?website=${website.id}`,
-                {
-                    method: 'POST',
-                }
-            );
-            addAlert('Scan initiated successfully, Please stay on this page.', 'info');
 
-            async function pollReport() {
-                await new Promise((resolve) => setTimeout(resolve, 2000)); // wait for 2 seconds
-                try {
-                    const newReport = await handlerUserApiRequest<Website>(
-                        scanResponse.polling_endpoint,
-                        {
-                            method: 'GET',
-                        }
-                    );
-                    if (newReport && newReport.id) {
-                        setLoadingScan(false);
-                        mutate();
-                        addAlert('Scan completed successfully', 'success');
-                    } else {
-                        return await pollReport(); // recursively poll until we get the report
-                    }
-                } catch {
-                    return await pollReport(); // in case of error, keep polling
-                }
-            }
-            await pollReport();
-        } catch (error) {
-            console.error('Failed to initiate scan:', error);
-            addAlert('Failed to initiate scan', 'error');
-            setLoadingScan(false);
-        }
+    const {
+        loading: loadingScan,
+        taskId: scanTaskId,
+        statusEndpoint: scanStatusEndpoint,
+        showProgress: showScanProgress,
+        startScan,
+        handleScanComplete: onScanComplete,
+        handleScanError,
+        handleCloseProgress,
+    } = useScan({
+        websiteId: website.id,
+        onComplete: mutate,
+    });
+
+    const handleScanComplete = () => {
+        onScanComplete();
+        mutate();
     };
     const handleUsersChange = async (value: string[] | null) => {
         if (value !== null) {
@@ -152,7 +132,7 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                         <Button
                             type="primary"
                             loading={loadingScan}
-                            onClick={handleScan}
+                            onClick={startScan}
                             disabled={loadingScan}
                         >
                             {loadingScan ? 'Scanning...' : 'Re-scan Website'}
@@ -160,6 +140,16 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                     </Descriptions.Item>
                 </Descriptions>
             </Space>
+            {scanTaskId && scanStatusEndpoint && (
+                <ScanProgressModal
+                    taskId={scanTaskId}
+                    statusEndpoint={scanStatusEndpoint}
+                    onComplete={handleScanComplete}
+                    onError={handleScanError}
+                    visible={showScanProgress}
+                    onClose={handleCloseProgress}
+                />
+            )}
         </div>
     );
 }

@@ -5,7 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 const API_URL = process.env.API_URL;
 
 function rewriteUrl(path: string, query: string) {
-    return `${API_URL}${path}/?${query}`;
+    const url = query ? `${API_URL}${path}?${query}` : `${API_URL}${path}`;
+    return url;
 }
 
 async function proxyRequest(req: NextRequest, method: string) {

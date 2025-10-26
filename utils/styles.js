@@ -347,6 +347,11 @@ function ToggleLoadingIndicator(show) {
     if (show) {
         if (loadingElement)
             return;
+        // Check if document.body is available and has appendChild method
+        if (!document.body || typeof document.body.appendChild !== 'function') {
+            console.warn('[A11y Scanner] document.body not available or not writable, skipping loading indicator');
+            return;
+        }
         loadingElement = document.createElement('div');
         loadingElement.innerHTML = `
             <span>
@@ -732,9 +737,9 @@ function createToolTip(injections, element, selector) {
         const elementBorderColor = getImpactColor(injections
             .map((inj) => inj.impact)
             .sort((a, b) => {
-            const levels = { critical: 4, serious: 3, moderate: 2, minor: 1, null: 0 };
-            return levels[b] - levels[a];
-        })[0]);
+                const levels = { critical: 4, serious: 3, moderate: 2, minor: 1, null: 0 };
+                return levels[b] - levels[a];
+            })[0]);
         const oldBorder = element.style.border;
         // If the element already has a border, make it dashed
         // add element highlight animation (no rotation)

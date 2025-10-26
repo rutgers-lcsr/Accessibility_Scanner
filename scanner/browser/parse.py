@@ -7,11 +7,25 @@ from utils.urls import get_full_url, get_netloc, get_website_url
 
 
 def get_link_js(website):
+    """JavaScript function to extract links from the page. 
+       It filters out links that are not part of the same website and removes duplicates and certain file types.
+       
+       
+       Notes: used to find all the pages on a url.
+    """
+    
     return f"""() => {{
         var aTags = Array.from(document.querySelectorAll('a'));
         var links = aTags.filter(a => a.href.startsWith('{website}') || a.href.startsWith('/')).map(a=> a.href).filter(a => !a.includes('#')).filter(a =>!(a == '{website}' ||  a == '{website}/')).filter((value, index, self) => self.indexOf(value) === index);
         
         links = links.map(l => {{
+            if (!l) return l;
+            
+            l = l.trim();
+            
+            // remove parameters from url, This helps to reduce duplicate urls and unnecessary scans
+            l = l.split('?')[0];
+
             if (l.startsWith('{website}')) {{
                 return l;
             }}

@@ -1,8 +1,7 @@
 'use client';
-import { scanResponse } from '@/lib/types/scan';
 import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
-
+import ScanProgressModal from '@/components/ScanProgressModal';
 import { useAlerts } from '@/providers/Alerts';
 import { useWebsites } from '@/providers/Websites';
 import { Button, Divider, Flex, Input, InputNumber, Modal, Select, Space, Tooltip } from 'antd';
@@ -10,6 +9,7 @@ import TextArea from 'antd/es/input/TextArea';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
+import { useScan } from '@/hooks/useScan';
 
 type Props = {
     website: Website;
@@ -19,7 +19,6 @@ type Props = {
 function AdminItems({ website, mutate }: Props) {
     const router = useRouter();
     const { addAlert } = useAlerts();
-    const [loadingScan, setLoadingScan] = useState(false);
     const [loadingActivate, setLoadingActivate] = useState(false);
     const [loadingRateLimit, setLoadingRateLimit] = useState(false);
     const [loadingEmail, setLoadingEmail] = useState(false);
@@ -30,65 +29,20 @@ function AdminItems({ website, mutate }: Props) {
     const { handlerUserApiRequest } = useUser();
     const { categories } = useWebsites();
 
-    const handleWebsiteUpdate = async (
-        updateWebsite: Partial<Website>,
-        successMessage: string,
-        failureMessage: string
-    ) => {
-        try {
-            const response = await handlerUserApiRequest<Website>(`/api/websites/${website.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updateWebsite),
-            });
-            mutate(response);
-            addAlert(successMessage, 'success');
-        } catch (error) {
-            addAlert(failureMessage, 'error');
-            console.error(failureMessage, error);
-        }
-    };
+    const {
+        loading: loadingScan,
+        taskId: scanTaskId,
+        statusEndpoint: scanStatusEndpoint,
+        showProgress: showScanProgress,
+        startScan,
+        handleScanComplete,
+        handleScanError,
+        handleCloseProgress,
+    } = useScan({
+        websiteId: website.id,
+        onComplete: mutate,
+    });
 
-    const handleScan = async () => {
-        setLoadingScan(true);
-        try {
-            const scanResponse = await handlerUserApiRequest<scanResponse>(
-                `/api/scans/scan?website=${website.id}`,
-                {
-                    method: 'POST',
-                }
-            );
-            addAlert('Scan initiated successfully, Please stay on this page.', 'info');
-
-            async function pollReport() {
-                await new Promise((resolve) => setTimeout(resolve, 2000)); // wait for 2 seconds
-                try {
-                    const newReport = await handlerUserApiRequest<Website>(
-                        scanResponse.polling_endpoint,
-                        {
-                            method: 'GET',
-                        }
-                    );
-                    if (newReport && newReport.id) {
-                        setLoadingScan(false);
-                        mutate();
-                        addAlert('Scan completed successfully', 'success');
-                    } else {
-                        return await pollReport(); // recursively poll until we get the report
-                    }
-                } catch {
-                    return await pollReport(); // in case of error, keep polling
-                }
-            }
-            await pollReport();
-        } catch (error) {
-            console.error('Failed to initiate scan:', error);
-            addAlert('Failed to initiate scan', 'error');
-            setLoadingScan(false);
-        }
-    };
     const handleActivate = async () => {
         setLoadingActivate(true);
         try {
@@ -330,7 +284,7 @@ function AdminItems({ website, mutate }: Props) {
                         <Button
                             type="primary"
                             loading={loadingScan}
-                            onClick={handleScan}
+                            onClick={startScan}
                             disabled={loadingScan}
                         >
                             {loadingScan ? 'Scanning...' : 'Re-scan Website'}
@@ -533,6 +487,16 @@ function AdminItems({ website, mutate }: Props) {
                     </Modal>
                 </Flex>
             </Space>
+            {scanTaskId && scanStatusEndpoint && (
+                <ScanProgressModal
+                    taskId={scanTaskId}
+                    statusEndpoint={scanStatusEndpoint}
+                    onComplete={handleScanComplete}
+                    onError={handleScanError}
+                    visible={showScanProgress}
+                    onClose={handleCloseProgress}
+                />
+            )}
         </div>
     );
 }

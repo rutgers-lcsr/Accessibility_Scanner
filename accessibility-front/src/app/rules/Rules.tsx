@@ -43,7 +43,6 @@ function Rules() {
                                 allowClear
                                 onChange={(value) => {
                                     // Implement tag filtering logic here
-                                    console.log('Selected tags:', value);
                                     setTagSearch(value.join(','));
                                 }}
                                 options={tags?.map((tag) => ({

@@ -5,7 +5,6 @@ type Props = {
 };
 
 function PageIframe({ url }: Props) {
-    console.log('Rendering iframe for URL:', url);
     return (
         <iframe
             tabIndex={0}

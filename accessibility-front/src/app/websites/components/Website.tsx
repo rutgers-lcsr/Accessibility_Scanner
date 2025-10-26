@@ -73,8 +73,8 @@ const Website = ({ websiteId, user }: Props) => {
         },
     ];
 
-    console.log(websiteReport);
-    console.log(user);
+    // console.log(websiteReport);
+    // console.log(user);
 
     const isUserPartOfUsers =
         user &&

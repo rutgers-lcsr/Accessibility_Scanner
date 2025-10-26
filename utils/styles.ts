@@ -340,6 +340,13 @@ let loadingElement: HTMLElement | null = null;
 function ToggleLoadingIndicator(show: boolean) {
     if (show) {
         if (loadingElement) return;
+        // Check if document.body is available and has appendChild method
+        if (!document.body || typeof document.body.appendChild !== 'function') {
+            console.warn(
+                '[A11y Scanner] document.body not available or not writable, skipping loading indicator'
+            );
+            return;
+        }
         loadingElement = document.createElement('div');
         loadingElement.innerHTML = `
             <span>
