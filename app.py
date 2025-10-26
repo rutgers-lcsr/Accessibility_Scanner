@@ -57,6 +57,10 @@ def create_app():
     from blueprints.axe_rules import axe_bp
     from blueprints.settings import settings_bp
     
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        return {"status": "healthy"}, 200
+
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(domain_bp, url_prefix='/api/domains')
     app.register_blueprint(report_bp, url_prefix='/api/reports')
