@@ -111,7 +111,12 @@ services:
         image: adminer
         environment:
             - ADMINER_DEFAULT_SERVER=a11y-db
-        restart: always
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "curl -f http://localhost:8080 || exit 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
         ports:
             - 8080:8080
     a11y-redis:
@@ -144,6 +149,11 @@ services:
         depends_on:
             - a11y-redis
         restart: unless-stopped
+        healthcheck:
+            test: ["CMD", "curl -f http://localhost:5555 || exit 1"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
         logging:
             driver: json-file
             options:
