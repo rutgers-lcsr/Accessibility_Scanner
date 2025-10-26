@@ -40,7 +40,9 @@ services:
                 max-file: "3"
     a11y-api:
         container_name: a11y_api
-        build: .
+        build:
+            context: .
+            target: api
         env_file:
             - .env
         environment:
