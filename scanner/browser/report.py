@@ -8,6 +8,9 @@ from scanner.browser.tabbable import is_page_tabbable
 from scanner.log import log_message
 from utils.style_generator import report_to_js
 from utils.urls import get_website_url
+
+ACCESSIBILITY_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0"
+
 class AccessibilityReport(TypedDict, total=False):
     url: str
     response_code: int
@@ -42,7 +45,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     result = AccessibilityReport()
     result['timestamp'] = time.time()
     try:
-        context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0")
+        context = await browser.new_context(user_agent=ACCESSIBILITY_USER_AGENT)
         page = await context.new_page()
         res = await page.goto(website)
         result['url'] = website
