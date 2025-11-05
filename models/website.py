@@ -52,7 +52,7 @@ class Site(db.Model):
             'id': report.id,
             'url': report.url,
             'report_counts': report.report_counts,
-            'timestamp': report.timestamp.isoformat() if report.timestamp else None
+            'timestamp': report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else None
         }
         return report
     
@@ -174,19 +174,19 @@ class Site(db.Model):
         return {
             'id': self.id,
             'url': self.url,
-            'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
+            'last_scanned': self.last_scanned.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_scanned else None,
             'websites': [website.id for website in self.websites],
             'reports': [{
                 'id': report.id,
                 'report_counts': report.report_counts,
-                'timestamp': report.timestamp.isoformat() if report.timestamp else None,
+                'timestamp': report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else None,
                 'url': report.url
             } for report in reports],
             'current_report': self.get_recent_report(),
             'active': self.active,
             'tags': self.get_tags(),
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") ,
+            'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
 
     def __init__(self, url, website:'Website' =None):
@@ -499,7 +499,7 @@ class Website(db.Model):
             'admin': self.admin.username if self.admin else None,
             'users': [user.username for user in self.users],
             'should_email': self.should_email,
-            'last_scanned': self.last_scanned.isoformat() if self.last_scanned else None,
+            'last_scanned': self.last_scanned.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_scanned else None,
             'tags': [tag.strip() for tag in self.tags.split(",")] if self.tags else [],
             'default_tags': defaultTags,
             'report': report,
@@ -509,8 +509,8 @@ class Website(db.Model):
             'public': self.public,
             'description': self.description,
             'categories': [cat.strip() for cat in self.categories.split(",")] if self.categories else [],
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
+            'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
+            'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
     def __init__(self, url:str, user_id:int=None):
@@ -659,8 +659,8 @@ class Domain(db.Model):
             'parent': self.parent.to_dict() if self.parent else None,
             'websites': [website.id for website in self.websites],
             'active': self.active,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
     def __repr__(self):
         return f'<Domain {self.domain}>'

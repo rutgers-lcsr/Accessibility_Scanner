@@ -79,8 +79,8 @@ class Check(db.Model):
             "pass_text": self.pass_text,
             "fail_text": self.fail_text,
             "incomplete_text": self.incomplete_text,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "created_at": self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "updated_at": self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
         
     def from_json(self, data):
@@ -255,8 +255,8 @@ class Rule(db.Model):
             "all": [check.id for check in self.all],
             "none": [check.id for check in self.none],
             "impact": self.impact,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "created_at": self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "updated_at": self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
     
     def from_json(self, data):

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from select import select
 from typing import List, TypedDict
 from sqlalchemy import LargeBinary
@@ -71,7 +71,7 @@ class Report(db.Model):
         
     @hybrid_method
     def get_date_iso(self, property):
-        return property.isoformat() if property else None
+        return property.strftime("%Y-%m-%dT%H:%M:%SZ") if property else None
 
     @hybrid_property
     def public(self):
@@ -161,7 +161,7 @@ class Report(db.Model):
         self.error = data.get('error', None)
         self.response_code = data.get('response_code', None)
         self.base_url = data.get('base_url', '')
-        self.timestamp = datetime.fromtimestamp(data['timestamp'])
+        self.timestamp = datetime.fromtimestamp(data['timestamp'], tz=timezone.utc)
         self.report = data['report']
         self.report_counts = {
             'violations': {
@@ -210,15 +210,15 @@ class Report(db.Model):
             'url': self.url,
             'site_id': self.site_id,
             'base_url': self.base_url,
-            'timestamp': self.timestamp.isoformat(),
+            'timestamp': self.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
             'report_counts': self.report_counts,
             'links': self.links,
             'videos': self.videos,
             'imgs': self.imgs,
             'tabable': self.tabable,
             'tags': self.tags,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
            
     def to_dict(self):
@@ -228,7 +228,7 @@ class Report(db.Model):
             'url': self.url,
             'base_url': self.base_url,
             'site_id': self.site_id,
-            'timestamp': self.timestamp.isoformat(),
+            'timestamp': self.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
             'report': self.report,
             'report_counts': self.report_counts,
             'links': self.links,
