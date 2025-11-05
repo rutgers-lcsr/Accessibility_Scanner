@@ -161,7 +161,7 @@ class Report(db.Model):
         self.error = data.get('error', None)
         self.response_code = data.get('response_code', None)
         self.base_url = data.get('base_url', '')
-        self.timestamp = datetime.fromtimestamp(data['timestamp'], tz=timezone.utc)
+        self.timestamp = data.get('timestamp', datetime.now(timezone.utc))
         self.report = data['report']
         self.report_counts = {
             'violations': {
