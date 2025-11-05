@@ -1,5 +1,5 @@
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, TypedDict
 from scanner.accessibility.ace import AxeReport, get_accessibility_report
 from scanner.browser.parse import  get_imgs, get_links, get_videos
@@ -22,7 +22,7 @@ class AccessibilityReport(TypedDict, total=False):
     videos: List[str]
     imgs: List[str]
     tabable: bool
-    timestamp: datetime
+    timestamp: str
     photo: bytes
     tags: List[str]
     
@@ -44,7 +44,7 @@ class AccessibilitySummary(TypedDict, total=False):
 # Generates a AccessibilityReport for a given site
 async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu", tags: List[str] = [], ace_config: str = "") -> AccessibilityReport:
     result = AccessibilityReport()
-    result['timestamp'] = datetime.now(datetime.timezone.utc)
+    result['timestamp'] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         context = await browser.new_context(user_agent=ACCESSIBILITY_USER_AGENT)
         page = await context.new_page()
@@ -73,7 +73,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         tabable = await is_page_tabbable(page)
         has_video = await page.evaluate("() => { return !!document.querySelector('video'); }")
         has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
-        timestamp = datetime.now(datetime.timezone.utc)
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         js_report = report_to_js(report['violations'], page.url, report_mode=True)
         context = await page.evaluate(f"(function () {{ {js_report} }})()")
