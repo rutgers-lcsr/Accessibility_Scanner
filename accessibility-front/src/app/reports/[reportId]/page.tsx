@@ -19,6 +19,7 @@ import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
 import HeaderLink from './components/HeaderLink';
 import PageIframe from './components/PageIframe';
+import ReportDate from './components/ReportDate';
 
 // The reason this is a server component and the rest of them are not, is that all of them should have been really :0
 export const getReport = async (reportId: string) => {
@@ -70,12 +71,8 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         <h2 className="mb-2 text-3xl font-extrabold">
                             Report for <HeaderLink url={report.url} />
                         </h2>
-                        <h3 className="mb-2 text-lg text-gray-500">
-                            Report Date:{' '}
-                            {report?.timestamp
-                                ? new Date(report.timestamp).toLocaleString()
-                                : 'N/A'}
-                        </h3>
+
+                        <ReportDate dateString={report.timestamp} />
                         <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
 
                         <section
