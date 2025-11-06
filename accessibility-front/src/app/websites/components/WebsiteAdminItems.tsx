@@ -135,7 +135,7 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                             onClick={startScan}
                             disabled={loadingScan}
                         >
-                            {loadingScan ? 'Scanning...' : 'Re-scan Website'}
+                            {loadingScan ? 'Scanning...' : 'Scan Website'}
                         </Button>
                     </Descriptions.Item>
                 </Descriptions>

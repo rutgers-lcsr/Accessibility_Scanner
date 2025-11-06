@@ -91,6 +91,7 @@ function AdminReportItems({ report }: Props) {
 
     const handleCloseProgress = () => {
         setShowProgress(false);
+        setLoadingScan(false);
     };
 
     return (
@@ -107,7 +108,7 @@ function AdminReportItems({ report }: Props) {
                             onClick={handleScan}
                             disabled={loadingScan}
                         >
-                            {loadingScan ? 'Scanning...' : 'Re-scan Url'}
+                            {loadingScan ? 'Scanning...' : 'Scan Url'}
                         </Button>
                     </Descriptions.Item>
                     <Descriptions.Item label="Tags">

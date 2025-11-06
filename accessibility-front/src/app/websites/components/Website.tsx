@@ -38,9 +38,9 @@ const Website = ({ websiteId, user }: Props) => {
         `/api/websites/${websiteId}`,
         user ? handlerUserApiRequest<WebsiteType> : fetcherApi<WebsiteType>
     );
-
-    if (reportError) return <PageError status={500} title="Error loading website report" />;
-    if (!websiteReport) return <PageLoading />;
+    if (isLoadingReport) return <PageLoading />;
+    if (!websiteReport || reportError)
+        return <PageError status={500} title="Error loading website report" />;
 
     const violations = websiteReport.report_counts.violations;
 

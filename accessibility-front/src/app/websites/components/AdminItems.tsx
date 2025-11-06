@@ -287,19 +287,26 @@ function AdminItems({ website, mutate }: Props) {
                             onClick={startScan}
                             disabled={loadingScan}
                         >
-                            {loadingScan ? 'Scanning...' : 'Re-scan Website'}
+                            {loadingScan ? 'Scanning...' : 'Scan Website'}
                         </Button>
                     </Tooltip>
-                    <Tooltip title="Enable or disable automatic scanning for this website.">
+                    <Tooltip
+                        title={
+                            website.active
+                                ? 'Click to Disable automatic scanning for this website.'
+                                : 'Click to Enable automatic scanning for this website.'
+                        }
+                    >
                         <Button
                             loading={loadingActivate}
-                            type={website.active ? 'primary' : 'default'}
+                            type={'default'}
+                            danger={website.active}
                             onClick={handleActivate}
                         >
                             {website.active ? 'Deactivate' : 'Activate'}
                         </Button>
                     </Tooltip>
-                    <Tooltip title="Set how often this website can be scanned (in days).">
+                    <Tooltip title="Set how often this website can be scanned (in days). Only applies to automatic scans.">
                         <InputNumber
                             disabled={!website.active || loadingRateLimit}
                             addonBefore="Rate limit in Days"
@@ -426,7 +433,7 @@ function AdminItems({ website, mutate }: Props) {
                     <label htmlFor="users" style={{ minWidth: 80 }}>
                         Users
                     </label>
-                    <Tooltip title="Users who are allowed to view this website. Users and Admin will be notified when a scan finishes.">
+                    <Tooltip title="Users who are allowed to view this website. Users and Admin will be notified when a scan finishes. Only if email notifications are enabled.">
                         <Select
                             mode="tags"
                             style={{ minWidth: 300 }}
@@ -447,25 +454,40 @@ function AdminItems({ website, mutate }: Props) {
                     <span>Email & Public Access</span>
                 </Divider>
                 <Flex gap="16px" align="center">
-                    <Tooltip title="Enable or disable email notifications for this website.">
+                    <Tooltip
+                        title={
+                            website.should_email
+                                ? 'Click to Disable email notifications for this website.'
+                                : 'Click to Enable email notifications for this website.'
+                        }
+                    >
                         <Button
-                            type={website.should_email ? 'default' : 'primary'}
+                            type={'default'}
                             loading={loadingShouldEmail}
                             onClick={() => handleShouldEmailChange(!website.should_email)}
+                            danger={website.should_email}
                         >
                             {website.should_email ? 'Disable Email Notify' : 'Enable Email Notify'}
                         </Button>
                     </Tooltip>
-                    <Tooltip title="Resend the latest report email to all users.">
+                    <Tooltip title="Manually trigger the latest report email to all users. Even if email notifications are disabled.">
                         <Button onClick={handleSendEmailUpdate} loading={loadingEmail}>
                             Resend Latest Report Email
                         </Button>
                     </Tooltip>
-                    <Tooltip title="Enable or disable public access to this website's reports.">
+                    <Divider type="vertical" />
+                    <Tooltip
+                        title={
+                            website.public
+                                ? "Click to Disable public access to this website's reports."
+                                : "Click to Enable public access to this website's reports."
+                        }
+                    >
                         <Button
-                            type={website.public ? 'default' : 'primary'}
+                            type={'default'}
                             loading={loadingPublic}
                             onClick={() => handleChangePublic(!website.public)}
+                            danger={website.public}
                         >
                             {website.public ? 'Disable Public Access' : 'Enable Public Access'}
                         </Button>
