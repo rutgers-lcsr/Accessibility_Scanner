@@ -267,6 +267,8 @@ def update_website(website_id):
             website.active = data['active'] and True
         if 'rate_limit' in data:
             website.rate_limit = data['rate_limit'] 
+        if 'should_email' in data:
+            website.should_email = data['should_email'] and True
         if 'active' in data:
             domain = db.session.get(Domain, website.domain_id)
             # scanner can add websites without a domain. this is because if a manual scan was made its not obvious what the parent domain might be.
