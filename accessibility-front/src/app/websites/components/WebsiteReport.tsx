@@ -1,5 +1,6 @@
 'use client';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
+import GenerateAIPromptButton from '@/components/GenerateAIPromptButton';
 import { WebsiteAxeReport } from '@/lib/types/axe';
 import { Button, Card, Flex, Select } from 'antd';
 import { useState } from 'react';
@@ -45,6 +46,7 @@ function WebsiteReport({ report }: Props) {
                 title={<span className="font-semibold text-lg">Accessibility Violations</span>}
                 extra={
                     <Flex gap={12} align="center">
+                        <GenerateAIPromptButton violations={sortedViolations} />
                         <span className="text-gray-600">Sort by</span>
                         <Select
                             value={sortKey}

@@ -10,6 +10,7 @@ import { headers } from 'next/headers';
 
 import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
+import GenerateAIPromptButton from '@/components/GenerateAIPromptButton';
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
 import { User } from '@/lib/types/user';
@@ -324,17 +325,23 @@ document.body.appendChild(accessScriptElement);`}
 
                     {report.report.violations.length > 0 && (
                         <Card>
-                            <div>
-                                <h2
-                                    className="mb-4 text-2xl font-semibold"
-                                    id="detailed-accessibility-issues"
-                                >
-                                    Accessibility Issues
-                                </h2>
-                                <p className="mb-2">
-                                    The following accessibility issues were found on the page:
-                                </p>
-                            </div>
+                            <Flex justify="space-between" align="center">
+                                <div>
+                                    <h2
+                                        className="mb-4 text-2xl font-semibold"
+                                        id="detailed-accessibility-issues"
+                                    >
+                                        Accessibility Issues
+                                    </h2>
+                                    <p className="mb-2">
+                                        The following accessibility issues were found on the page:
+                                    </p>
+                                </div>
+                                <GenerateAIPromptButton
+                                    violations={report.report.violations}
+                                    url={report.url}
+                                />
+                            </Flex>
                             <div className="mt-4">
                                 {report.report.violations.map((violation, index) => (
                                     <AuditAccessibilityItem
