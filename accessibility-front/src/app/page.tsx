@@ -4,15 +4,11 @@ import { getAxeLink } from '@/lib/browser';
 import { Card, Carousel, Divider, List, Typography } from 'antd';
 import { Header } from 'antd/es/layout/layout';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export default function Home() {
     // check if browser is chrome or firefox
     const [axeLink, setAxeLink] = useState(getAxeLink());
-
-    useEffect(() => {
-        setAxeLink(getAxeLink());
-    }, []);
 
     return (
         <>

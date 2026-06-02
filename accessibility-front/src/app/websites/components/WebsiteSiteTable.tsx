@@ -21,10 +21,6 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
     // Use a ref to avoid resetting pageSize on re-render
     const [currentPage, setCurrentPage] = React.useState(1);
     const [pageSize, setPageSize] = React.useState(10);
-    const [desc, setDesc] = React.useState(1);
-    React.useEffect(() => {
-        setPageSize(pageSize);
-    }, [pageSize]);
 
     const {
         data: sites,
@@ -32,7 +28,7 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
         isLoading: isLoadingSites,
         mutate: mutateSites,
     } = useSWR(
-        `/api/websites/${websiteId}/sites?page=${currentPage}&limit=${pageSize}&desc=${desc}`,
+        `/api/websites/${websiteId}/sites?page=${currentPage}&limit=${pageSize}`,
         user ? handlerUserApiRequest<Paged<Site>> : fetcherApi<Paged<Site>>
     );
 

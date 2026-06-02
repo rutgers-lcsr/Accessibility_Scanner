@@ -2,7 +2,6 @@
 import { useAlerts } from '@/providers/Alerts';
 import '@/styles/console.css';
 import { CopyOutlined } from '@ant-design/icons';
-import '@ant-design/v5-patch-for-react-19';
 import { Button, Tooltip } from 'antd';
 import 'highlight.js/styles/github.css';
 import React from 'react';

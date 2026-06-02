@@ -1,7 +1,6 @@
 'use client';
 import { APIError, handleRequest } from '@/lib/api';
 import { User } from '@/lib/types/user';
-import '@ant-design/v5-patch-for-react-19';
 import { login } from 'next-cas-client';
 import { createContext, ReactNode, useContext } from 'react';
 

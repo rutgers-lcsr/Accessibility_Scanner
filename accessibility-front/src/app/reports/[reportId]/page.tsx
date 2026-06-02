@@ -5,7 +5,7 @@ import {
     ExclamationCircleOutlined,
     InfoCircleOutlined,
     WarningOutlined,
-} from '@ant-design/icons';
+} from '@/lib/icons';
 import { headers } from 'next/headers';
 
 import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
@@ -23,7 +23,7 @@ import PageIframe from './components/PageIframe';
 import ReportDate from './components/ReportDate';
 
 // The reason this is a server component and the rest of them are not, is that all of them should have been really :0
-export const getReport = async (reportId: string) => {
+const getReport = async (reportId: string) => {
     // need to forward the request as if we are the user
     // Theres an isssue with headers for some reason out of out control. the type is messed up
 

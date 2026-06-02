@@ -4,26 +4,13 @@ import { useUser } from '@/providers/User';
 import ScanProgressModal from '@/components/ScanProgressModal';
 import { useAlerts } from '@/providers/Alerts';
 import { useWebsites } from '@/providers/Websites';
-import {
-    Typography,
-    Button,
-    Divider,
-    Flex,
-    Input,
-    InputNumber,
-    Modal,
-    Select,
-    Space,
-    Tooltip,
-} from 'antd';
+import { Button, Divider, Flex, Input, InputNumber, Modal, Select, Space, Tooltip } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import TextArea from 'antd/es/input/TextArea';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { useScan } from '@/hooks/useScan';
-
-const { Text } = Typography;
 
 type Props = {
     website: Website;
@@ -290,7 +277,7 @@ function AdminItems({ website, mutate }: Props) {
                 <div className="text-lg font-medium text-gray-800">Admin Actions</div>
 
                 {/* Scan and Activation Section */}
-                <Divider orientation="left" orientationMargin={0}>
+                <Divider titlePlacement="left">
                     <span>Scan & Activation</span>
                 </Divider>
                 <div>
@@ -343,98 +330,111 @@ function AdminItems({ website, mutate }: Props) {
                 </div>
 
                 {/* Website Tags and Categories Section */}
-                <Divider orientation="left" orientationMargin={0}>
+                <Divider titlePlacement="left">
                     <span>Tags & Categories</span>
                 </Divider>
-                <Flex gap="16px" align="start" wrap="wrap">
-                    {/* Tags */}
-                    <div style={{ minWidth: 320, flex: 1 }}>
-                        <label
-                            htmlFor="tags"
-                            className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                            Active Tags
-                        </label>
-                        <Tooltip title="Tags applied to this website, used in addition to the default tags for which rule sets to apply. Default tags are automatically applied to all websites and cannot be removed here.">
-                            <Select
-                                mode="tags"
-                                style={{ width: '100%' }}
-                                id="tags"
-                                aria-label="Tags"
-                                placeholder="Add or select tags"
-                                value={Array.from(
-                                    new Set([...website.tags, ...website.default_tags])
-                                )}
-                                options={Array.from(
-                                    new Set([
-                                        ...website.tags,
-                                        ...website.default_tags,
-                                        ...(allTags || []),
-                                    ])
-                                ).map((tag) => ({ label: tag, value: tag }))}
-                                disabled={loadingEmail}
-                                onChange={handleTagsChange}
-                            />
-                        </Tooltip>
-                        <div className="text-xs text-gray-500 mt-1">
-                            <span className="font-semibold">Default:</span>{' '}
-                            {website.default_tags.join(', ')}
+                <div>
+                    <div className="text-sm font-medium text-gray-700 mb-3">Tags & Categories</div>
+                    <Flex gap="16px" align="start" wrap="wrap">
+                        <div style={{ minWidth: 320, flex: 1 }}>
+                            <label
+                                htmlFor="tags"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Active Tags
+                            </label>
+                            <Tooltip title="Tags applied to this website, used in addition to the default tags for which rule sets to apply. Default tags are automatically applied to all websites and cannot be removed here.">
+                                <Select
+                                    mode="tags"
+                                    style={{ width: '100%' }}
+                                    id="tags"
+                                    aria-label="Tags"
+                                    placeholder="Add or select tags"
+                                    value={Array.from(
+                                        new Set([...website.tags, ...website.default_tags])
+                                    )}
+                                    options={Array.from(
+                                        new Set([
+                                            ...website.tags,
+                                            ...website.default_tags,
+                                            ...(allTags || []),
+                                        ])
+                                    ).map((tag) => ({ label: tag, value: tag }))}
+                                    disabled={loadingEmail}
+                                    onChange={handleTagsChange}
+                                />
+                            </Tooltip>
+                            <div className="text-xs text-gray-500 mt-1">
+                                <span className="font-semibold">Default:</span>{' '}
+                                {website.default_tags.join(', ')}
+                            </div>
                         </div>
+                        <div style={{ minWidth: 320, flex: 1 }}>
+                            <label
+                                htmlFor="categories"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Categories
+                            </label>
+                            <Tooltip title="Categories are used to classify websites. For use in filtering and organization.">
+                                <Select
+                                    mode="tags"
+                                    style={{ width: '100%' }}
+                                    id="categories"
+                                    aria-label="Categories"
+                                    placeholder="Add or select categories"
+                                    value={
+                                        website.categories.length > 0
+                                            ? website.categories
+                                            : undefined
+                                    }
+                                    options={Array.from(
+                                        new Set([
+                                            ...(categories || []),
+                                            ...(website.categories || []),
+                                        ])
+                                    ).map((category) => ({
+                                        label: category,
+                                        value: category,
+                                    }))}
+                                    disabled={loadingEmail}
+                                    onChange={handleCategoriesChange}
+                                ></Select>
+                            </Tooltip>
+                        </div>
+                        <div style={{ minWidth: 320, flex: 1 }}>
+                            <label
+                                htmlFor="description"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Description
+                            </label>
+                            <Tooltip title="A brief description of the website's purpose or content.">
+                                <TextArea
+                                    style={{ width: '100%' }}
+                                    id="description"
+                                    aria-label="Description"
+                                    placeholder="Website Description"
+                                    defaultValue={website.description}
+                                    disabled={loadingEmail}
+                                    onPressEnter={async (e) => {
+                                        handleDescriptionChange(
+                                            (e.target as HTMLInputElement).value
+                                        );
+                                    }}
+                                />
+                            </Tooltip>
+                        </div>
+                    </Flex>
+
+                    <div className="text-xs text-gray-500 mt-1">
+                        <span className="font-semibold">Default:</span>{' '}
+                        {website.default_tags.join(', ')}
                     </div>
-                    {/* Categories */}
-                    <div style={{ minWidth: 320, flex: 1 }}>
-                        <label
-                            htmlFor="categories"
-                            className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                            Categories
-                        </label>
-                        <Tooltip title="Categories are used to classify websites. For use in filtering and organization.">
-                            <Select
-                                mode="tags"
-                                style={{ width: '100%' }}
-                                id="categories"
-                                aria-label="Categories"
-                                placeholder="Add or select categories"
-                                value={
-                                    website.categories.length > 0 ? website.categories : undefined
-                                }
-                                options={Array.from(
-                                    new Set([...(categories || []), ...(website.categories || [])])
-                                ).map((category) => ({
-                                    label: category,
-                                    value: category,
-                                }))}
-                                disabled={loadingEmail}
-                                onChange={handleCategoriesChange}
-                            ></Select>
-                        </Tooltip>
-                    </div>
-                    <div style={{ minWidth: 320, flex: 1 }}>
-                        <label
-                            htmlFor="description"
-                            className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                            Description
-                        </label>
-                        <Tooltip title="A brief description of the website's purpose or content.">
-                            <TextArea
-                                style={{ width: '100%' }}
-                                id="description"
-                                aria-label="Description"
-                                placeholder="Website Description"
-                                defaultValue={website.description}
-                                disabled={loadingEmail}
-                                onPressEnter={async (e) => {
-                                    handleDescriptionChange((e.target as HTMLInputElement).value);
-                                }}
-                            />
-                        </Tooltip>
-                    </div>
-                </Flex>
+                </div>
 
                 {/* Admin & Users Section */}
-                <Divider orientation="left" orientationMargin={0}>
+                <Divider titlePlacement="left">
                     <span>Admin & Users</span>
                 </Divider>
                 <div>
@@ -490,26 +490,9 @@ function AdminItems({ website, mutate }: Props) {
                 </div>
 
                 {/* Email & Public Section */}
-
-                <Divider orientation="left" orientationMargin={0}>
+                <Divider titlePlacement="left">
                     <span>Email & Public Access</span>
                 </Divider>
-
-                {/* Info Banner */}
-                <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
-                    <Space direction="horizontal" size={8} align="start">
-                        <InfoCircleOutlined className="text-blue-600 mt-0.5" />
-                        <Text type="secondary" className="text-sm">
-                            <strong>Email Notification Thresholds:</strong> Users are notified when
-                            a scan detects at least <strong>1 critical</strong>,{' '}
-                            <strong>5 serious</strong>, <strong>10 moderate</strong>,{' '}
-                            <strong>10 minor</strong> issues, or when{' '}
-                            <strong>total issues ≥ 15</strong>.
-                        </Text>
-                    </Space>
-                </div>
-
-                {/* Email Controls */}
                 <div>
                     <div className="text-sm font-medium text-gray-700 mb-3">
                         Email Notifications
@@ -567,7 +550,7 @@ function AdminItems({ website, mutate }: Props) {
                 </div>
 
                 {/* Danger Zone Section */}
-                <Divider orientation="left" orientationMargin={0}>
+                <Divider titlePlacement="left">
                     <span className="text-red-600">Danger Zone</span>
                 </Divider>
                 <div className="rounded-lg bg-red-50 border border-red-200 p-4">

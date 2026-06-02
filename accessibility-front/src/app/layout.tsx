@@ -2,7 +2,6 @@ import { rutgersTheme } from '@/lib/theme';
 import { User } from '@/lib/types/user';
 import { AlertsProvider } from '@/providers/Alerts';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
-import '@ant-design/v5-patch-for-react-19';
 import { ConfigProvider, Layout } from 'antd';
 import 'antd/dist/reset.css';
 import { Footer } from 'antd/es/layout/layout';

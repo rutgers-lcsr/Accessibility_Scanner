@@ -1,3 +1,4 @@
+'use client';
 import { fetcherApi } from '@/lib/api';
 import { Report as ReportType } from '@/lib/types/axe';
 import { User } from '@/lib/types/user';

@@ -1,7 +1,6 @@
 'use client';
 import { User } from '@/lib/types/user';
 import { useWebsites } from '@/providers/Websites';
-import '@ant-design/v5-patch-for-react-19';
 import { Button, Form, Input, Modal, Select } from 'antd';
 import React, { useState } from 'react';
 

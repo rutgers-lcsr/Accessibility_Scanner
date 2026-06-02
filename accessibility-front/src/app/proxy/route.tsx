@@ -262,7 +262,7 @@ export async function GET(req: NextRequest) {
         return new NextResponse(body, {
             headers: {
                 'Content-Type': response.headers
-                    ? response.headers['content-type'] || 'text/html'
+                    ? String(response.headers['content-type'] || '') || 'text/html'
                     : 'text/html',
                 'Access-Control-Allow-Origin': '*',
                 'Content-Security-Policy': 'frame-ancestors *',
