@@ -93,7 +93,9 @@ def _render_report_list(website: Website, reports: list[Report]):
         return Response(body, mimetype='text/markdown')
 
     if fmt == 'agent':
-        body = "\n\n---\n\n".join(report_to_agent_prompt(r) for r in reports)
+        # Only include pages that actually have violations to fix.
+        with_violations = [r for r in reports if r.report.get('violations')]
+        body = "\n\n---\n\n".join(report_to_agent_prompt(r) for r in with_violations)
         return Response(body, mimetype='text/markdown')
 
     if fmt == 'pdf':
@@ -154,6 +156,10 @@ def get_latest_report_by_url():
     ---
     tags:
       - Reports
+    produces:
+      - application/json
+      - text/markdown
+      - application/pdf
     parameters:
       - name: url
         in: query
@@ -198,6 +204,10 @@ def get_latest_report_by_site(site_id):
     ---
     tags:
       - Reports
+    produces:
+      - application/json
+      - text/markdown
+      - application/pdf
     parameters:
       - name: site_id
         in: path
@@ -236,6 +246,9 @@ def get_website_report(website_id):
     ---
     tags:
       - Websites
+    produces:
+      - application/json
+      - text/markdown
     parameters:
       - name: website_id
         in: path
@@ -274,13 +287,13 @@ def get_website_report(website_id):
 @api_bp.route('/websites/<int:website_id>/reports/latest', methods=['GET'])
 @api_key_required
 def get_latest_report_by_website(website_id):
-    """Get the latest report for every page of a website.
-
-    A website scan produces one report per page, so this returns the most recent
-    report of each page (not just the most recently scanned page).
+    """Get the latest report for every page of a website (one per page).
     ---
     tags:
       - Websites
+    produces:
+      - application/json
+      - text/markdown
     parameters:
       - name: website_id
         in: path

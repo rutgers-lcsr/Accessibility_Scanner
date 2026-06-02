@@ -147,6 +147,27 @@ def test_latest_by_website_agent_covers_all_pages(
     assert "example.com/a" in text and "example.com/b" in text
 
 
+def test_latest_by_website_agent_skips_pages_without_violations(
+    client, make_user, make_website, add_site, add_report, make_api_key
+):
+    user = make_user()
+    website = make_website(user)
+    add_report(add_site(website, page="/a"))  # has a violation
+    add_report(add_site(website, page="/b"), violations=[])  # clean page
+    _, token = make_api_key(user)
+
+    resp = client.get(
+        f"/api/v1/websites/{website.id}/reports/latest?format=agent",
+        headers=_key_header(token),
+    )
+    assert resp.status_code == 200
+    text = resp.get_data(as_text=True)
+    # only the page with violations is included
+    assert text.count("# Accessibility Violations Report") == 1
+    assert "example.com/a" in text
+    assert "example.com/b" not in text
+
+
 def test_latest_by_website_missing_website(client, make_user, make_api_key):
     user = make_user()
     _, token = make_api_key(user)
