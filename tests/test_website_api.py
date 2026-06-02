@@ -102,7 +102,7 @@ def test_aggregate_forbidden_for_other_users_private_website(
 # --- latest page for a website ---------------------------------------------
 
 
-def test_latest_by_website_returns_newest_page(
+def test_latest_by_website_returns_latest_report_per_page(
     client, make_user, make_website, add_site, add_report, make_api_key
 ):
     user = make_user()
@@ -110,15 +110,41 @@ def test_latest_by_website_returns_newest_page(
     site_a = add_site(website, page="/a")
     site_b = add_site(website, page="/b")
     now = datetime.now(timezone.utc)
+    # each page has an old and a newer report
     add_report(site_a, when=now - timedelta(days=3))
-    newest = add_report(site_b, when=now)
+    newest_a = add_report(site_a, when=now - timedelta(days=1))
+    add_report(site_b, when=now - timedelta(days=2))
+    newest_b = add_report(site_b, when=now)
     _, token = make_api_key(user)
 
     resp = client.get(
         f"/api/v1/websites/{website.id}/reports/latest", headers=_key_header(token)
     )
     assert resp.status_code == 200
-    assert resp.get_json()["id"] == newest.id
+    body = resp.get_json()
+    # one report per page, each being that page's newest
+    returned_ids = {r["id"] for r in body["reports"]}
+    assert returned_ids == {newest_a.id, newest_b.id}
+
+
+def test_latest_by_website_agent_covers_all_pages(
+    client, make_user, make_website, add_site, add_report, make_api_key
+):
+    user = make_user()
+    website = make_website(user)
+    add_report(add_site(website, page="/a"))
+    add_report(add_site(website, page="/b"))
+    _, token = make_api_key(user)
+
+    resp = client.get(
+        f"/api/v1/websites/{website.id}/reports/latest?format=agent",
+        headers=_key_header(token),
+    )
+    assert resp.status_code == 200
+    text = resp.get_data(as_text=True)
+    # one agent section per page
+    assert text.count("# Accessibility Violations Report") == 2
+    assert "example.com/a" in text and "example.com/b" in text
 
 
 def test_latest_by_website_missing_website(client, make_user, make_api_key):

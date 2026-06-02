@@ -3,7 +3,7 @@ from flask import Blueprint, Response, g, jsonify, request
 from authentication.api_key import api_key_required
 from models import db
 from models.report import Report
-from models.website import Site, Site_Website_Assoc, Website
+from models.website import Site, Website
 from utils.markdown import (
     report_to_agent_prompt,
     report_to_markdown,
@@ -72,6 +72,34 @@ def _render_website(website: Website):
         return jsonify({
             'error': 'PDF is not available for the website-level aggregate. '
                      'Use a site or report endpoint for a PDF.'
+        }), 400
+
+    return jsonify({'error': f"Unknown format '{fmt}'. Use json, markdown, or agent."}), 400
+
+
+def _render_report_list(website: Website, reports: list[Report]):
+    """Render the latest report of each page under a website."""
+    fmt = request.args.get('format', default='json', type=str).lower()
+
+    if fmt == 'json':
+        return jsonify({
+            'website_id': website.id,
+            'url': website.url,
+            'reports': [r.to_dict() for r in reports],
+        }), 200
+
+    if fmt == 'markdown':
+        body = "\n\n---\n\n".join(report_to_markdown(r) for r in reports)
+        return Response(body, mimetype='text/markdown')
+
+    if fmt == 'agent':
+        body = "\n\n---\n\n".join(report_to_agent_prompt(r) for r in reports)
+        return Response(body, mimetype='text/markdown')
+
+    if fmt == 'pdf':
+        return jsonify({
+            'error': 'PDF is not available for a multi-page latest report. '
+                     'Use a single report or site endpoint for a PDF.'
         }), 400
 
     return jsonify({'error': f"Unknown format '{fmt}'. Use json, markdown, or agent."}), 400
@@ -246,7 +274,10 @@ def get_website_report(website_id):
 @api_bp.route('/websites/<int:website_id>/reports/latest', methods=['GET'])
 @api_key_required
 def get_latest_report_by_website(website_id):
-    """Get the single most recently scanned page report for a website.
+    """Get the latest report for every page of a website.
+
+    A website scan produces one report per page, so this returns the most recent
+    report of each page (not just the most recently scanned page).
     ---
     tags:
       - Websites
@@ -260,30 +291,37 @@ def get_latest_report_by_website(website_id):
         in: query
         type: string
         required: false
-        enum: [json, markdown, agent, pdf]
+        enum: [json, markdown, agent]
         default: json
-        description: Output format.
+        description: >
+          Output format. json returns a list of the latest report per page;
+          markdown/agent concatenate one section per page. PDF is not supported
+          here — use a single report or site endpoint.
     responses:
       200:
-        description: The most recent page report for the website.
+        description: The latest report of each page under the website.
       400:
-        description: Unknown format.
+        description: Unknown format, or pdf requested (unsupported).
       401:
         description: Missing, invalid, or revoked API key.
       403:
-        description: The key's owner cannot view this report.
+        description: The key's owner cannot view this website.
       404:
         description: Website not found, or it has no reports.
     """
     website = db.session.get(Website, website_id)
     if not website:
         return jsonify({'error': 'Website not found'}), 404
-    report = (
-        db.session.query(Report)
-        .join(Site, Report.site_id == Site.id)
-        .join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Site.id)
-        .filter(Site_Website_Assoc.c.website_id == website_id)
-        .order_by(Report.timestamp.desc())
-        .first()
-    )
-    return _serve_report(report)
+    if not website.can_view(g.api_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    reports = []
+    for site in website.sites:
+        report = site.get_full_current_report()
+        if report:
+            reports.append(report)
+    if not reports:
+        return jsonify({'error': 'Report not found'}), 404
+
+    reports.sort(key=lambda r: r.url)
+    return _render_report_list(website, reports)

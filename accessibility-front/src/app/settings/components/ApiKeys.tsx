@@ -199,7 +199,7 @@ curl -H "X-API-Key: <YOUR_KEY>" \\
 curl -H "X-API-Key: <YOUR_KEY>" \\
   "${origin}/api/v1/websites/7/report?format=agent"
 
-# Latest report for a website (most recently scanned page)
+# Latest report for each page of a website
 curl -H "X-API-Key: <YOUR_KEY>" \\
   ${origin}/api/v1/websites/7/reports/latest
 
