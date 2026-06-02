@@ -56,12 +56,12 @@ def make_user(app):
 
 
 @pytest.fixture()
-def make_site(app):
-    """Create a Site (with its owning Domain + Website) owned by ``owner``."""
+def make_website(app):
+    """Create a Website (with its owning Domain) owned by ``owner``."""
     from models import db
-    from models.website import Domain, Site, Website
+    from models.website import Domain, Website
 
-    def _make(owner, base="https://example.com", page="/page", public=False):
+    def _make(owner, base="https://example.com", public=False):
         netloc = base.split("//", 1)[1]
         domain = db.session.query(Domain).filter_by(domain=netloc).first()
         if not domain:
@@ -72,10 +72,33 @@ def make_site(app):
         website.public = public
         db.session.add(website)
         db.session.commit()
-        site = Site(url=base + page, website=website)
+        return website
+
+    return _make
+
+
+@pytest.fixture()
+def add_site(app):
+    """Attach a Site (page) to an existing Website."""
+    from models import db
+    from models.website import Site
+
+    def _make(website, page="/page"):
+        site = Site(url=website.url + page, website=website)
         db.session.add(site)
         db.session.commit()
         return site
+
+    return _make
+
+
+@pytest.fixture()
+def make_site(make_website, add_site):
+    """Create a Site (with its owning Domain + Website) owned by ``owner``."""
+
+    def _make(owner, base="https://example.com", page="/page", public=False):
+        website = make_website(owner, base=base, public=public)
+        return add_site(website, page=page)
 
     return _make
 

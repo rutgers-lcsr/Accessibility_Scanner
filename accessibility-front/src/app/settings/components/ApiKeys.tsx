@@ -169,12 +169,18 @@ function ApiKeys() {
                 </Typography.Paragraph>
                 <Typography.Paragraph type="secondary">
                     Add <code>?format=</code> to any endpoint: <code>json</code> (default),{' '}
-                    <code>markdown</code>, <code>agent</code> (AI fix prompt), or <code>pdf</code>.
-                    The{' '}
+                    <code>markdown</code>, <code>agent</code> (AI fix prompt), or <code>pdf</code>{' '}
+                    (the website aggregate does not support pdf). The{' '}
                     <Typography.Link href={DOCS_URL} target="_blank">
                         interactive API reference
                     </Typography.Link>{' '}
                     lists every endpoint and lets you try requests in the browser.
+                </Typography.Paragraph>
+                <Typography.Paragraph type="secondary">
+                    Use a <strong>website</strong> ID (shown in the app) with the{' '}
+                    <code>/websites/…</code> endpoints for a whole-site report; the{' '}
+                    <code>/sites/…</code> endpoints take an individual <strong>page</strong> (site)
+                    ID.
                 </Typography.Paragraph>
                 <pre className="overflow-auto rounded bg-gray-100 p-4 text-xs whitespace-pre-wrap">
                     {`# Report by ID (JSON)
@@ -189,11 +195,19 @@ curl -H "X-API-Key: <YOUR_KEY>" \\
 curl -H "X-API-Key: <YOUR_KEY>" \\
   "${origin}/api/v1/reports/123?format=pdf" -o report.pdf
 
-# Latest report for a site, or by URL
+# Whole-website report (all pages combined)
+curl -H "X-API-Key: <YOUR_KEY>" \\
+  "${origin}/api/v1/websites/7/report?format=agent"
+
+# Latest report for a website (most recently scanned page)
+curl -H "X-API-Key: <YOUR_KEY>" \\
+  ${origin}/api/v1/websites/7/reports/latest
+
+# Latest report for a single page, by site ID or URL
 curl -H "X-API-Key: <YOUR_KEY>" \\
   ${origin}/api/v1/sites/45/reports/latest
 curl -H "X-API-Key: <YOUR_KEY>" \\
-  "${origin}/api/v1/reports/latest?url=https://example.com"`}
+  "${origin}/api/v1/reports/latest?url=https://example.com/page"`}
                 </pre>
             </Card>
 
