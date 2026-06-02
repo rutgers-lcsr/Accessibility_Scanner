@@ -1,6 +1,5 @@
 'use client';
 import EditableInput from '@/components/EditableInput';
-import PageHeading from '@/components/PageHeading';
 import PageLoading from '@/components/PageLoading';
 import { useSettings } from '@/providers/Settings';
 import { InfoCircleOutlined } from '@ant-design/icons';
@@ -29,9 +28,8 @@ function Settings() {
 
     return (
         <>
-            <PageHeading title="Application Settings" />
-            <div className="w-full mt-13">
-                <Flex align="center" justify="center" className="w-full p-6">
+            <div className="w-full">
+                <Flex align="center" justify="center" className="w-full">
                     <Card
                         loading={loading}
                         className="w-full max-w-xl shadow-lg"

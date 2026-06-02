@@ -4,22 +4,22 @@ An accessibility website scanner built for auditing and monitoring websites for 
 
 ## Features
 
--   Automated accessibility testing using Playwright
--   Integration with Axe for comprehensive accessibility checks
--   Reporting dashboard for tracking accessibility issues
--   Historical data tracking to monitor improvements over time through site reports
+- Automated accessibility testing using Playwright
+- Integration with Axe for comprehensive accessibility checks
+- Reporting dashboard for tracking accessibility issues
+- Historical data tracking to monitor improvements over time through site reports
 
 ## Parts
 
--   **Reverse Proxy**: Nginx server acting as a reverse proxy for SSL.
--   **Backend**: Flask application handling API requests, user authentication, and database interactions.
--   **Frontend**: Nextjs application providing a user interface for managing sites, viewing reports, and configuring settings.
--   **Database**: Mariadb database for storing user data, site information, and accessibility reports.
--   **Scanner**: Celery-based background workers that perform accessibility tests on web pages using Playwright.
--   **Redis**: Message broker for Celery task queue.
--   **Flower**: Web-based monitoring tool for Celery tasks (optional).
--   **Adminer**: A separate admin interface for managing database and setting users as admins.
--   **Deployment**: Docker and Docker Compose for easy deployment and management of the application.
+- **Reverse Proxy**: Nginx server acting as a reverse proxy for SSL.
+- **Backend**: Flask application handling API requests, user authentication, and database interactions.
+- **Frontend**: Nextjs application providing a user interface for managing sites, viewing reports, and configuring settings.
+- **Database**: Mariadb database for storing user data, site information, and accessibility reports.
+- **Scanner**: Celery-based background workers that perform accessibility tests on web pages using Playwright.
+- **Redis**: Message broker for Celery task queue.
+- **Flower**: Web-based monitoring tool for Celery tasks (optional).
+- **Adminer**: A separate admin interface for managing database and setting users as admins.
+- **Deployment**: Docker and Docker Compose for easy deployment and management of the application.
 
 ## Background Task Processing
 
@@ -79,7 +79,7 @@ If not set in SITEADMIN, to set a user as an admin, you can use the Adminer inte
 
 Websites can only be added if the following is true:
 
--   An admin has added a proper parent domain to the scanner. Meaning if you want to add `sub.rutgers.edu`, a admin must have added `rutgers.edu` as a parent domain first. If only `cs.rutgers.edu` is added, `sub.rutgers.edu` cannot be added.
+- An admin has added a proper parent domain to the scanner. Meaning if you want to add `sub.rutgers.edu`, a admin must have added `rutgers.edu` as a parent domain first. If only `cs.rutgers.edu` is added, `sub.rutgers.edu` cannot be added.
 
 Then, go to websites page in the Frontend and add a new website. After a site is added, depending on the settings, the scanner will automatically scan the site based on the rate limit. You can also manually trigger scans from the Frontend interface.
 
@@ -105,9 +105,16 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
 
 ## Notes
 
--   Ensure that Backend API is not publicly accessible without proper authentication and authorization. Frontend should handle user authentication and restrict access to authorized users only.
--   The scanner can be run separately as needed and does not need to be running for the application to function. (In this case automatic scans will not happen based on the rate limit) but manual scans can still be triggered and run in the backend application.
--   Modify the `docker-compose.yml` file as needed to customize the deployment settings, such as ports, environment variables, and volume mounts.
--   Deleting a website will also delete all associated reports and data for that website. This action is irreversible.
--   Deleting a domain will only delete a website if no other websites are using that domain as their parent domain.
--   Deleting a domain will only delete the domain itself doesnt have a parent domain it can attach to.
+- Ensure that Backend API is not publicly accessible without proper authentication and authorization. Frontend should handle user authentication and restrict access to authorized users only.
+- The scanner can be run separately as needed and does not need to be running for the application to function. (In this case automatic scans will not happen based on the rate limit) but manual scans can still be triggered and run in the backend application.
+- Modify the `docker-compose.yml` file as needed to customize the deployment settings, such as ports, environment variables, and volume mounts.
+- Deleting a website will also delete all associated reports and data for that website. This action is irreversible.
+- Deleting a domain will only delete a website if no other websites are using that domain as their parent domain.
+- Deleting a domain will only delete the domain itself doesnt have a parent domain it can attach to.
+
+# Change Log
+
+## 2026-06-01
+
+- Added API endpoint for fetching reports of websites. This adds Agentic capabilities to allow users to fetch reports through API calls and integrate with other systems or tools for further analysis and monitoring.
+- Added API Keys for authentication.

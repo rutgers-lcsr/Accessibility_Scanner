@@ -8,3 +8,16 @@ export type User = CasUser & {
     refresh_token: string;
     username: string;
 };
+
+export type ApiKey = {
+    id: number;
+    name: string;
+    prefix: string;
+    last_used_at: string | null;
+    created_at: string | null;
+};
+
+// Returned only once, on creation
+export type CreatedApiKey = ApiKey & {
+    key: string;
+};

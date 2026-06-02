@@ -77,6 +77,7 @@ export default function TabNav({ user }: Props) {
                   { label: 'Home', key: '1', icon: <HomeOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
                   { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
+                  { label: 'Settings', key: '7', icon: <SettingOutlined /> },
                   { label: 'Help', key: '8', icon: <QuestionCircleOutlined /> },
               ];
 

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from models.assoc import UserWebsiteAssoc
 if TYPE_CHECKING:
     from models.website import Website
+    from models.api_key import ApiKey
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -23,6 +24,9 @@ class User(db.Model):
     )
     viewable_websites: Mapped[List["Website"]] = db.relationship(
         "Website", secondary=UserWebsiteAssoc, back_populates='users', lazy=True
+    )
+    api_keys: Mapped[List["ApiKey"]] = db.relationship(
+        "ApiKey", back_populates='user', lazy=True, cascade="all, delete-orphan"
     )
     # password is nullable because users can login using cas
     password: Mapped[str] = db.Column(db.String(255), nullable=True)

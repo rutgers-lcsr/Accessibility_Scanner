@@ -7,6 +7,7 @@ from sqlalchemy import inspect
 from models import db
 from authentication.login import jwt
 from models.user import Profile, User
+from models.api_key import ApiKey
 from mail import mail
 from werkzeug.security import generate_password_hash
 import os
@@ -34,9 +35,37 @@ def create_app():
     app.config.from_pyfile('config.py')
     CORS(app, supports_credentials=True)
 
-    # Swagger docs
+    # Swagger docs for the public API key surface (/api/v1).
+    # Everything is served under /api/ so the Next.js proxy forwards it.
     from flasgger import Swagger
-    swagger = Swagger(app)
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": "A11y API",
+            "description": "Programmatic access to accessibility reports. "
+                           "Authenticate with an API key (create one in the app under API Keys).",
+            "version": "1.0",
+        },
+        "securityDefinitions": {
+            "ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-Key"},
+        },
+        "security": [{"ApiKeyAuth": []}],
+    }
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": "apispec_1",
+                "route": "/api/apispec_1.json",
+                "rule_filter": lambda rule: rule.rule.startswith("/api/v1"),
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/api/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/api/docs/",
+    }
+    swagger = Swagger(app, template=swagger_template, config=swagger_config)
 
     mail.init_app(app)
     db.init_app(app)
@@ -56,6 +85,8 @@ def create_app():
     from blueprints.scan import scan_bp
     from blueprints.axe_rules import axe_bp
     from blueprints.settings import settings_bp
+    from blueprints.api import api_bp
+    from blueprints.api_keys import api_keys_bp
     
     @app.route('/health', methods=['GET'])
     def health_check():
@@ -70,6 +101,8 @@ def create_app():
     app.register_blueprint(scan_bp, url_prefix='/api/scans')
     app.register_blueprint(axe_bp, url_prefix='/api/axe')
     app.register_blueprint(settings_bp, url_prefix='/api/settings')
+    app.register_blueprint(api_bp, url_prefix='/api/v1')
+    app.register_blueprint(api_keys_bp, url_prefix='/api/users/me/api-keys')
 
     with app.app_context():
         inspector = inspect(db.engine)
