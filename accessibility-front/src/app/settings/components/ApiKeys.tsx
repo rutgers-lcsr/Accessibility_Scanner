@@ -207,7 +207,15 @@ curl -H "X-API-Key: <YOUR_KEY>" \\
 curl -H "X-API-Key: <YOUR_KEY>" \\
   ${origin}/api/v1/sites/45/reports/latest
 curl -H "X-API-Key: <YOUR_KEY>" \\
-  "${origin}/api/v1/reports/latest?url=https://example.com/page"`}
+  "${origin}/api/v1/reports/latest?url=https://example.com/page"
+
+# Trigger a scan, then poll status, then fetch the report
+curl -X POST -H "X-API-Key: <YOUR_KEY>" \\
+  ${origin}/api/v1/websites/7/scan
+curl -H "X-API-Key: <YOUR_KEY>" \\
+  ${origin}/api/v1/scans/<TASK_ID>   # state: SUCCESS when done
+curl -H "X-API-Key: <YOUR_KEY>" \\
+  "${origin}/api/v1/websites/7/reports/latest?format=agent"`}
                 </pre>
             </Card>
 

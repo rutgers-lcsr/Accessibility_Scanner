@@ -4,6 +4,8 @@ from authentication.api_key import api_key_required
 from models import db
 from models.report import Report
 from models.website import Site, Website
+from scanner.tasks import scan_site as scan_site_task
+from scanner.tasks import scan_website as scan_website_task
 from utils.markdown import (
     report_to_agent_prompt,
     report_to_markdown,
@@ -338,3 +340,147 @@ def get_latest_report_by_website(website_id):
 
     reports.sort(key=lambda r: r.url)
     return _render_report_list(website, reports)
+
+
+def _scan_in_progress(task_id: str | None) -> bool:
+    if not task_id:
+        return False
+    return scan_website_task.AsyncResult(task_id).state in ('PENDING', 'PROGRESS')
+
+
+@api_bp.route('/websites/<int:website_id>/scan', methods=['POST'])
+@api_key_required
+def scan_website_endpoint(website_id):
+    """Queue a scan of every page of a website.
+
+    Scanning runs in the background. Poll the returned status endpoint until the
+    state is SUCCESS, then fetch the report from the report endpoint.
+    ---
+    tags:
+      - Scans
+    parameters:
+      - name: website_id
+        in: path
+        type: integer
+        required: true
+        description: Numeric website ID.
+    responses:
+      202:
+        description: Scan queued (or already in progress). Returns task_id and endpoints.
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner cannot scan this website.
+      404:
+        description: Website not found.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not website.can_scan(g.api_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    if _scan_in_progress(website.current_task_id):
+        return jsonify({
+            'message': 'Scan already in progress',
+            'task_id': website.current_task_id,
+            'status_endpoint': f'/api/v1/scans/{website.current_task_id}',
+            'report_endpoint': f'/api/v1/websites/{website_id}/reports/latest',
+        }), 202
+
+    task = scan_website_task.delay(website.url)
+    website.current_task_id = task.id
+    db.session.commit()
+    return jsonify({
+        'message': 'Scan queued',
+        'task_id': task.id,
+        'status_endpoint': f'/api/v1/scans/{task.id}',
+        'report_endpoint': f'/api/v1/websites/{website_id}/reports/latest',
+    }), 202
+
+
+@api_bp.route('/sites/<int:site_id>/scan', methods=['POST'])
+@api_key_required
+def scan_site_endpoint(site_id):
+    """Queue a scan of a single page (site).
+    ---
+    tags:
+      - Scans
+    parameters:
+      - name: site_id
+        in: path
+        type: integer
+        required: true
+        description: Numeric site (page) ID.
+    responses:
+      202:
+        description: Scan queued. Returns task_id and endpoints.
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner cannot scan this site.
+      404:
+        description: Site not found.
+      409:
+        description: A scan for this site is already in progress.
+    """
+    site = db.session.get(Site, site_id)
+    if not site:
+        return jsonify({'error': 'Site not found'}), 404
+    if not site.can_scan(g.api_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+    if site.scanning:
+        return jsonify({'error': 'Scan already in progress'}), 409
+
+    task = scan_site_task.delay(site.url)
+    return jsonify({
+        'message': 'Scan queued',
+        'task_id': task.id,
+        'status_endpoint': f'/api/v1/scans/{task.id}',
+        'report_endpoint': f'/api/v1/sites/{site_id}/reports/latest',
+    }), 202
+
+
+@api_bp.route('/scans/<task_id>', methods=['GET'])
+@api_key_required
+def get_scan_status_endpoint(task_id):
+    """Get the status of a queued scan.
+
+    State is one of PENDING, PROGRESS, SUCCESS, or FAILURE. When SUCCESS, fetch
+    the report from the relevant report endpoint.
+    ---
+    tags:
+      - Scans
+    parameters:
+      - name: task_id
+        in: path
+        type: string
+        required: true
+        description: Task ID returned by a scan request.
+    responses:
+      200:
+        description: Scan status.
+      401:
+        description: Missing, invalid, or revoked API key.
+    """
+    from celery.result import AsyncResult
+
+    from celery_app import celery
+
+    task = AsyncResult(task_id, app=celery)
+    state = task.state
+    response = {'task_id': task_id, 'state': state}
+
+    if state == 'PROGRESS':
+        info = task.info or {}
+        response['status'] = info.get('status', '')
+        response['current'] = info.get('current', 0)
+        response['total'] = info.get('total', 1)
+    elif state == 'SUCCESS':
+        response['result'] = task.result
+    elif state == 'FAILURE':
+        response['status'] = str(task.info)
+    else:
+        response['status'] = str(task.info) if task.info else ''
+
+    return jsonify(response), 200

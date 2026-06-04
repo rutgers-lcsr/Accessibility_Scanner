@@ -234,8 +234,11 @@ def test_swagger_spec_lists_only_public_api(client):
         "/api/v1/reports/{report_id}",
         "/api/v1/reports/latest",
         "/api/v1/sites/{site_id}/reports/latest",
+        "/api/v1/sites/{site_id}/scan",
         "/api/v1/websites/{website_id}/report",
         "/api/v1/websites/{website_id}/reports/latest",
+        "/api/v1/websites/{website_id}/scan",
+        "/api/v1/scans/{task_id}",
     }
 
 
