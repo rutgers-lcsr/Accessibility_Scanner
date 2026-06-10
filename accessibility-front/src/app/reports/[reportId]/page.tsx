@@ -244,16 +244,6 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                             className="mb-4 rounded-lg border max-h-[700px] overflow-auto w-full hover:shadow-lg transition-shadow relative"
                             id="url-preview"
                         >
-                            <div className="right-1 top-0 p-2 absolute">
-                                <Console
-                                    label="Accessibility Report Script"
-                                    command={`var accessScriptElement = document.createElement('script');
-accessScriptElement.src = '${report_script_full_url}';
-document.body.appendChild(accessScriptElement);`}
-                                    mini
-                                />
-                            </div>
-
                             <Suspense
                                 fallback={
                                     <div className="h-[500px] flex items-center justify-center">
@@ -263,7 +253,15 @@ document.body.appendChild(accessScriptElement);`}
                             >
                                 <PageIframe
                                     url={'/proxy?url=' + report.url + '&scriptToken=' + report.script_token}
-                                />
+                                >
+                                    <Console
+                                        label="Accessibility Report Script"
+                                        command={`var accessScriptElement = document.createElement('script');
+accessScriptElement.src = '${report_script_full_url}';
+document.body.appendChild(accessScriptElement);`}
+                                        mini
+                                    />
+                                </PageIframe>
                             </Suspense>
                         </div>
                         <a href="#report-injection-script">
