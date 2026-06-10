@@ -10,6 +10,7 @@ import io
 from models.user import User
 from models.website import Site
 from utils.style_generator import report_to_js
+from utils.jwt import decode_jwt_token
 
 report_bp = Blueprint('report', __name__)
 
@@ -86,10 +87,17 @@ def get_report_pdf(report_id):
     return Response(pdf_data, mimetype='application/pdf',
                     headers={"Content-Disposition": f"attachment;filename={pdfName}"})
 
-@report_bp.route('/<int:report_id>/script/', methods=['GET'])
-def get_report_script(report_id):
-    # Note, Anyone can access this endpoint
-    report = db.session.get(Report, report_id)  
+@report_bp.route('/script/<token>/', methods=['GET'])
+def get_report_script(token):
+    # Anonymous by design: the script is loaded cross-origin from the audited
+    # page (DevTools console paste, or the proxy iframe), so there is no session
+    # to authenticate. The unguessable signed token is the authorization, and it
+    # only reaches users who can already view this (access-controlled) report.
+    payload = decode_jwt_token(token)
+    if payload.get('error') or payload.get('scope') != 'report-script':
+        return jsonify({'error': 'Invalid token'}), 401
+
+    report = db.session.get(Report, payload.get('report_id'))
     if not report:
         return jsonify({'error': 'Report not found'}), 404
 

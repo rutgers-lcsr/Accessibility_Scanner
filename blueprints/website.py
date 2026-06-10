@@ -725,8 +725,8 @@ def get_overall_website(website_id):
     if not current_user:
         if not website.public:
             return jsonify({'error': 'Unauthorized'}), 403
-    if current_user:
-        website.can_view(current_user) or jsonify({'error': 'Unauthorized'}), 403
+    if not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
 
     return jsonify(website.to_dict(with_report=True)), 200
 

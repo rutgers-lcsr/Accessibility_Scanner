@@ -78,6 +78,7 @@ export type Report = {
     imgs: string[];
     tabable: boolean;
     tags: string[];
+    script_token: string;
     created_at: string;
     updated_at: string;
 };

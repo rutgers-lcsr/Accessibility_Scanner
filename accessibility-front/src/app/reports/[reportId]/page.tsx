@@ -60,7 +60,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
 
     const violations = report.report_counts.violations;
 
-    const report_script_full_url = `https://${host}/api/reports/${reportId}/script/`;
+    const report_script_full_url = `https://${host}/api/reports/script/${report.script_token}/`;
 
     const report_photo_url = `/api/reports/${reportId}/photo/`;
 
@@ -262,7 +262,7 @@ document.body.appendChild(accessScriptElement);`}
                                 }
                             >
                                 <PageIframe
-                                    url={'/proxy?url=' + report.url + '&reportId=' + report.id}
+                                    url={'/proxy?url=' + report.url + '&scriptToken=' + report.script_token}
                                 />
                             </Suspense>
                         </div>

@@ -6,6 +6,7 @@ from scanner.browser.parse import  get_imgs, get_links, get_videos
 from playwright.async_api import Browser
 import time 
 from scanner.browser.tabbable import is_page_tabbable
+from scanner.browser.wait import wait_for_page_settled
 from scanner.log import log_message
 from utils.style_generator import report_to_js
 from utils.urls import get_website_url
@@ -48,15 +49,14 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     try:
         context = await browser.new_context(user_agent=ACCESSIBILITY_USER_AGENT)
         page = await context.new_page()
-        res = await page.goto(website)
+        res = await page.goto(website, wait_until="domcontentloaded")
         result['url'] = website
         result['response_code'] = res.status if res else 0
         if res is None or res.status >= 400:
             await page.close()
             result['error'] = f"Failed to load page, status code: {res.status if res else 'No Response'}"
             return result
-        await page.wait_for_load_state()
-        await page.wait_for_timeout(1000)  # Wait for a second to ensure the page is fully loaded
+        await wait_for_page_settled(page)
     except Exception as e:
         return {"error": str(e)}
 

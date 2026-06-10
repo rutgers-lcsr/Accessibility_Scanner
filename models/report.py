@@ -7,6 +7,7 @@ from sqlalchemy.dialects.mysql import LONGBLOB
 from models.user import User
 
 from . import db
+from utils.jwt import generate_jwt_token
 from scanner.browser.report import AccessibilityReport
 from scanner.accessibility.ace import AxeReport, AxeReportKeys, AxeResult
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
@@ -236,4 +237,8 @@ class Report(db.Model):
             'imgs': self.imgs,
             'tabable': self.tabable,
             'tags': self.tags,
+            # Capability token for the anonymous report-script endpoint. Signed,
+            # so it can't be forged or enumerated; only viewers of this (access
+            # controlled) report receive it.
+            'script_token': generate_jwt_token({'report_id': self.id, 'scope': 'report-script'}),
         }

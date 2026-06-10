@@ -62,8 +62,8 @@ function redirectUrl(url: string, link: string) {
     return newUrl;
 }
 
-function injectScript(body: string, url: string, reportId: string) {
-    const reportScript = `<script defer src="${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/${reportId}/script/"></script>`;
+function injectScript(body: string, url: string, scriptToken: string) {
+    const reportScript = `<script defer src="${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/script/${scriptToken}/"></script>`;
     let html = makeHtmlPage(body);
 
     html = html.replace(/href="([^"]+)"/gi, (match, p1) => {
@@ -189,7 +189,7 @@ export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
 
     const url = searchParams.get('url') || '';
-    const reportId = searchParams.get('reportId') || '';
+    const scriptToken = searchParams.get('scriptToken') || '';
     const { renderToString } = await import('react-dom/server');
     const userAgent = req.headers.get('User-Agent') || 'Mozilla/5.0';
 
@@ -251,9 +251,9 @@ export async function GET(req: NextRequest) {
         body = body.replace(/<base href="[^"]*">/gi, ''); // Remove any base href tags to prevent issues with relative links
         body = body.replace(/<link[^>]*rel=["']?icon["']?[^>]*>/gi, ''); // Remove any favicon link tags
 
-        // If the reportId is present, we can use it to modify the response
-        if (reportId) {
-            body = injectScript(body, url, reportId);
+        // If the script token is present, inject the report highlighter script
+        if (scriptToken) {
+            body = injectScript(body, url, scriptToken);
         }
         if (!body) {
             body = '<html><body><h1>No content</h1></body></html>';
