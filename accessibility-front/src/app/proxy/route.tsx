@@ -62,6 +62,11 @@ function redirectUrl(url: string, link: string) {
     return newUrl;
 }
 
+function assetProxyUrl(absUrl: string) {
+    const urlObj = new URL(absUrl);
+    return `/proxy/asset/${urlObj.protocol.replace(':', '')}/${urlObj.host}${urlObj.pathname}${urlObj.search}`;
+}
+
 function injectScript(body: string, url: string, scriptToken: string) {
     const reportScript = `<script defer src="${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/script/${scriptToken}/"></script>`;
     let html = makeHtmlPage(body);
@@ -73,6 +78,20 @@ function injectScript(body: string, url: string, scriptToken: string) {
     html = html.replace(/src="([^"]+)"/gi, (match, p1) => {
         return `src="${redirectUrl(url, p1)}"`;
     });
+
+    // Module scripts are always fetched in CORS mode, so cross-origin absolute URLs
+    // are blocked unless the site sends CORS headers (React/Vite builds break).
+    // Route them through our same-origin asset proxy instead.
+    html = html.replace(/<script([^>]*type=["']module["'][^>]*)>/gi, (match, attrs) => {
+        return `<script${attrs.replace(/src="(https?:\/\/[^"]+)"/i, (m: string, p1: string) => `src="${assetProxyUrl(p1)}"`)}>`;
+    });
+    html = html.replace(/<link([^>]*rel=["']modulepreload["'][^>]*)>/gi, (match, attrs) => {
+        return `<link${attrs.replace(/href="(https?:\/\/[^"]+)"/i, (m: string, p1: string) => `href="${assetProxyUrl(p1)}"`)}>`;
+    });
+
+    // crossorigin forces CORS on stylesheets/scripts too; strip it (and integrity,
+    // which requires CORS to verify) so they load in no-cors mode.
+    html = html.replace(/\s(?:crossorigin|integrity)(?:="[^"]*")?/gi, '');
 
     // for the single page without a head tag, we need to add one
     if (!html.match(/<\/head>/i)) {
