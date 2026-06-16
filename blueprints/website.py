@@ -660,6 +660,88 @@ def get_website_sites(website_id):
         'items': [site.to_dict() for site in sites.items]
     }), 200
 
+@website_bp.route('/<int:website_id>/history/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_history(website_id):
+    """
+    Get the aggregated accessibility history for a website over time.
+    ---
+    tags:
+        - Websites
+    parameters:
+        - in: path
+            name: website_id
+            required: true
+            type: integer
+    responses:
+        200:
+            description: Daily aggregated report counts across all the website's URLs
+            schema:
+                type: object
+                properties:
+                    items:
+                        type: array
+                        items:
+                            type: object
+        404:
+            description: Website not found
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+
+    if current_user:
+        if not website.can_view(current_user):
+            return jsonify({'error': 'Unauthorized'}), 403
+
+    if not current_user:
+        # make sure that non-admin users can only see public websites
+        if not website.public:
+            return jsonify({'error': 'Unauthorized'}), 403
+
+    # Pull only (site_id, timestamp, report_counts) for every report of this
+    # website's URLs, oldest -> newest. Avoid loading the heavy report/photo blobs.
+    reports = (
+        db.session.query(Report.site_id, Report.timestamp, Report.report_counts)
+        .join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Report.site_id)
+        .filter(Site_Website_Assoc.c.website_id == website_id)
+        .order_by(Report.timestamp.asc())
+        .all()
+    )
+
+    categories = ['violations', 'inaccessible', 'incomplete', 'passes']
+    subkeys = ['total', 'critical', 'serious', 'moderate', 'minor']
+
+    def sum_counts(per_site):
+        total = {cat: {sk: 0 for sk in subkeys} for cat in categories}
+        for counts in per_site.values():
+            for cat in categories:
+                cat_counts = counts.get(cat) if counts else None
+                if not cat_counts:
+                    continue
+                for sk in subkeys:
+                    total[cat][sk] += cat_counts.get(sk, 0)
+        return total
+
+    # Daily carry-forward: walk reports in time order, keeping the latest report
+    # per URL, and emit one aggregate point per day that any scan happened. This
+    # keeps the website total correct on days when only some URLs were rescanned.
+    items = []
+    latest_per_site = {}
+    current_day = None
+    for site_id, timestamp, report_counts in reports:
+        if not timestamp:
+            continue
+        day = timestamp.strftime("%Y-%m-%d")
+        if current_day is not None and day != current_day:
+            items.append({'date': current_day, 'report_counts': sum_counts(latest_per_site)})
+        latest_per_site[site_id] = report_counts
+        current_day = day
+    if current_day is not None:
+        items.append({'date': current_day, 'report_counts': sum_counts(latest_per_site)})
+
+    return jsonify({'count': len(items), 'items': items}), 200
+
 @website_bp.route('/categories/', methods=['GET'])
 @jwt_required(optional=True)
 def get_website_categories():

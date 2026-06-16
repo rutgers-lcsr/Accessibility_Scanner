@@ -17,6 +17,7 @@ import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
 import AdminItems from './AdminItems';
 import WebsiteAdminItems from './WebsiteAdminItems';
+import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteReport from './WebsiteReport';
 import WebsiteSiteTable from './WebsiteSiteTable';
 const { Content } = Layout;
@@ -70,6 +71,11 @@ const Website = ({ websiteId, user }: Props) => {
             key: '2',
             label: `Violations (${violations.total})`,
             children: <WebsiteReport report={websiteReport.report} />,
+        },
+        {
+            key: '3',
+            label: 'History',
+            children: <WebsiteHistoryChart websiteId={websiteId} user={user} />,
         },
     ];
 

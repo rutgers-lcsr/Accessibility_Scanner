@@ -9,6 +9,7 @@ import { Pagination, Table, Tag } from 'antd';
 import { format } from 'date-fns';
 import React from 'react';
 import useSWR from 'swr';
+import SiteHistoryChart from './SiteHistoryChart';
 
 type Props = {
     websiteId: number;
@@ -104,6 +105,13 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
                 dataSource={sites?.items}
                 loading={isLoadingSites}
                 rowKey="id"
+                expandable={{
+                    // SiteHistoryChart is only rendered for expanded rows, so each
+                    // URL's history is fetched lazily on expand.
+                    expandedRowRender: (record) => (
+                        <SiteHistoryChart siteId={record.id} user={user} />
+                    ),
+                }}
             />
 
             <div className="flex justify-center pt-4 pb-4">
