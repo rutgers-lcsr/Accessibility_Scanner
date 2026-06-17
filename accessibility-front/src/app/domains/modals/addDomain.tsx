@@ -31,9 +31,10 @@ const CreateDomain: React.FC = () => {
                 onOk={handleSubmit}
             >
                 <div>
-                    <label>
+                    <label htmlFor="domain-name">
                         Domain:
                         <Input
+                            id="domain-name"
                             placeholder="example.com"
                             type="text"
                             value={domainName}

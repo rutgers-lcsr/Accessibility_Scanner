@@ -77,7 +77,6 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                         <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
 
                         <section
-                            role="region"
                             aria-labelledby="accessibility-report"
                             className="rounded-lg bg-gray-50 p-6"
                         >
@@ -306,11 +305,7 @@ document.body.appendChild(accessScriptElement);`}
                     <Card>
                         <h2 className="my-4 text-2xl font-semibold">Report Photo</h2>
                         <Tooltip title="This is a screenshot of the page at the time of the report, including any detected accessibility issues.">
-                            <div
-                                className="max-h-[400px] overflow-auto"
-                                id="report-photo"
-                                tabIndex={0}
-                            >
+                            <div className="max-h-[400px] overflow-auto" id="report-photo">
                                 <Image
                                     src={report_photo_url}
                                     alt="Report Photo"

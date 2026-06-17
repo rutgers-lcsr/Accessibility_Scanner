@@ -61,15 +61,12 @@ function WebsiteReport({ report }: Props) {
                             onClick={() => setDesc(!desc)}
                             size="small"
                             type="default"
+                            aria-label={desc ? 'Descending' : 'Ascending'}
                             icon={
                                 desc ? (
-                                    <span aria-label="Descending" role="img">
-                                        ↓
-                                    </span>
+                                    <span aria-hidden="true">↓</span>
                                 ) : (
-                                    <span aria-label="Ascending" role="img">
-                                        ↑
-                                    </span>
+                                    <span aria-hidden="true">↑</span>
                                 )
                             }
                         >

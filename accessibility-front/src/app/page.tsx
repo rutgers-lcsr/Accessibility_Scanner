@@ -8,7 +8,7 @@ import { useState } from 'react';
 
 export default function Home() {
     // check if browser is chrome or firefox
-    const [axeLink, setAxeLink] = useState(getAxeLink());
+    const [axeLink] = useState(getAxeLink());
 
     return (
         <>

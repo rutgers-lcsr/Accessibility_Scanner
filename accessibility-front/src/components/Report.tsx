@@ -51,12 +51,14 @@ function Report({ report_id, user }: Props) {
             <header className="mb-8">
                 <h1 className="mb-2 text-3xl font-extrabold">
                     Report for{' '}
-                    <span
-                        onClick={() => window.open(reportData.url)}
+                    <a
+                        href={reportData.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="cursor-pointer text-blue-700 underline"
                     >
                         {reportData.url}
-                    </span>
+                    </a>
                 </h1>
                 {user && user.is_admin && <AdminReportItems report={reportData} />}
                 <h2 className="mb-2 text-lg text-gray-500">
@@ -67,7 +69,6 @@ function Report({ report_id, user }: Props) {
                 </h2>
                 <h3 className="mb-4 text-lg text-gray-500">Website: {reportData.base_url}</h3>
                 <section
-                    role="region"
                     aria-labelledby="accessibility-report"
                     className="rounded-lg bg-gray-50 p-6"
                 >

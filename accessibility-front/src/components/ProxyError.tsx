@@ -9,7 +9,7 @@ type Props = {
 
 function ProxyError({ status, title, subTitle, details, link, linkName }: Props) {
     return (
-        <html>
+        <html lang="en">
             <body>
                 <title>{title || 'Proxy Error'}</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1" />

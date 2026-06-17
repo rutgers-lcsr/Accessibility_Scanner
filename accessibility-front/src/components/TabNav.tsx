@@ -114,7 +114,6 @@ export default function TabNav({ user }: Props) {
             collapsible
             collapsed={collapsed}
             onCollapse={setCollapsed}
-            role="complementary"
             aria-label="Tab Navigation"
             title="Accessibility Audit Tool Navigation"
             tabIndex={0}

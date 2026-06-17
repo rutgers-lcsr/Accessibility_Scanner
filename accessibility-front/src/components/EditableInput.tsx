@@ -1,5 +1,6 @@
 import { Input, Tooltip } from 'antd';
-import { useState } from 'react';
+import type { InputRef } from 'antd';
+import { useEffect, useRef, useState } from 'react';
 
 type Props<T> = Omit<React.ComponentProps<typeof Input>, 'onChange'> & {
     label?: string;
@@ -12,6 +13,13 @@ function EditableInput<T>({ label, value, onChange, validate, ...rest }: Props<T
     const [isEditing, setIsEditing] = useState(false);
     const [localValue, setLocalValue] = useState<T>(value);
     const [error, setError] = useState<string | null>(null);
+    const inputRef = useRef<InputRef>(null);
+    // Focus the input when entering edit mode
+    useEffect(() => {
+        if (isEditing) {
+            inputRef.current?.focus();
+        }
+    }, [isEditing]);
     // Update local value if the prop value changes
     if (value !== localValue && !isEditing) {
         setLocalValue(value);
@@ -49,7 +57,7 @@ function EditableInput<T>({ label, value, onChange, validate, ...rest }: Props<T
                     }}
                     onChange={(e) => setLocalValue(e.target.value as unknown as T)}
                     onBlur={() => setIsEditing(false)}
-                    autoFocus
+                    ref={inputRef}
                     aria-label={label ? `${label} input` : 'Editable input'}
                     className={`w-full ${error ? 'border-red-500' : ''}`}
                     data-testid="editable-input"
@@ -61,14 +69,16 @@ function EditableInput<T>({ label, value, onChange, validate, ...rest }: Props<T
 
     return (
         <Tooltip title={'Click to edit' + (label ? ` ${label}` : '')} placement="top">
-            <div
+            <button
+                type="button"
                 onClick={() => setIsEditing(true)}
+                className="block w-full text-left"
                 style={{ cursor: 'pointer', minHeight: '32px' }}
                 aria-label={label ? `${label} value` : 'Editable input value'}
             >
                 {label && <strong>{label}: </strong>}
                 <span className="underline">{value}</span>
-            </div>
+            </button>
         </Tooltip>
     );
 }

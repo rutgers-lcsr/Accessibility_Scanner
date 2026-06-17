@@ -25,7 +25,6 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     const { handlerUserApiRequest } = useUser();
     const {
         data: settings,
-        isLoading,
         mutate,
     } = useSWR('/api/settings', handlerUserApiRequest<Settings>);
 

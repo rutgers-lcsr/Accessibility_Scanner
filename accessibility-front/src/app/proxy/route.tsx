@@ -51,7 +51,7 @@ function redirectUrl(url: string, link: string) {
     const urlObj = new URL(baseUrl);
 
     // if baseUrl ends with a file (e.g. .html, .php, .aspx, etc.), remove the file part
-    const endsWithFile = urlObj.pathname.match(/\/[^\/]+\.[^\/]+$/);
+    const endsWithFile = urlObj.pathname.match(/\/[^/]+\.[^/]+$/);
     if (endsWithFile) {
         baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
     }

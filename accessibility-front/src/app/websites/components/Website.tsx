@@ -107,7 +107,6 @@ const Website = ({ websiteId, user }: Props) => {
                         : 'Never'}
                 </h2>
                 <section
-                    role="region"
                     aria-labelledby="accessibility-report"
                     className="rounded-lg bg-gray-50 p-6"
                 >

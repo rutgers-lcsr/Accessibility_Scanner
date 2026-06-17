@@ -2,6 +2,7 @@
 
 import { Flex } from 'antd';
 import Card from 'antd/es/card/Card';
+import Link from 'next/link';
 
 function HelpPage() {
     return (
@@ -10,15 +11,11 @@ function HelpPage() {
                 <Card
                     variant="borderless"
                     style={{ maxWidth: 400, minWidth: 300, margin: 16 }}
-                    title={
-                        <span role="heading" aria-level={2}>
-                            Landmarks
-                        </span>
-                    }
+                    title={<h2>Landmarks</h2>}
                     extra={
-                        <a href="/help/landmarks" aria-label="Learn more about Landmarks">
+                        <Link href="/help/landmarks" aria-label="Learn more about Landmarks">
                             Learn more
-                        </a>
+                        </Link>
                     }
                     tabIndex={0}
                     aria-describedby="landmarks-desc"

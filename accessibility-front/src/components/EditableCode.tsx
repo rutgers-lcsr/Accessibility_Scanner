@@ -88,10 +88,15 @@ function EditableCode({ label, value, onChange, validate }: Props) {
     }
 
     return (
-        <div onClick={() => setIsEditing(true)} style={{ cursor: 'pointer' }}>
+        <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="block w-full text-left"
+            style={{ cursor: 'pointer' }}
+        >
             {label && <strong>{label}: </strong>}
             <span>{value}</span>
-        </div>
+        </button>
     );
 }
 

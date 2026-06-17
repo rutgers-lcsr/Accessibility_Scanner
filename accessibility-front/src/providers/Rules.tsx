@@ -52,16 +52,11 @@ export const RuleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
     const {
         data: tags,
-        error: tagsError,
-        isLoading: tagsLoading,
         mutate: mutateTags,
     } = useSWR('/api/axe/rules/tags/', handlerUserApiRequest<string[]>);
 
     const {
         data: checkNames,
-        error: checkNamesError,
-        isLoading: checkNamesLoading,
-        mutate: mutateCheckNames,
     } = useSWR('/api/axe/checks/names/', handlerUserApiRequest<{ id: number; name: string }[]>);
 
     const exportRule = async (ruleId: number) => {

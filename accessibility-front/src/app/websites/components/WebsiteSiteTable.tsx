@@ -27,7 +27,6 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
         data: sites,
         error: siteError,
         isLoading: isLoadingSites,
-        mutate: mutateSites,
     } = useSWR(
         `/api/websites/${websiteId}/sites?page=${currentPage}&limit=${pageSize}`,
         user ? handlerUserApiRequest<Paged<Site>> : fetcherApi<Paged<Site>>

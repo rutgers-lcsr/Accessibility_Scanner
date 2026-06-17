@@ -183,9 +183,12 @@ export default function RuleComponent({ rule }: Props) {
                         <Select.Option value="critical">Critical</Select.Option>
                     </Select>
                     <Flex gap={8} className="mb-4">
-                        <label className="block mb-2 text-md">Exclude Hidden Elements</label>
+                        <label htmlFor="exclude-hidden" className="block mb-2 text-md">
+                            Exclude Hidden Elements
+                        </label>
 
                         <Switch
+                            id="exclude-hidden"
                             className="z-11"
                             title="Exclude Hidden Elements"
                             checked={rule.exclude_hidden}

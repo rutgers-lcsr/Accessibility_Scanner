@@ -5,6 +5,13 @@ import { Card, Flex, Layout, List, Menu, Typography } from 'antd';
 const { Header, Footer, Sider, Content } = Layout;
 const { Title, Paragraph, Text } = Typography;
 
+/*
+ * This page teaches ARIA landmarks by highlighting each one on hover. The mouse
+ * handlers must stay on the landmark elements themselves (they read
+ * e.currentTarget), and those elements must keep their native landmark roles —
+ * so jsx-a11y/no-noninteractive-element-interactions does not apply here.
+ */
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
 function LandmarksPage() {
     function highlightLandmark(e: React.MouseEvent, landmark: string) {
         e.preventDefault();

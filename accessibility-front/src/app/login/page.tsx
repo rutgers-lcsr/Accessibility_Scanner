@@ -2,7 +2,9 @@
 import { login } from 'next-cas-client';
 import React from 'react';
 const LoginPage: React.FC = () => {
-    login();
+    React.useEffect(() => {
+        login();
+    }, []);
     return null;
 };
 

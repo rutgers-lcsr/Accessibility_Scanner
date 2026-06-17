@@ -59,7 +59,6 @@ function PageIframe({ url, children }: Props) {
                 </Tooltip>
             </div>
             <iframe
-                tabIndex={0}
                 onError={(e) => console.error('Iframe error:', e)}
                 ref={iframeRef}
                 src={url}
