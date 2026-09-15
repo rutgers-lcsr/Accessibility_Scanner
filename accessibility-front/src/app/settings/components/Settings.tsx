@@ -50,6 +50,18 @@ function Settings() {
                             overridden per website.
                         </div>
                         <div className="my-4" />
+                        <EditableInput
+                            label="Pages scanned at once (per website scan)"
+                            type="number"
+                            value={settings?.scan_page_concurrency || ''}
+                            onChange={(value) => handleSave('scan_page_concurrency', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            How many pages of a website the scanner audits concurrently. Each page
+                            is a browser tab; lower this if the worker runs out of memory, raise it
+                            for faster scans of large sites.
+                        </div>
+                        <div className="my-4" />
                         <label className="block mb-2 font-bold" htmlFor="default_tags">
                             Default Tags (for all scans)
                         </label>

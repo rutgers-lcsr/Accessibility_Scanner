@@ -10,6 +10,7 @@ type Settings = {
     default_notify_on_completion: string;
     default_email_domain: string;
     default_should_auto_activate: string;
+    scan_page_concurrency: string;
 };
 
 type SettingsContextType = {
