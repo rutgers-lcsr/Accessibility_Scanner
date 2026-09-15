@@ -109,23 +109,25 @@ class Check(db.Model):
 
     def to_js_object(self, update=False, force=False) -> str:
         """
-        Covert the Check to a JavaScript object string for use in axe-core configuration.
-        If update is True, it will update the json field in the database. If force is True, it will commit the change immediately.
+        Convert the Check to a JavaScript object string for use in axe-core configuration.
+        The string is always rebuilt from the current fields; the ``json`` column is a stored
+        copy for reference only. If update is True the ``json`` field is refreshed, and if
+        force is True the change is committed immediately.
+
+        ``evaluate`` and ``options`` are spliced in as code (both are validated in
+        ``validate``). Every other field is emitted as a JSON string literal so that quotes
+        or other characters in user-supplied text cannot alter the object.
         """
-        
-        
-        if not update:
-            return self.json if self.json else self.to_js_object(update=True, force=True)
         js_object = f"""
             {{
-                id: "{self.name}",
+                id: {json.dumps(self.name)},
                 evaluate: {self.evaluate},
                 options: {self.options if self.options else '{}'},
                 metadata: {{
                     messages: {{
-                        pass: "{self.pass_text}",
-                        fail: "{self.fail_text}",
-                        incomplete: "{self.incomplete_text}",
+                        pass: {json.dumps(self.pass_text)},
+                        fail: {json.dumps(self.fail_text)},
+                        incomplete: {json.dumps(self.incomplete_text)},
                     }}
                 }},
             }}
@@ -363,33 +365,45 @@ class Rule(db.Model):
     # for use in axe report
     def to_js_object(self, update = False, force = False) -> str:
         """
-        Covert the Rule to a JavaScript object string for use in axe-core configuration. 
-        If update is True, it will update the json field in the database. If force is True, it will commit the change immediately.
+        Convert the Rule to a JavaScript object string for use in axe-core configuration.
+        The string is always rebuilt from the current fields; the ``json`` column is a stored
+        copy for reference only. If update is True the ``json`` field is refreshed, and if
+        force is True the change is committed immediately.
+
+        ``matches`` is spliced in as code (validated in ``save``) and omitted when unset.
+        Every other field is emitted as a JSON literal so that quotes or other characters in
+        user-supplied text cannot alter the object.
         """
-        
-        if not update:
-            return self.json if self.json else self.to_js_object(update=True, force=True)
-        
-        js_object = f"""{{
-                id: "{self.name}",
-                selector: "{self.selector}",
-                excludeHidden: {self.exclude_hidden and 'true' or 'false'},
-                enabled: {self.enabled and 'true' or 'false'},
-                matches: {self.matches},
-                description: "{self.description}",
-                help: "{self.help}",
-                impact: "{self.impact}",
-                helpUrl: "{self.help_url}",
-                tags: [{",".join(f'"{tag}"' for tag in self.tags.split(","))}],
-                any: [{",".join(f'"{check.name}"' for check in self.any)}],
-                all: [{",".join(f'"{check.name}"' for check in self.all)}],
-                none: [{",".join(f'"{check.name}"' for check in self.none)}],
-                metadata: {{
-                    description: "{self.description}",
-                    help: "{self.help}",
-                    helpUrl: "{self.help_url}",
-                }},
-            }}""" 
+        tags = [tag for tag in self.tags.split(",") if tag]
+        help_url = self.help_url or None
+
+        lines = [
+            f"id: {json.dumps(self.name)}",
+            f"selector: {json.dumps(self.selector)}",
+            f"excludeHidden: {'true' if self.exclude_hidden else 'false'}",
+            f"enabled: {'true' if self.enabled else 'false'}",
+        ]
+        if self.matches:
+            lines.append(f"matches: {self.matches}")
+        lines += [
+            f"description: {json.dumps(self.description)}",
+            f"help: {json.dumps(self.help)}",
+            f"impact: {json.dumps(self.impact)}",
+        ]
+        if help_url:
+            lines.append(f"helpUrl: {json.dumps(help_url)}")
+        lines += [
+            f"tags: {json.dumps(tags)}",
+            f"any: {json.dumps([check.name for check in self.any])}",
+            f"all: {json.dumps([check.name for check in self.all])}",
+            f"none: {json.dumps([check.name for check in self.none])}",
+        ]
+        metadata = {"description": self.description, "help": self.help}
+        if help_url:
+            metadata["helpUrl"] = help_url
+        lines.append(f"metadata: {json.dumps(metadata)}")
+
+        js_object = "{\n" + ",\n".join(f"                {line}" for line in lines) + "\n            }"
         
         is_valid = is_valid_object(js_object)
         
