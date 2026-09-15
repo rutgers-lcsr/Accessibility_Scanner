@@ -9,6 +9,7 @@ from services.scan import (
     queue_website_scan,
     resolve_task_target,
     serialize_task_state,
+    site_scan_in_progress,
 )
 from utils.limiter import limiter
 from utils.markdown import (
@@ -420,7 +421,7 @@ def scan_site_endpoint(site_id):
         return jsonify({'error': 'Site not found'}), 404
     if not site.can_scan(g.api_user):
         return jsonify({'error': 'Unauthorized'}), 403
-    if site.scanning:
+    if site_scan_in_progress(site):
         return jsonify({'error': 'Scan already in progress'}), 409
 
     task_id = queue_site_scan(site)

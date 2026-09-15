@@ -7,6 +7,7 @@ from services.scan import (
     queue_website_scan,
     resolve_task_target,
     serialize_task_state,
+    site_scan_in_progress,
 )
 from utils.limiter import limiter
 
@@ -89,7 +90,7 @@ def scan_website():
             if not site_obj.can_scan(current_user):
                 return jsonify({"error": "Unauthorized"}), 403
 
-            if site_obj.scanning:
+            if site_scan_in_progress(site_obj):
                 return jsonify({"error": "Scan already in progress"}), 409
 
             task_id = queue_site_scan(site_obj)

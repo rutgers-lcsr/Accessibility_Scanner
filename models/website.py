@@ -44,6 +44,8 @@ class Site(db.Model):
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     # Id of the most recent scan task; never cleared, used to authorise status polling.
     last_task_id: Mapped[str] = db.Column(db.String(36), nullable=True)
+    # When that task was queued; lets a stale `scanning` flag expire (services.scan).
+    scan_queued_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -252,6 +254,9 @@ class Website(db.Model):
     # Id of the most recent scan task; never cleared (unlike current_task_id), used to
     # authorise status polling after the scan finishes.
     last_task_id: Mapped[str] = db.Column(db.String(36), nullable=True)
+    # When current_task_id was queued; a PENDING task older than services.scan.STALE_AFTER
+    # is treated as lost instead of blocking the website forever.
+    scan_queued_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     admin_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     admin: Mapped['User'] = db.relationship('User', back_populates='admin_websites', lazy=True)
     users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)

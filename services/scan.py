@@ -4,6 +4,8 @@ Both blueprints used to carry their own copy of "check in progress -> queue -> r
 task id -> serialise AsyncResult". Keeping it here means the two surfaces cannot drift
 (the JWT site-scan path, for instance, never recorded a task id at all).
 """
+from datetime import datetime, timedelta, timezone
+
 import celery.result
 
 from models import db
@@ -11,16 +13,38 @@ from models.website import Site, Website
 from scanner.tasks import scan_site as scan_site_task
 from scanner.tasks import scan_website as scan_website_task
 
-# Celery reports an unknown or expired task id as PENDING too; treating it as
-# "running" is what strands a website after a worker crash. Tightened in a
-# follow-up that records scan_started_at.
-IN_PROGRESS_STATES = ('PENDING', 'PROGRESS')
+# Celery reports an unknown or expired task id as PENDING too, so PENDING alone cannot
+# mean "running": that is what stranded a website forever after a worker crash. A task
+# queued longer ago than this that still shows PENDING is treated as lost (a live one
+# reports STARTED/PROGRESS long before then).
+STALE_AFTER = timedelta(hours=24)
+ACTIVE_STATES = ('STARTED', 'PROGRESS', 'RETRY')
 
 
-def scan_in_progress(task_id: str | None) -> bool:
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _recent(queued_at: datetime | None) -> bool:
+    return queued_at is not None and _utcnow() - queued_at < STALE_AFTER
+
+
+def scan_in_progress(website: Website) -> bool:
+    task_id = website.current_task_id
     if not task_id:
         return False
-    return scan_website_task.AsyncResult(task_id).state in IN_PROGRESS_STATES
+    state = scan_website_task.AsyncResult(task_id).state
+    if state in ACTIVE_STATES:
+        return True
+    if state == 'PENDING':
+        return _recent(website.scan_queued_at)
+    return False
+
+
+def site_scan_in_progress(site: Site) -> bool:
+    """The scanner keeps ``Site.scanning`` set while it works; the flag goes stale after
+    STALE_AFTER so a crashed page scan does not block the page forever."""
+    return bool(site.scanning) and _recent(site.scan_queued_at)
 
 
 def queue_website_scan(website: Website) -> tuple[str, bool]:
@@ -29,7 +53,7 @@ def queue_website_scan(website: Website) -> tuple[str, bool]:
     Returns ``(task_id, queued)``; ``queued`` is False when the existing task id was
     returned instead.
     """
-    if scan_in_progress(website.current_task_id):
+    if scan_in_progress(website):
         return website.current_task_id, False
 
     task = scan_website_task.delay(website.url)
@@ -37,14 +61,16 @@ def queue_website_scan(website: Website) -> tuple[str, bool]:
     # last_task_id is never cleared, so status polling can still resolve the owner
     # after the scan finishes and current_task_id is reset.
     website.last_task_id = task.id
+    website.scan_queued_at = _utcnow()
     db.session.commit()
     return task.id, True
 
 
 def queue_site_scan(site: Site) -> str:
-    """Queue a scan of a single page. Callers check ``site.scanning`` first."""
+    """Queue a scan of a single page. Callers check ``site_scan_in_progress`` first."""
     task = scan_site_task.delay(site.url)
     site.last_task_id = task.id
+    site.scan_queued_at = _utcnow()
     db.session.commit()
     return task.id
 

@@ -79,4 +79,7 @@ CMD ["celery", "-A", "celery_app.celery", "flower", "--port=5555"]
 # ==============================================================================
 FROM base AS beat
 
-CMD ["celery", "-A", "celery_app.celery", "beat", "--loglevel=info"]
+# The schedule file lives on a volume (see docker-compose.yml) so a restart does not
+# reset it and immediately re-fire the periodic task.
+RUN mkdir -p /app/celerybeat
+CMD ["celery", "-A", "celery_app.celery", "beat", "--loglevel=info", "--schedule=/app/celerybeat/celerybeat-schedule"]

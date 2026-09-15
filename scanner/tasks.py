@@ -39,49 +39,43 @@ def check_and_queue_scans():
     """
     Periodic task that checks all active websites and queues scans for those
     that are due based on their rate_limit (rescan interval).
-    
-    This replaces the old scanner container's queue_process functionality.
-    """
-    from app import create_app
-    app = create_app()
-    
-    with app.app_context():
-        # Get all active websites
-        websites = db.session.query(Website).filter(Website.active == True).all()
-        log_message(f"Checking {len(websites)} active websites for scheduled scans", 'info')
-        
-        queued_count = 0
-        for website in websites:
-            now = datetime.now()
-            
-            # Check if website is due for a scan
-            # Scan if: never scanned OR last scan was more than rate_limit days ago
-            should_scan = (
-                website.last_scanned is None or 
-                now - website.last_scanned > timedelta(days=website.rate_limit)
-            )
 
-            if website.current_task_id:
-                websiteTask = scan_website.AsyncResult(website.current_task_id)
-                if websiteTask.state in ['PENDING', 'PROGRESS']:
-                    continue
-                
-            if should_scan:
-                # Queue the scan task
-                log_message(
-                    f"Queueing scheduled scan for {website.url} "
-                    f"(last scanned: {website.last_scanned or 'never'}, "
-                    f"rate limit: {website.rate_limit} days)",
-                    'info'
-                )
-                scan_website.delay(website.url)
-                queued_count += 1
-        
-        log_message(f"Scheduled scan check complete. Queued {queued_count} website scans.", 'info')
-        return {
-            'checked': len(websites),
-            'queued': queued_count
-        }
+    Runs inside the app context provided by celery_app.ContextTask. Queueing goes
+    through services.scan so the website records the task id exactly as a manual
+    scan does; otherwise a backed-up queue received the same website every tick.
+    """
+    from services.scan import queue_website_scan  # local import: avoids a circular import
+
+    websites = db.session.query(Website).filter(Website.active == True).all()
+    log_message(f"Checking {len(websites)} active websites for scheduled scans", 'info')
+
+    queued_count = 0
+    for website in websites:
+        now = datetime.now()
+
+        # Scan if: never scanned OR last scan was more than rate_limit days ago
+        should_scan = (
+            website.last_scanned is None or
+            now - website.last_scanned > timedelta(days=website.rate_limit)
+        )
+        if not should_scan:
+            continue
+
+        _, queued = queue_website_scan(website)
+        if queued:
+            log_message(
+                f"Queueing scheduled scan for {website.url} "
+                f"(last scanned: {website.last_scanned or 'never'}, "
+                f"rate limit: {website.rate_limit} days)",
+                'info'
+            )
+            queued_count += 1
+
+    log_message(f"Scheduled scan check complete. Queued {queued_count} website scans.", 'info')
+    return {
+        'checked': len(websites),
+        'queued': queued_count
+    }
 
 
 @celery.task(bind=True, name='scanner.tasks.scan_website')
@@ -187,75 +181,37 @@ def scan_site(self, site_url: str):
 
 @celery.task(bind=True, name='scanner.tasks.rescan_website')
 def rescan_website(self, website_id: int):
+    """Queue a fresh scan of an existing website by its ID.
+
+    Queues a separate scan_website task (it used to call the bound task as a plain
+    function, running it in-process under this task's id).
     """
-    Celery task to rescan an existing website by its ID.
-    
-    Args:
-        website_id: The database ID of the website to rescan
-        
-    Returns:
-        dict: Result summary
-    """
-    from app import create_app
-    app = create_app()
-    
-    try:
-        with app.app_context():
-            website = db.session.get(Website, website_id)
-            if not website:
-                raise ValueError(f"Website with ID {website_id} not found")
-            
-            website_url = website.url
-            log_message(f"[Celery Task {self.request.id}] Rescanning website {website_url} (ID: {website_id})", 'info')
-        
-        # Call the scan_website task (outside app context to avoid conflicts)
-        return scan_website(self, website_url)
-        
-    except Exception as e:
-        log_message(f"[Celery Task {self.request.id}] Error rescanning website ID {website_id}: {str(e)}", 'error')
-        self.update_state(state='FAILURE', meta={'status': str(e)})
-        raise
-    finally:
-        with app.app_context():
-            try:
-                db.session.remove()
-            except:
-                pass
+    from services.scan import queue_website_scan  # local import: avoids a circular import
+
+    website = db.session.get(Website, website_id)
+    if not website:
+        raise ValueError(f"Website with ID {website_id} not found")
+
+    log_message(f"[Celery Task {self.request.id}] Rescanning website {website.url} (ID: {website_id})", 'info')
+    task_id, queued = queue_website_scan(website)
+    return {
+        'status': 'queued' if queued else 'already running',
+        'website_url': website.url,
+        'task_id': task_id,
+    }
 
 
 @celery.task(bind=True, name='scanner.tasks.rescan_site')
 def rescan_site(self, site_id: int):
-    """
-    Celery task to rescan an existing site by its ID.
-    
-    Args:
-        site_id: The database ID of the site to rescan
-        
-    Returns:
-        dict: Result summary
-    """
-    from app import create_app
-    app = create_app()
-    
-    try:
-        with app.app_context():
-            site = db.session.get(Site, site_id)
-            if not site:
-                raise ValueError(f"Site with ID {site_id} not found")
-            
-            site_url = site.url
-            log_message(f"[Celery Task {self.request.id}] Rescanning site {site_url} (ID: {site_id})", 'info')
-        
-        # Call the scan_site task (outside app context to avoid conflicts)
-        return scan_site(self, site_url)
-        
-    except Exception as e:
-        log_message(f"[Celery Task {self.request.id}] Error rescanning site ID {site_id}: {str(e)}", 'error')
-        self.update_state(state='FAILURE', meta={'status': str(e)})
-        raise
-    finally:
-        with app.app_context():
-            try:
-                db.session.remove()
-            except:
-                pass
+    """Queue a fresh scan of an existing site by its ID (see rescan_website)."""
+    from services.scan import queue_site_scan, site_scan_in_progress  # local import
+
+    site = db.session.get(Site, site_id)
+    if not site:
+        raise ValueError(f"Site with ID {site_id} not found")
+
+    log_message(f"[Celery Task {self.request.id}] Rescanning site {site.url} (ID: {site_id})", 'info')
+    if site_scan_in_progress(site):
+        return {'status': 'already running', 'site_url': site.url, 'task_id': site.last_task_id}
+    task_id = queue_site_scan(site)
+    return {'status': 'queued', 'site_url': site.url, 'task_id': task_id}

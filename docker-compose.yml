@@ -245,6 +245,9 @@ services:
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
             - API_URL=http://a11y-api:5000
             - CLIENT_URL=${CLIENT_URL}
+            - SCAN_CHECK_INTERVAL_SECONDS=${SCAN_CHECK_INTERVAL_SECONDS:-86400}
+        volumes:
+            - a11y-beat-schedule:/app/celerybeat
         depends_on:
             a11y-db:
                 condition: service_healthy
@@ -257,6 +260,8 @@ services:
                 max-size: "10m"
                 max-file: "3"
 volumes:
+    a11y-beat-schedule:
+        driver: local
     a11y-redis-data:
         driver: local
     a11y_db_data:

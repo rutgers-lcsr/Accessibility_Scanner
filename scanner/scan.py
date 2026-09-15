@@ -1,7 +1,7 @@
 import asyncio
 from typing import List
-import celery
 import time
+from flask import current_app, has_app_context
 from playwright.async_api import async_playwright
 from mail.emails import ScanFinishedEmail
 from scanner.browser.report import AccessibilityReport, AccessibilitySummary, generate_report
@@ -31,18 +31,26 @@ def page_concurrency() -> int:
         return DEFAULT_PAGE_CONCURRENCY
 
 
+def get_app():
+    """The Flask app to run under: the current one when a Celery task already provides a
+    context (celery_app.ContextTask), otherwise a new instance for command-line use."""
+    if has_app_context():
+        return current_app._get_current_object()
+    return create_app()
+
+
 def commit_with_retry(max_retries=3, retry_delay=1):
     """
-    Commit database changes with retry logic for handling database locks.
-    Useful for SQLite which can have concurrent access issues.
+    Commit database changes with retry logic for transient failures: SQLite lock
+    contention locally, deadlocks and lock-wait timeouts on MariaDB.
     """
     for attempt in range(max_retries):
         try:
             db.session.commit()
             return True
         except OperationalError as e:
-            if 'database is locked' in str(e) and attempt < max_retries - 1:
-                log_message(f"Database locked, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})", 'warning')
+            if attempt < max_retries - 1:
+                log_message(f"Database commit failed, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries}): {e}", 'warning')
                 db.session.rollback()
                 time.sleep(retry_delay)
             else:
@@ -151,7 +159,7 @@ async def store_report_to_db(site_report: AccessibilityReport, website: Website,
         
 
 async def generate_single_site_report(site_url:str) -> AccessibilityReport:
-    app = create_app()
+    app = get_app()
     scan_error = None
     report_result = None
     
@@ -231,7 +239,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
     results: List[AccessibilitySummary] = []
     sites_done: set[str] = set()
     currently_processing: set[str] = set()
-    app = create_app()
+    app = get_app()
 
     with app.app_context():
         
@@ -376,10 +384,15 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                 db.session.add(website)
                 commit_with_retry()
                 
-                # Queue any websites that need rescanning
+                # Queue any websites that need rescanning as their own tasks. (These used
+                # to be scheduled on this event loop, which the task closes right after.)
+                from services.scan import queue_website_scan  # local import: avoids a circular import
                 for url in websitesToScan:
+                    other = db.session.query(Website).filter_by(url=url).first()
+                    if other is None:
+                        continue
                     log_message(f"Queueing website {url} for scan as it was linked by a site no longer associated with {website.url}", 'info')
-                    asyncio.get_event_loop().create_task(generate_reports(url))
+                    queue_website_scan(other)
                 
                 # Send scan completion email
                 website_doc = db.session.get(Website, website.id)

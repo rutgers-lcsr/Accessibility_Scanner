@@ -60,6 +60,10 @@ MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "True") == "True"
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+# How often (seconds) beat checks for websites that are due for a scan. Per-website
+# spacing is the website's own rate_limit; this only bounds how quickly a due website
+# is noticed.
+SCAN_CHECK_INTERVAL_SECONDS = int(os.environ.get("SCAN_CHECK_INTERVAL_SECONDS", 86400))
 
 # Rate limiting (Flask-Limiter, see utils/limiter.py). Counters live in Redis so the
 # gunicorn workers share them; a Redis outage must not take the API down.

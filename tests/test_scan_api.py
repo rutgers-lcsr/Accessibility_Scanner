@@ -117,16 +117,42 @@ def test_scan_site_queues_task(
 def test_scan_site_already_scanning(
     client, make_user, make_site, make_api_key
 ):
+    from datetime import datetime, timezone
+
     from models import db
 
     user = make_user()
     site = make_site(user)
     site.scanning = True
+    site.scan_queued_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
     _, token = make_api_key(user)
 
     resp = client.post(f"/api/v1/sites/{site.id}/scan", headers=_key_header(token))
     assert resp.status_code == 409
+
+
+def test_scan_site_with_stale_scanning_flag_is_queued(
+    client, make_user, make_site, make_api_key, monkeypatch
+):
+    """A scanning flag left behind by a crashed scan must not block the page forever."""
+    from datetime import datetime, timedelta, timezone
+
+    from models import db
+
+    user = make_user()
+    site = make_site(user)
+    site.scanning = True
+    site.scan_queued_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=2)
+    db.session.commit()
+    _, token = make_api_key(user)
+    monkeypatch.setattr(
+        scan_service.scan_site_task, "delay", lambda url: types.SimpleNamespace(id="site-task-again")
+    )
+
+    resp = client.post(f"/api/v1/sites/{site.id}/scan", headers=_key_header(token))
+    assert resp.status_code == 202
+    assert site.last_task_id == "site-task-again"
 
 
 # --- scan status ------------------------------------------------------------
