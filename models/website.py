@@ -17,6 +17,8 @@ class SiteDict(TypedDict):
     id: int
     url: str
     last_scanned: str | None
+    last_scan_status: str | None
+    last_scan_error: str | None
     
     website_id: int
     reports: List[ReportMinimized]
@@ -46,12 +48,19 @@ class Site(db.Model):
     last_task_id: Mapped[str] = db.Column(db.String(36), nullable=True)
     # When that task was queued; lets a stale `scanning` flag expire (services.scan).
     scan_queued_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    # Outcome of the most recent attempt to scan this page ('completed' or 'failed') and
+    # the error text when it failed, so a page with no new report can say why.
+    last_scan_status: Mapped[str] = db.Column(db.String(20), nullable=True)
+    last_scan_error: Mapped[str] = db.Column(db.Text, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
     @hybrid_method
     def get_recent_report(self) -> ReportMinimized | None:
         report = self.reports.order_by(Report.timestamp.desc()).with_entities(Report.id, Report.url, Report.report_counts, Report.timestamp).first()
+        if report is None:
+            # A page whose scans have all failed has no report yet.
+            return None
         report = {
             'id': report.id,
             'url': report.url,
@@ -179,6 +188,8 @@ class Site(db.Model):
             'id': self.id,
             'url': self.url,
             'last_scanned': self.last_scanned.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_scanned else None,
+            'last_scan_status': self.last_scan_status,
+            'last_scan_error': self.last_scan_error,
             'websites': [website.id for website in self.websites],
             'reports': [{
                 'id': report.id,
@@ -257,6 +268,10 @@ class Website(db.Model):
     # When current_task_id was queued; a PENDING task older than services.scan.STALE_AFTER
     # is treated as lost instead of blocking the website forever.
     scan_queued_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    # Outcome of the most recent scan: 'completed', 'failed' or 'unreachable', with the
+    # error text for the latter two. Written by the scanner when a scan ends.
+    last_scan_status: Mapped[str] = db.Column(db.String(20), nullable=True)
+    last_scan_error: Mapped[str] = db.Column(db.Text, nullable=True)
     admin_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     admin: Mapped['User'] = db.relationship('User', back_populates='admin_websites', lazy=True)
     users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)
@@ -510,6 +525,8 @@ class Website(db.Model):
             'users': [user.username for user in self.users],
             'should_email': self.should_email,
             'last_scanned': self.last_scanned.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_scanned else None,
+            'last_scan_status': self.last_scan_status,
+            'last_scan_error': self.last_scan_error,
             'tags': [tag.strip() for tag in self.tags.split(",")] if self.tags else [],
             'default_tags': defaultTags,
             'report': report,

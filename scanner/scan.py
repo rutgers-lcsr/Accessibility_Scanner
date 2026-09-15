@@ -76,6 +76,11 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
             
             if 'error' in res and res['error'] is not None:
                 log_message(f"[Worker {name}] Error for {site}: {res['error']}", 'error')
+                # Record the failure on the page so the UI can show why it has no new
+                # report, and count the page as found so cleanup does not drop it.
+                if website_obj and app:
+                    await store_failure_to_db(res, website_obj, app)
+                results.append(AccessibilitySummary.from_report(res))
             else:
                 # Store report immediately to database
                 if website_obj and app:
@@ -139,6 +144,8 @@ async def store_report_to_db(site_report: AccessibilityReport, website: Website,
                 site.reports.append(report)
                 site.last_scanned = db.func.current_timestamp()
                 site.scanning = False
+                site.last_scan_status = 'completed'
+                site.last_scan_error = None
                 db.session.add(report)
                 db.session.add(site)
                 commit_with_retry()
@@ -152,6 +159,46 @@ async def store_report_to_db(site_report: AccessibilityReport, website: Website,
                 db.session.remove()
     
     # Run the database operation in a thread to avoid blocking
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _store_in_db)
+
+
+async def store_failure_to_db(site_report: AccessibilityReport, website: Website, app):
+    """Record a failed page scan on its Site row (created if needed).
+
+    Nothing is written to the report table, so "latest report" queries keep showing the
+    last successful audit; the failure is visible through last_scan_status/error.
+    """
+    def _store_in_db():
+        with app.app_context():
+            try:
+                if get_netloc(site_report['url']) != get_netloc(website.url):
+                    return None
+
+                website_db = db.session.query(Website).filter_by(id=website.id).first()
+                if not website_db:
+                    return None
+
+                site = db.session.query(Site).filter_by(url=site_report['url']).first()
+                if site is None:
+                    site = Site(url=site_report['url'], website=website_db)
+                    db.session.add(site)
+                elif site not in website_db.sites:
+                    website_db.sites.append(site)
+
+                site.scanning = False
+                site.last_scan_status = 'failed'
+                site.last_scan_error = (site_report.get('error') or 'Unknown error')[:2000]
+                db.session.add(site)
+                commit_with_retry()
+                return site.id
+            except Exception as e:
+                log_message(f"Error recording failure for {site_report['url']}: {e}", 'error')
+                db.session.rollback()
+                return None
+            finally:
+                db.session.remove()
+
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _store_in_db)
 
@@ -215,18 +262,20 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
                 site = db.session.query(Site).filter_by(url=site_url).first()
                 if site:
                     site.scanning = False
+                    site.last_scan_status = 'failed' if scan_error else 'completed'
+                    site.last_scan_error = str(scan_error)[:2000] if scan_error else None
                     db.session.add(site)
                     commit_with_retry()
             except Exception as e:
                 log_message(f"Error cleaning up scanning state for {site_url}: {str(e)}", 'warning')
                 try:
                     db.session.rollback()
-                except:
+                except Exception:
                     pass
             finally:
                 try:
                     db.session.remove()
-                except:
+                except Exception:
                     pass
     
     # Raise error after cleanup if scan failed
@@ -262,6 +311,8 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
 
 
     log_message(f"Starting scan for website: {target_website}", 'info')
+    # Written to the website when the scan ends, whatever the outcome.
+    outcome = {'status': 'failed', 'error': 'Scan did not complete'}
     
     # Get website ID for passing to workers
     website_id = None
@@ -274,6 +325,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
         accessibility = check_url(target_website)
         if not accessibility:
             log_message(f"Website {target_website} is not accessible, aborting scan", 'error')
+            outcome.update(status='unreachable', error='The website did not respond to the reachability check')
             return []
 
         async with async_playwright() as p:
@@ -398,6 +450,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                 website_doc = db.session.get(Website, website.id)
                 ScanFinishedEmail(website_doc).send()
                 
+                outcome.update(status='completed', error=None)
                 log_message(f"Finished scan for website: {target_website}", 'info')
                 return results
             except Exception as e:
@@ -406,12 +459,17 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                 raise
             finally:
                 db.session.remove()
+    except Exception as e:
+        outcome.update(status='failed', error=f"{type(e).__name__}: {e}"[:2000])
+        raise
     finally:
         with app.app_context():
             try:
                 website = db.session.query(Website).filter_by(url=target_website).first()
                 if website:
                     website.current_task_id = None
+                    website.last_scan_status = outcome['status']
+                    website.last_scan_error = outcome['error']
                     db.session.add(website)
                     commit_with_retry()
             except Exception as e:

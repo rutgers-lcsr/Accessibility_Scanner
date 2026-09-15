@@ -5,7 +5,7 @@ import { Paged } from '@/lib/types/Paged';
 import { PublicUser } from '@/lib/types/user';
 import { Site } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
-import { Pagination, Table, Tag } from 'antd';
+import { Pagination, Table, Tag, Tooltip } from 'antd';
 import { format } from 'date-fns';
 import React from 'react';
 import useSWR from 'swr';
@@ -38,9 +38,12 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
             width: 300,
             dataIndex: 'url',
             key: 'url',
-            render: (text: string, record: Site) => (
-                <a href={`/reports/${record.current_report.id}`}>{text}</a>
-            ),
+            render: (text: string, record: Site) =>
+                record.current_report ? (
+                    <a href={`/reports/${record.current_report.id}`}>{text}</a>
+                ) : (
+                    <span>{text}</span>
+                ),
         },
         {
             title: 'Last Scanned',
@@ -55,7 +58,7 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
             title: 'Passed',
             key: 'passed',
             render: (text: string, record: Site) => (
-                <span>{record.current_report.report_counts.passes.total}</span>
+                <span>{record.current_report?.report_counts.passes.total ?? '—'}</span>
             ),
             dataIndex: 'passed',
         },
@@ -63,7 +66,7 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
             title: 'Violations',
             key: 'violations',
             render: (text: string, record: Site) => (
-                <span>{record.current_report.report_counts.violations.total}</span>
+                <span>{record.current_report?.report_counts.violations.total ?? '—'}</span>
             ),
             dataIndex: 'violations',
         },
@@ -82,11 +85,32 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
             dataIndex: 'tags',
         },
         {
+            title: 'Last Scan',
+            key: 'last_scan_status',
+            dataIndex: 'last_scan_status',
+            render: (status: Site['last_scan_status'], record: Site) => {
+                if (status === 'failed') {
+                    return (
+                        <Tooltip title={record.last_scan_error || 'Unknown error'}>
+                            <Tag color="red">Failed</Tag>
+                        </Tooltip>
+                    );
+                }
+                if (status === 'completed') {
+                    return <Tag color="green">OK</Tag>;
+                }
+                return <Tag>Not yet scanned</Tag>;
+            },
+        },
+        {
             title: 'Actions',
             key: 'actions',
-            render: (text: string, record: Site) => (
-                <a href={`/reports/${record.current_report.id}`}>View Report</a>
-            ),
+            render: (text: string, record: Site) =>
+                record.current_report ? (
+                    <a href={`/reports/${record.current_report.id}`}>View Report</a>
+                ) : (
+                    <span className="text-gray-400">No report yet</span>
+                ),
         },
     ];
 

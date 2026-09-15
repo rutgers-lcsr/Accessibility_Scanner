@@ -106,6 +106,19 @@ const Website = ({ websiteId, user }: Props) => {
                         ? new Date(websiteReport.last_scanned).toLocaleString()
                         : 'Never'}
                 </h2>
+                {websiteReport.last_scan_status && websiteReport.last_scan_status !== 'completed' && (
+                    <Alert
+                        className="mb-6"
+                        type="error"
+                        showIcon
+                        message={
+                            websiteReport.last_scan_status === 'unreachable'
+                                ? 'The last scan could not reach this website'
+                                : 'The last scan failed'
+                        }
+                        description={websiteReport.last_scan_error || undefined}
+                    />
+                )}
                 <section
                     aria-labelledby="accessibility-report"
                     className="rounded-lg bg-gray-50 p-6"

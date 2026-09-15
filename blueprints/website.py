@@ -649,14 +649,16 @@ def get_website_sites(website_id):
     site_subq = (
         db.session.query(Site.id).join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Site.id).filter(Site_Website_Assoc.c.website_id == website_id).subquery()
     )
-    # Join sites to their most recent report and order by violations
+    # Join sites to their most recent report and order by violations. Outer joins keep
+    # pages that have no report yet (every scan of them failed) in the listing so their
+    # failure is visible; they sort last.
     sites_query = (
         db.session.query(Site).order_by(Site.url.asc()).where(Site.id.in_(site_subq.select()))
-        .join(Report, (Report.site_id == Site.id))
-        .join(
-            latest_report_subq,
-            (latest_report_subq.c.site_id == Report.site_id) &
-            (latest_report_subq.c.max_timestamp == Report.timestamp)
+        .outerjoin(latest_report_subq, latest_report_subq.c.site_id == Site.id)
+        .outerjoin(
+            Report,
+            (Report.site_id == Site.id) &
+            (Report.timestamp == latest_report_subq.c.max_timestamp)
         )
         .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc())
     )
