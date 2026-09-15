@@ -33,6 +33,7 @@ jobs:
                   FLASK_ENV=${{vars.FLASK_ENV}}
                   TESTING=${{vars.TESTING}}
                   JWT_SECRET_KEY=${{secrets.JWT_SECRET_KEY}}
+                  INTERNAL_AUTH_SECRET=${{secrets.INTERNAL_AUTH_SECRET}}
                   CLIENT_URL=${{vars.CLIENT_URL}}
                   MAIL_SERVER=${{vars.MAIL_SERVER}}
                   MAIL_PORT=${{vars.MAIL_PORT}}

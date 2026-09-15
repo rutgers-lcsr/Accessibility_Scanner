@@ -10,9 +10,10 @@ else
 fi
 
 python -c "
-from app import create_app, init_admin
+from app import create_app, check_api_config, init_admin
 
 app = create_app()
+check_api_config(app)
 init_admin(app)
 print(\"Initialization complete\")
 "

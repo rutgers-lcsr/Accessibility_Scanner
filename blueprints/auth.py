@@ -1,5 +1,6 @@
+import hmac
 from urllib.parse import urlparse
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required
 from authentication.permissions import is_site_admin
 from models.user import Profile, User
@@ -28,7 +29,15 @@ def cas_login():
 
     x-cas-user: The user to log in (must be set by the frontend)
     x-cas-server: The CAS server to authenticate against (must be set by the frontend)
+    X-Internal-Secret: shared secret proving the request comes from the frontend proxy
     """
+
+    # The identity headers are trusted, so only the Next.js proxy (which has validated
+    # the CAS ticket) may call this. Anything else on the network gets a 403.
+    secret = current_app.config.get("INTERNAL_AUTH_SECRET") or ""
+    provided = request.headers.get("X-Internal-Secret", "")
+    if not secret or not hmac.compare_digest(provided, secret):
+        return jsonify({'error': 'Forbidden'}), 403
 
     # cas login happens on the frontend, and the frontend then adds a header x-cas-user defining the user
     cas_user = request.headers.get('x-cas-user')
@@ -51,7 +60,7 @@ def cas_login():
     user = db.session.query(User).filter_by(username=cas_user).first()
     if not user:
         user = User(username=cas_user, email=user_email)
-        user.profile = Profile(user=user, is_admin=is_site_admin(cas_user))
+        user.profile = Profile(user=user, is_admin=is_site_admin(user_email))
         db.session.add(user)
         db.session.commit()
 

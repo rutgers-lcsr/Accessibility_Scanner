@@ -14,6 +14,7 @@ import pytest
 _DB_FILE = os.path.join(tempfile.gettempdir(), "a11y_test.db")
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{_DB_FILE}")
 os.environ.setdefault("TESTING", "True")
+os.environ.setdefault("INTERNAL_AUTH_SECRET", "test-internal-secret")
 
 
 @pytest.fixture()

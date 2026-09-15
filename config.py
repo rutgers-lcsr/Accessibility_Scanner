@@ -44,6 +44,9 @@ JWT_SECRET_KEY = _require("JWT_SECRET_KEY")
 # Tokens travel in the Authorization header only; the Next.js proxy attaches it server-side.
 JWT_TOKEN_LOCATION = ['headers']
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+# Shared with the Next.js proxy; /api/auth/cas refuses requests that do not present it.
+# Only the API needs it, so it is checked by the API entrypoints (see app.check_api_config).
+INTERNAL_AUTH_SECRET = os.environ.get("INTERNAL_AUTH_SECRET", "")
 
 SITE_ADMINS = [admin.strip() for admin in os.environ.get("SITE_ADMINS", "").split(",") if admin.strip()]
 

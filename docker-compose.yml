@@ -38,6 +38,7 @@ services:
             - NEXT_PUBLIC_CAS_URL=${NEXT_PUBLIC_CAS_URL}
             - NEXT_CAS_CLIENT_SAML_TOLERANCE=180000
             - NEXT_CAS_CLIENT_SECRET=${NEXT_CAS_CLIENT_SECRET}
+            - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET}
         depends_on:
             a11y-db:
                 condition: service_healthy
@@ -64,6 +65,7 @@ services:
             - FLASK_ENV=${FLASK_ENV}
             - DATABASE_URL=mariadb+mariadbconnector://ally-user:${DB_PASSWORD}@a11y-db:3306/a11y
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+            - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET}
             - HOSTNAME=${HOSTNAME}
             - CLIENT_URL=${CLIENT_URL}
             - MAIL_SERVER=${MAIL_SERVER}

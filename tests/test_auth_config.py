@@ -15,14 +15,74 @@ def test_jwt_is_not_accepted_from_cookie(client, make_user, jwt_header):
     assert client.get("/api/users/me/", headers=jwt_header(user)).status_code == 200
 
 
-def test_cas_login_returns_token_in_body_only(client):
+CAS_HEADERS = {"x-cas-user": "alice", "x-cas-server": "https://cas.rutgers.edu/cas"}
+
+
+def test_cas_login_returns_token_in_body_only(client, app):
     resp = client.get(
         "/api/auth/cas",
-        headers={"x-cas-user": "alice", "x-cas-server": "https://cas.rutgers.edu/cas"},
+        headers={**CAS_HEADERS, "X-Internal-Secret": app.config["INTERNAL_AUTH_SECRET"]},
     )
     assert resp.status_code == 200
     assert resp.get_json()["access_token"]
     assert "Set-Cookie" not in resp.headers
+
+
+def test_cas_login_requires_internal_secret(client):
+    from models import db
+    from models.user import User
+
+    assert client.get("/api/auth/cas", headers=CAS_HEADERS).status_code == 403
+    assert (
+        client.get("/api/auth/cas", headers={**CAS_HEADERS, "X-Internal-Secret": "wrong"}).status_code
+        == 403
+    )
+    # No account is created for a rejected request.
+    assert db.session.query(User).count() == 0
+
+
+def test_cas_login_refused_when_secret_unconfigured(client, app):
+    app.config["INTERNAL_AUTH_SECRET"] = ""
+    resp = client.get("/api/auth/cas", headers={**CAS_HEADERS, "X-Internal-Secret": ""})
+    assert resp.status_code == 403
+
+
+def test_cas_login_grants_admin_only_for_full_email_match(client, app, monkeypatch):
+    import authentication.permissions as permissions
+
+    monkeypatch.setattr(permissions, "SITE_ADMINS", ["Alice@rutgers.edu"])
+    secret = {"X-Internal-Secret": app.config["INTERNAL_AUTH_SECRET"]}
+
+    # Same local part, different CAS server: not an admin.
+    resp = client.get(
+        "/api/auth/cas",
+        headers={"x-cas-user": "alice", "x-cas-server": "https://cas.evil.example/cas", **secret},
+    )
+    assert resp.status_code == 200 and resp.get_json()["is_admin"] is False
+
+    resp = client.get(
+        "/api/auth/cas",
+        headers={"x-cas-user": "bob", "x-cas-server": "https://cas.rutgers.edu/cas", **secret},
+    )
+    assert resp.status_code == 200 and resp.get_json()["is_admin"] is False
+
+    resp = client.get(
+        "/api/auth/cas",
+        headers={"x-cas-user": "alice2", "x-cas-server": "https://cas.rutgers.edu/cas", **secret},
+    )
+    assert resp.status_code == 200 and resp.get_json()["is_admin"] is False
+
+
+def test_is_site_admin_matches_full_email_case_insensitively(monkeypatch):
+    import authentication.permissions as permissions
+
+    monkeypatch.setattr(permissions, "SITE_ADMINS", ["Admin@Rutgers.edu", "  second@example.com "])
+    assert permissions.is_site_admin("admin@rutgers.edu")
+    assert permissions.is_site_admin("SECOND@example.com")
+    assert not permissions.is_site_admin("admin@evil.com")
+    assert not permissions.is_site_admin("admin")
+    assert not permissions.is_site_admin("")
+    assert not permissions.is_site_admin(None)
 
 
 def test_cors_is_limited_to_client_url(client, app):

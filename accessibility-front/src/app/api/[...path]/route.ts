@@ -12,6 +12,12 @@ function rewriteUrl(path: string, query: string) {
 async function proxyRequest(req: NextRequest, method: string) {
     const path = req.nextUrl.pathname;
 
+    // Only loadUser (below) may call the backend login endpoint; it is never
+    // reachable through the generic proxy.
+    if (path === '/api/auth/cas') {
+        return new NextResponse('Not Found', { status: 404 });
+    }
+
     const query = req.nextUrl.searchParams.toString();
 
     const url = rewriteUrl(path, query);
@@ -51,6 +57,9 @@ async function loadUser(casUser: CasUser) {
         headers: {
             'x-cas-user': casUser.user,
             'x-cas-server': process.env.NEXT_PUBLIC_CAS_URL || '',
+            // Proves to the backend that this request comes from the proxy, which has
+            // already validated the CAS ticket. Must match the backend's value.
+            'X-Internal-Secret': process.env.INTERNAL_AUTH_SECRET || '',
         },
     });
 

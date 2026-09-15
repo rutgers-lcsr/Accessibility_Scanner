@@ -31,6 +31,20 @@ def init_admin(app):
                 db.session.rollback()
                 print(f"Error creating admin user: {e}")
 
+def check_api_config(app):
+    """Fail fast for settings only the API process needs.
+
+    Called from the API entrypoints (init.sh and __main__) rather than create_app(),
+    because the Celery worker also builds the app and does not need these.
+    """
+    if app.config["TESTING"]:
+        return
+    if not app.config.get("INTERNAL_AUTH_SECRET"):
+        raise RuntimeError(
+            "INTERNAL_AUTH_SECRET is not set. It must match the value given to the Next.js "
+            "frontend; without it CAS logins are refused (see .env.example)."
+        )
+
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
@@ -134,6 +148,7 @@ def create_app():
     
 if __name__ == '__main__':
     app = create_app()
+    check_api_config(app)
     init_admin(app)
     import multiprocessing
     multiprocessing.set_start_method("spawn")

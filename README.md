@@ -38,14 +38,17 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     cd Accessibility_Scanner
     ```
 3. Set up environment variables in a `.env` file based on the provided `.env.example` file.
-   `JWT_SECRET_KEY` is required; the backend refuses to start without it. `ADMIN_EMAIL` and
-   `ADMIN_PASSWORD` are optional; when either is unset no bootstrap admin user is created.
+   `JWT_SECRET_KEY` and `INTERNAL_AUTH_SECRET` are required; the backend refuses to start
+   without them. `INTERNAL_AUTH_SECRET` must also be given to the frontend, which sends it
+   when logging users in so that nothing else can call the login endpoint. `SITE_ADMINS` is
+   a comma-separated list of full email addresses. `ADMIN_EMAIL` and `ADMIN_PASSWORD` are
+   optional; when either is unset no bootstrap admin user is created.
 4. Set up .env in `accessibility-front` directories and set the appropriate values.
    The `.env` file in `accessibility-front` should look something like this:
 
     ```bash
      API_URL=http://localhost:5000  # URL of the backend api e.g. http://a11y-api:5000 if using docker
-     JWT_SECRET_KEY="KHJADoishdjfo" # random string
+     INTERNAL_AUTH_SECRET="change-me" # must match the backend value
      NEXT_CAS_CLIENT_SECRET="heA1hsrnQ6mrNe7eaqxsz3i74vAKZhM0" # 32 character random string used for session encryption
      NEXT_PUBLIC_BASE_URL="http://localhost:3000" # Public URL for the frontend e.g. http://a11y.example.com
      NEXT_PUBLIC_CAS_URL="https://localhost:8443/cas" # CAS server URL
