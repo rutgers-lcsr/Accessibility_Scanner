@@ -1,4 +1,5 @@
 
+import asyncio
 from datetime import datetime, timezone
 from typing import List, TypedDict
 from scanner.accessibility.ace import AxeReport, get_accessibility_report
@@ -9,9 +10,34 @@ from scanner.browser.tabbable import is_page_tabbable
 from scanner.browser.wait import wait_for_page_settled
 from scanner.log import log_message
 from utils.style_generator import report_to_js
-from utils.urls import get_website_url
+from utils.urls import get_netloc, get_website_url, is_safe_target
 
 ACCESSIBILITY_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3 LCSRAccessibility/1.0"
+
+
+async def block_non_public_targets(route):
+    """Playwright route handler: abort any request whose host is not public.
+
+    The browser runs inside the compose network, so without this a redirect or a
+    subresource on a scanned page could reach internal services (database, redis,
+    cloud metadata). DNS is resolved off the event loop and cached per host.
+    """
+    url = route.request.url
+    if url.startswith(("http://", "https://")):
+        loop = asyncio.get_running_loop()
+        if not await loop.run_in_executor(None, is_safe_target, url):
+            log_message(f"Blocked request to non-public target: {url}", 'warning')
+            await route.abort()
+            return
+    await route.continue_()
+
+
+def _same_host(url_a: str, url_b: str) -> bool:
+    """True when both URLs are on the same host, ignoring a leading ``www.``."""
+    def bare(url):
+        host = get_netloc(url).lower()
+        return host[4:] if host.startswith("www.") else host
+    return bare(url_a) == bare(url_b)
 
 class AccessibilityReport(TypedDict, total=False):
     url: str
@@ -48,6 +74,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
     result['timestamp'] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         context = await browser.new_context(user_agent=ACCESSIBILITY_USER_AGENT)
+        await context.route("**/*", block_non_public_targets)
         page = await context.new_page()
         res = await page.goto(website, wait_until="domcontentloaded")
         result['url'] = website
@@ -55,6 +82,11 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
         if res is None or res.status >= 400:
             await page.close()
             result['error'] = f"Failed to load page, status code: {res.status if res else 'No Response'}"
+            return result
+        # A page that redirected to another host must not be audited under this URL.
+        if not _same_host(page.url, website):
+            await page.close()
+            result['error'] = f"Redirected off-site to {page.url}"
             return result
         await wait_for_page_settled(page)
     except Exception as e:

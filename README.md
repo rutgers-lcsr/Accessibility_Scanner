@@ -98,6 +98,8 @@ Any user can create an account and request a site. They will automatically be as
 
 ## Security
 
+Websites can only be added under a parent domain an admin has added, and the API and the scanner refuse to fetch any URL whose host resolves to a private, loopback, link-local or other non-public address (including redirects and page subresources), so the scanner cannot be pointed at internal services.
+
 Currently the Scanner uses a custom user-agent string to identify itself to the websites it scans. Please ensure that the website allows access to the following user-agent string:
 
 ```

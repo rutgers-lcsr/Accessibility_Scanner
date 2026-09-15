@@ -1,6 +1,65 @@
 # Standarize Url parse for all of the application
+from functools import lru_cache
 from urllib.parse import urlparse
+import ipaddress
 import socket
+
+# Ranges that ipaddress does not flag as private but must never be fetched server-side.
+_BLOCKED_NETWORKS = (
+    ipaddress.ip_network("100.64.0.0/10"),  # carrier-grade NAT
+)
+
+
+def _is_public_address(address: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        return False
+    return not any(ip in network for network in _BLOCKED_NETWORKS)
+
+
+@lru_cache(maxsize=2048)
+def _resolves_to_public(hostname: str, port: int) -> bool:
+    """True when every address ``hostname`` resolves to is public. Cached per process."""
+    try:
+        infos = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError):
+        return False
+    if not infos:
+        return False
+    return all(_is_public_address(info[4][0]) for info in infos)
+
+
+def is_safe_target(url: str) -> bool:
+    """True when ``url`` is http(s) and its host resolves only to public addresses.
+
+    Checked before the API or the scanner fetches a user-supplied URL, so a website
+    entry or a redirect on a scanned page cannot point the server at loopback, private,
+    link-local or cloud-metadata addresses.
+    """
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return False
+    if parsed.scheme not in ("http", "https") or not hostname:
+        return False
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    return _resolves_to_public(hostname, port)
+
 
 def is_valid_domain(domain: str) -> bool:
     """

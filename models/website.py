@@ -518,6 +518,22 @@ class Website(db.Model):
             'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
+    @staticmethod
+    def find_parent_domain(url: str) -> 'Domain | None':
+        """Return the most specific active Domain that is ``url``'s host or a parent of it.
+
+        ``cs.rutgers.edu`` matches ``rutgers.edu`` (and ``cs.rutgers.edu`` when both
+        exist, preferring the longer). ``evil-rutgers.edu`` matches neither: a plain
+        suffix match would let look-alike hosts through the allow-list.
+        """
+        host = get_netloc(url).strip().lower()
+        matches = []
+        for domain in db.session.query(Domain).filter(Domain.active == True).all():
+            name = domain.domain.strip().lower().lstrip(".")
+            if name and (host == name or host.endswith("." + name)):
+                matches.append(domain)
+        return max(matches, key=lambda d: len(d.domain), default=None)
+
     def __init__(self, url:str, user_id:int=None):
         if not is_valid_url(url):
             raise ValueError("Invalid URL")
@@ -534,13 +550,7 @@ class Website(db.Model):
 
         website_domain = get_netloc(url)
         # make sure a domain exist that is active
-        parent_domain = (
-            db.session.query(Domain)
-            .filter(func.lower(func.trim(website_domain)).endswith(func.lower(func.trim(Domain.domain))))
-            .filter(Domain.active == True)
-            .order_by(func.length(Domain.domain).desc())
-            .first()
-        )
+        parent_domain = Website.find_parent_domain(url)
         if not parent_domain:
             raise ValueError("No active parent domain found, an administrator must add it first")
 

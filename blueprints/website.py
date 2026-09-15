@@ -70,6 +70,12 @@ def create_website():
     # check if user exists
     if not current_user:
         return jsonify({'error': 'User is not authenticated'}), 401
+
+    # Allow-list first: only hosts under an admin-added parent domain are ever probed,
+    # so this endpoint cannot be used to test reachability of arbitrary hosts.
+    if not Website.find_parent_domain(base_url):
+        return jsonify({'error': 'No active parent domain found, an administrator must add it first'}), 400
+
     try:
         is_accessible = check_url(base_url)
         if not is_accessible:
