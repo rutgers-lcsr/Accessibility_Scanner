@@ -1,9 +1,12 @@
-from requests import request
+from pathlib import Path
 from playwright.async_api import Page
 from typing import TypedDict, List, Literal, Optional
 
 from scanner.log import log_message
-from config import CLIENT_URL
+
+# axe-core is vendored next to this module so scans need no network access to a CDN.
+# Upgrade by replacing the file (see the version banner on its first line).
+AXE_PATH = Path(__file__).with_name("axe.min.js")
 
 class AxeCheck(TypedDict, total=False):
     id: str
@@ -112,18 +115,8 @@ def get_axe_js(tags: List[str]) -> str:
         }}"""
 async def get_accessibility_report(page: Page, tags:List[str] = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'], axe_config: str = "") -> AxeReport:
     
-    axe_min_js_url = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.3/axe.min.js"
     try:
-        try:
-            await page.add_script_tag(url=axe_min_js_url)
-        except Exception as e:
-            log_message(f"Error adding axe script tag loading from file: {e}", 'error')
-            # Fallback to loading from CDN manually
-            res = request(method="GET", url=axe_min_js_url)
-            content = res.text
-            await page.add_script_tag(content=content)
-            log_message(f"Loaded axe from manual CDN fallback", 'info')
-
+        await page.add_script_tag(path=str(AXE_PATH))
         await page.wait_for_function("window.axe !== undefined")
         if axe_config:
             await page.evaluate(get_axe_config(axe_config))

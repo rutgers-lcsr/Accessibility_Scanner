@@ -198,6 +198,11 @@ services:
         build:
             context: .
             target: worker
+        # Chromium needs a real /dev/shm (Docker's default is 64 MB); init reaps the
+        # zombie browser processes a killed scan leaves behind.
+        shm_size: 1gb
+        init: true
+        mem_limit: 4g
         environment:
             - FLASK_ENV=${FLASK_ENV}
             - DATABASE_URL=mariadb+mariadbconnector://ally-user:${DB_PASSWORD}@a11y-db:3306/a11y

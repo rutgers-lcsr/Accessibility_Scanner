@@ -10,15 +10,25 @@ from app import create_app
 from models import db
 from models.website import Site, Site_Website_Assoc, Website 
 from models.report import Report
+from models.settings import Settings
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
 from utils.urls import get_full_url, get_netloc, get_site_netloc
 from sqlalchemy.exc import OperationalError
 
 
-# Global sets for tracking scan progress
-sites_done: set[str] = set()
-currently_processing: set[str] = set()
+# --disable-dev-shm-usage: Chromium otherwise uses /dev/shm, which is 64 MB in Docker by
+# default and makes heavy pages crash the renderer.
+BROWSER_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+DEFAULT_PAGE_CONCURRENCY = 3
+
+
+def page_concurrency() -> int:
+    """Pages audited concurrently within one scan (Settings key scan_page_concurrency)."""
+    try:
+        return max(1, int(Settings.get(key='scan_page_concurrency', default=str(DEFAULT_PAGE_CONCURRENCY))))
+    except (TypeError, ValueError):
+        return DEFAULT_PAGE_CONCURRENCY
 
 
 def commit_with_retry(max_retries=3, retry_delay=1):
@@ -71,8 +81,7 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
                         if total_sites_ref is not None:
                             total_sites_ref['count'] = queue.qsize() + len(currently_processing) + len(sites_done)
 
-                summary = AccessibilitySummary(res)
-                results.append(summary)
+                results.append(AccessibilitySummary.from_report(res))
 
                 # Update progress after each successful scan
                 if progress_callback and total_sites_ref:
@@ -163,16 +172,17 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
             commit_with_retry()
 
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
-                log_message(f"Generating report for {site_url}", 'info')
-                report = await generate_report(browser, website=site_url, tags=tags, ace_config=ace_config)
-                
+                browser = await p.chromium.launch(headless=True, args=BROWSER_ARGS)
+                try:
+                    log_message(f"Generating report for {site_url}", 'info')
+                    report = await generate_report(browser, website=site_url, tags=tags, ace_config=ace_config)
+                finally:
+                    await browser.close()
+
                 if 'error' in report and report['error'] is not None:
                     log_message(f"Error for {site_url}: {report['error']}", 'error')
                     scan_error = ValueError(report['error'])
                 else:
-                    await browser.close()
-
                     site = db.session.query(Site).filter_by(url=site_url).first()
                     if site is None:
                         scan_error = ValueError("Site not found after scan")
@@ -218,13 +228,9 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
     return report_result
 
 async def generate_reports(target_website: str = "https://resources.cs.rutgers.edu", progress_callback=None, task_id: str = None) -> List[AccessibilitySummary]:
-    
-    global sites_done, currently_processing
-
     results: List[AccessibilitySummary] = []
-    sites_done = set()
-    currently_processing = set()
-    total_sites = 0  # Track total discovered sites
+    sites_done: set[str] = set()
+    currently_processing: set[str] = set()
     app = create_app()
 
     with app.app_context():
@@ -244,6 +250,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
         log_message(f"Using tags: {tags} for website {website.url}", 'info')
         db.session.add(website)
         commit_with_retry()
+        num_workers = page_concurrency()
 
 
     log_message(f"Starting scan for website: {target_website}", 'info')
@@ -262,12 +269,11 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
             return []
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True,args=['--no-sandbox', '--disable-setuid-sandbox'],)
+            browser = await p.chromium.launch(headless=True, args=BROWSER_ARGS)
             q = ListQueue()
             await q.put(target_website)
-            # Launch N workers
-            num_workers = 10
-            
+            workers = []
+
             # Create a simple website object to pass to workers (just ID and URL)
             class WebsiteProxy:
                 def __init__(self, id, url):
@@ -279,31 +285,41 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
             # Create a mutable reference for tracking total sites discovered
             total_sites_ref = {'count': 1}  # Start with 1 (the initial site)
             
-            workers = [
-                asyncio.create_task(process_website(
-                    name=i, 
-                    browser=browser, 
-                    queue=q, 
-                    results=results, 
-                    sites_done=sites_done, 
-                    currently_processing=currently_processing, 
-                    tags=tags, 
-                    ace_config=ace_config,
-                    website_obj=website_proxy,
-                    app=app,
-                    progress_callback=progress_callback,
-                    total_sites_ref=total_sites_ref
-                ))
-                for i in range(num_workers)
-            ]
+            try:
+                workers = [
+                    asyncio.create_task(process_website(
+                        name=i,
+                        browser=browser,
+                        queue=q,
+                        results=results,
+                        sites_done=sites_done,
+                        currently_processing=currently_processing,
+                        tags=tags,
+                        ace_config=ace_config,
+                        website_obj=website_proxy,
+                        app=app,
+                        progress_callback=progress_callback,
+                        total_sites_ref=total_sites_ref
+                    ))
+                    for i in range(num_workers)
+                ]
 
-            # Wait until all items are processed
-            await q.join()
+                # Wait until all items are processed
+                await q.join()
 
-            # Stop workers
-            for _ in range(num_workers):
-                await q.put(None)
-            await asyncio.gather(*workers)
+                # Stop workers
+                for _ in range(num_workers):
+                    await q.put(None)
+                await asyncio.gather(*workers)
+            except BaseException:
+                # Cancelled (soft time limit) or a worker failed: stop the others so the
+                # browser can be closed instead of leaving Chromium processes behind.
+                for worker in workers:
+                    worker.cancel()
+                await asyncio.gather(*workers, return_exceptions=True)
+                raise
+            finally:
+                await browser.close()
             
         # Cleanup: Remove orphaned sites and finalize scan
         with app.app_context():
@@ -322,10 +338,10 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                 sitesFound = set()
                 for site_report in results:
                     # Check if the site URL matches the website domain
-                    site_netloc = get_netloc(site_report['url'])
+                    site_netloc = get_netloc(site_report.url)
                     website_netloc = get_netloc(website.url)
                     if site_netloc == website_netloc:
-                        site = db.session.query(Site).filter_by(url=site_report['url']).first()
+                        site = db.session.query(Site).filter_by(url=site_report.url).first()
                         if site:
                             sitesFound.add(site.id)
 

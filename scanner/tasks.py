@@ -5,6 +5,7 @@ These tasks are executed by Celery workers in the background.
 import asyncio
 from typing import List
 from datetime import datetime, timedelta
+from celery.exceptions import SoftTimeLimitExceeded
 from celery_app import celery
 from scanner.log import log_message
 from models import db
@@ -12,6 +13,25 @@ from models.website import Site, Website
 from models.report import Report
 from scanner.scan import generate_reports as async_generate_reports, generate_single_site_report as async_generate_single_site_report
 from mail.emails import ScanFinishedEmail
+
+
+def _run_scan(loop: asyncio.AbstractEventLoop, coro, label: str):
+    """Run a scan coroutine to completion on ``loop``.
+
+    When Celery's soft time limit fires, the exception can surface either inside the
+    coroutine (which then unwinds normally) or out of the event loop with the scan
+    still pending. In the latter case the scan is cancelled and the loop is run again
+    so its finally blocks close the browser before the task fails.
+    """
+    scan = loop.create_task(coro)
+    try:
+        return loop.run_until_complete(scan)
+    except SoftTimeLimitExceeded:
+        log_message(f"Soft time limit reached during {label}; cancelling and cleaning up", 'error')
+        if not scan.done():
+            scan.cancel()
+            loop.run_until_complete(asyncio.gather(scan, return_exceptions=True))
+        raise
 
 
 @celery.task(name='scanner.tasks.check_and_queue_scans')
@@ -101,20 +121,12 @@ def scan_website(self, website_url: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            results = loop.run_until_complete(
-                async_generate_reports(
-                    website_url, 
-                    progress_callback=update_progress,
-                    task_id=self.request.id  # Pass the task ID
-                )
-            )
-            
-            self.update_state(state='SUCCESS', meta={
-                'status': 'Scan completed',
-                'current': len(results),
-                'total': len(results)
-            })
-            
+            results = _run_scan(loop, async_generate_reports(
+                website_url,
+                progress_callback=update_progress,
+                task_id=self.request.id  # Pass the task ID
+            ), f"website scan for {website_url}")
+
             log_message(
                 f"[Celery Task {self.request.id}] Completed website scan for {website_url}. "
                 f"Generated {len(results)} reports",
@@ -131,8 +143,8 @@ def scan_website(self, website_url: str):
             loop.close()
             
     except Exception as e:
+        # Celery records the exception as the FAILURE result; nothing to set by hand.
         log_message(f"[Celery Task {self.request.id}] Error scanning website {website_url}: {str(e)}", 'error')
-        self.update_state(state='FAILURE', meta={'status': f'Scan failed: {str(e)}'})
         raise
 
 
@@ -157,7 +169,7 @@ def scan_site(self, site_url: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            result = loop.run_until_complete(async_generate_single_site_report(site_url))
+            _run_scan(loop, async_generate_single_site_report(site_url), f"site scan for {site_url}")
             log_message(f"[Celery Task {self.request.id}] Completed site scan for {site_url}", 'info')
             
             return {
@@ -170,7 +182,6 @@ def scan_site(self, site_url: str):
             
     except Exception as e:
         log_message(f"[Celery Task {self.request.id}] Error scanning site {site_url}: {str(e)}", 'error')
-        self.update_state(state='FAILURE', meta={'status': str(e)})
         raise
 
 

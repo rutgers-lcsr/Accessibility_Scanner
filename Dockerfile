@@ -64,7 +64,8 @@ CMD ["/app/init.sh", "gunicorn", "--capture-output", "--log-file=-", "-w", "4", 
 # ==============================================================================
 FROM playwright AS worker
 
-CMD ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info", "--concurrency=4"]
+# Each process runs one scan with scan_page_concurrency Chromium tabs (Settings, default 3).
+CMD ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info", "--concurrency=2"]
 
 # ==============================================================================
 # Flower stage - Celery monitoring (doesn't need Playwright)

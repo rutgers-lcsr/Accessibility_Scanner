@@ -158,19 +158,6 @@ export async function GET(req: NextRequest) {
             params: { client: 'logout' },
         });
     }
-    if (req.nextUrl.pathname === '/api/axe_js') {
-        const response = await fetch(
-            'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.3/axe.min.js'
-        );
-        const data = await response.text();
-        return new NextResponse(data, {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/javascript',
-            },
-        });
-    }
-
     return proxyRequest(req, 'GET');
 }
 export async function POST(req: NextRequest) {

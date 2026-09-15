@@ -1,7 +1,12 @@
 from playwright.async_api import Page
 
+# Upper bound on Tab presses per page. Each press costs two round-trips to the browser,
+# so the probe must stay cheap; a page with more focus stops than this is simply
+# reported as tabbable.
+MAX_TAB_PRESSES = 200
 
-async def _get_current_focus(page: Page) -> str:
+
+async def _get_current_focus(page: Page) -> dict | None:
     return await page.evaluate("""
             () => {
                 const el = document.activeElement;
@@ -12,26 +17,24 @@ async def _get_current_focus(page: Page) -> str:
                     class: el.className,
                     type: el.type || null,
                     name: el.name || null,
-                    value: el.value || null,
-                    html: el.innerHTML || null
+                    href: el.href || null,
+                    text: (el.textContent || '').trim().slice(0, 80),
                 };
             }
         """)
 
-timeout_count = 10000
 
-async def is_page_tabbable(page:Page)-> bool:
-    count = timeout_count
+async def is_page_tabbable(page: Page) -> bool:
+    """Press Tab and watch where focus goes.
+
+    Not tabbable: focus does not move at all after the first press. Tabbable: focus moves
+    and eventually cycles back to the first stop, or keeps moving for MAX_TAB_PRESSES.
+    """
     await page.keyboard.press('Tab')
     begin_element = await _get_current_focus(page)
-    while count > 0:
-        count -= 1
+    for presses in range(1, MAX_TAB_PRESSES + 1):
         await page.keyboard.press('Tab')
         new_element = await _get_current_focus(page)
         if begin_element == new_element:
-            # Assume that if tabbing happens between 2 counts and element is unchanged then we have a problem. 
-            if(count > timeout_count - 2):
-                return False
-            return True
-
-    return False
+            return presses > 1
+    return True

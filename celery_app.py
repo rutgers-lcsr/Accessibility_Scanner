@@ -60,7 +60,7 @@ celery.conf.update(
     task_time_limit=3600 * 4,  # 4 hours hard limit
     task_soft_time_limit=3600 * 3,  # 3 hours soft limit
     worker_prefetch_multiplier=1,  # Only fetch one task at a time per worker
-    worker_max_tasks_per_child=50,  # Restart worker after 50 tasks to prevent memory leaks
+    worker_max_tasks_per_child=5,  # Each scan holds a Chromium; recycle children often
     beat_schedule={
         'check-and-queue-scans': {
             'task': 'scanner.tasks.check_and_queue_scans',

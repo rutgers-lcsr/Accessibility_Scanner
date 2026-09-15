@@ -13,6 +13,7 @@ AppSetting = Literal[
     "default_should_auto_activate",
     "default_notify_on_completion",
     "default_email_domain",
+    "scan_page_concurrency",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -75,6 +76,7 @@ class Settings(db.Model):
             "default_should_auto_activate": "false",
             "default_notify_on_completion": "true",
             "default_email_domain": "",
+            "scan_page_concurrency": "3",
         }
         for key, value in defaults.items():
             if not db.session.query(Settings).filter_by(key=key).first():

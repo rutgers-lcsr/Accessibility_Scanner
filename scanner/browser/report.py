@@ -1,5 +1,6 @@
 
 import asyncio
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, TypedDict
 from scanner.accessibility.ace import AxeReport, get_accessibility_report
@@ -53,82 +54,81 @@ class AccessibilityReport(TypedDict, total=False):
     photo: bytes
     tags: List[str]
     
-class AccessibilitySummary(TypedDict, total=False):
+@dataclass
+class AccessibilitySummary:
     """
-    A summary of the accessibility report for a given URL.
-    this is a lightweight version of the full AccessibilityReport. 
-    
-    to prevent large websites from consuming too much memory when storing multiple reports. 
+    A lightweight summary of one page's report. The crawler keeps one of these per page
+    instead of the full AccessibilityReport (which includes the screenshot bytes), so a
+    large website does not hold every report in memory for the whole scan.
     """
-    def __init__(self, accessibility_report: AccessibilityReport):
-        self.url: str = accessibility_report.get('url', '')
-        self.response_code: int = accessibility_report.get('response_code', 0)
-        self.error: str = accessibility_report.get('error', '')
-        self.base_url: str = accessibility_report.get('base_url', '')
+    url: str
+    response_code: int = 0
+    error: str = ''
+    base_url: str = ''
 
+    @classmethod
+    def from_report(cls, report: AccessibilityReport) -> 'AccessibilitySummary':
+        return cls(
+            url=report.get('url', ''),
+            response_code=report.get('response_code', 0) or 0,
+            error=report.get('error', '') or '',
+            base_url=report.get('base_url', ''),
+        )
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # Generates a AccessibilityReport for a given site
 async def generate_report(browser: Browser, website: str = "https://cs.rutgers.edu", tags: List[str] = [], ace_config: str = "") -> AccessibilityReport:
-    result = AccessibilityReport()
-    result['timestamp'] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    """Audit one page.
+
+    Always returns a report carrying ``url`` and ``timestamp``; on failure ``error`` is set
+    and the other fields are absent. The browser context (and with it the page) is closed
+    on every path, including exceptions and cancellation.
+    """
+    result = AccessibilityReport(url=website, timestamp=_now())
     try:
-        context = await browser.new_context(user_agent=ACCESSIBILITY_USER_AGENT)
-        await context.route("**/*", block_non_public_targets)
-        page = await context.new_page()
-        res = await page.goto(website, wait_until="domcontentloaded")
-        result['url'] = website
-        result['response_code'] = res.status if res else 0
-        if res is None or res.status >= 400:
-            await page.close()
-            result['error'] = f"Failed to load page, status code: {res.status if res else 'No Response'}"
+        async with await browser.new_context(user_agent=ACCESSIBILITY_USER_AGENT) as context:
+            await context.route("**/*", block_non_public_targets)
+            page = await context.new_page()
+            res = await page.goto(website, wait_until="domcontentloaded")
+            result['response_code'] = res.status if res else 0
+            if res is None or res.status >= 400:
+                result['error'] = f"Failed to load page, status code: {res.status if res else 'No Response'}"
+                return result
+            # A page that redirected to another host must not be audited under this URL.
+            if not _same_host(page.url, website):
+                result['error'] = f"Redirected off-site to {page.url}"
+                return result
+            await wait_for_page_settled(page)
+
+            base_url = get_website_url(page.url)
+            report = await get_accessibility_report(page, tags=tags, axe_config=ace_config)
+            if 'error' in report and report['error'] is not None:
+                result['error'] = report['error']
+                return result
+            links = await get_links(page)
+            videos = await get_videos(page)
+            imgs = await get_imgs(page)
+            tabable = await is_page_tabbable(page)
+
+            js_report = report_to_js(report['violations'], page.url, report_mode=True)
+            await page.evaluate(f"(function () {{ {js_report} }})()")
+            photo = await page.screenshot(full_page=True)
+
+            result['base_url'] = base_url
+            result['report'] = report
+            result['links'] = links
+            result['videos'] = videos
+            result['imgs'] = imgs
+            result['tabable'] = tabable
+            result['timestamp'] = _now()
+            result['photo'] = photo
+            result['tags'] = tags or []
             return result
-        # A page that redirected to another host must not be audited under this URL.
-        if not _same_host(page.url, website):
-            await page.close()
-            result['error'] = f"Redirected off-site to {page.url}"
-            return result
-        await wait_for_page_settled(page)
     except Exception as e:
-        return {"error": str(e)}
-
-    try:
-        base_url = get_website_url(page.url)
-        report = await get_accessibility_report(page, tags=tags, axe_config=ace_config)
-        if 'error' in report and report['error'] is not None:
-            await page.close()
-            return {"error": report['error']}
-        links = await get_links(page)
-        videos = await get_videos(page)
-        imgs = await get_imgs(page)
-
-        tabable = await is_page_tabbable(page)
-        has_video = await page.evaluate("() => { return !!document.querySelector('video'); }")
-        has_img = await page.evaluate("() => { return !!document.querySelector('img'); }")
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-        js_report = report_to_js(report['violations'], page.url, report_mode=True)
-        context = await page.evaluate(f"(function () {{ {js_report} }})()")
-        
-        photo = await page.screenshot(full_page=True)
-
-        await page.close()
-        # Process the report as needed
-        
-        result['base_url'] = base_url
-        result['report'] = report
-        result['links'] = links
-        result['videos'] = videos
-        result['imgs'] = imgs
-        result['tabable'] = tabable
-        result['has_video'] = has_video
-        result['has_img'] = has_img
-        result['timestamp'] = timestamp
-        result['photo'] = photo
-        result['tags'] = tags or []
-
-        return result
-    except Exception as e:
-        await page.close()
         log_message(f"Error generating report for {website}: {e}", 'error')
-        return {"error": str(e)}
+        result['error'] = str(e)
+        return result
