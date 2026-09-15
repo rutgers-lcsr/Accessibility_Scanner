@@ -2,7 +2,7 @@
 {% block content %}
 <h1>New Website Added</h1>
 <p>
-    You've added the following site: <a href="https://{{ website.url }}">{{ website.url }}</a>
+    You've added the following site: <a href="{{ website.url }}">{{ website.url }}</a>
 </p>
 {% if website.active %}
 <p>Status: Active</p>
@@ -23,6 +23,6 @@
 </p>
 <p>
     If you'd like to not receive these emails, please visit <a
-        href="{{ client_url }}/unsubscribe?token={{ jwt_token }}">unsubscribe</a>.
+        href="{{ client_url }}/api/users/unsubscribe/?token={{ jwt_token }}">unsubscribe</a>.
 </p>
 {% endblock content %}

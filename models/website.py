@@ -106,7 +106,6 @@ class Site(db.Model):
                 return True
         return False
     
-    @hybrid_method
     def can_view(self, user: User) -> bool:
         if not self.websites:
             return False
@@ -114,41 +113,6 @@ class Site(db.Model):
             if website.can_view(user):
                 return True
         return False
-    @can_view.expression
-    def can_view(cls, user: User):
-        from sqlalchemy import select, exists
-        from models.website import Website
-        if not user:
-            return False
-        
-        # Assume user.profile.is_admin is a column, not a Python property
-        is_admin = select(User.profile.is_admin).where(User.id == user.id).scalar_subquery()
-
-        # User is admin of this website
-        is_website_admin = exists().where(
-            and_(
-                Site_Website_Assoc.c.site_id == cls.id,
-                Site_Website_Assoc.c.website_id == Website.id,
-                Website.admin_id == user.id
-            )
-        )
-
-        # User has explicit view permission
-        has_view_permission = exists().where(
-            and_(
-                UserWebsiteAssoc.c.user_id == user.id,
-                UserWebsiteAssoc.c.website_id == Website.id
-            )
-        )
-        
-        return case(
-            (cls.public == True, True),
-            (is_admin == True, True),
-            (is_website_admin == True, True),
-            (has_view_permission == True, True),
-            else_=False
-        )
-
     @hybrid_property
     def public(self) -> bool:
         for website in self.websites:
@@ -294,7 +258,6 @@ class Website(db.Model):
             return True
         return False
     
-    @hybrid_method
     def can_view(self, user: User) -> bool:
         if self.public:
             return True
@@ -305,24 +268,21 @@ class Website(db.Model):
         if user and user in self.users:
             return True
         return False
-    
-    @can_view.expression
-    def can_view(cls, user: User):
-        from sqlalchemy import select, exists
+
+    @classmethod
+    def visible_to(cls, user: User | None):
+        """SQL criterion selecting the websites ``user`` may view (the query form of
+        can_view): everything for site admins, public websites for anonymous callers,
+        plus the websites a user administers or is a member of."""
+        from sqlalchemy import or_, select, true
+        # ``user`` may be flask-jwt-extended's current_user proxy, which is falsy (not
+        # None) for anonymous requests, so test truthiness rather than identity.
         if not user:
-            return False
-        return case(
-            (cls.public == True, True),
-            (user == None, False),
-            (user.profile.is_admin == True, True),
-            (cls.admin_id == user.id, True),
-            (exists().where(
-                UserWebsiteAssoc.c.user_id == user.id,
-                UserWebsiteAssoc.c.website_id == cls.id
-            ), True),
-            else_=False
-        )
-    
+            return cls.public == True
+        if user.profile is not None and user.profile.is_admin:
+            return true()
+        member_of = select(UserWebsiteAssoc.c.website_id).where(UserWebsiteAssoc.c.user_id == user.id)
+        return or_(cls.public == True, cls.admin_id == user.id, cls.id.in_(member_of))
     
     def can_scan(self, user: User) -> bool:
         if user and self.admin_id == user.id:
@@ -366,15 +326,10 @@ class Website(db.Model):
         all_tags = sorted(set(websiteTags + defaultTags))
         return all_tags 
 
-    @hybrid_method
     def get_categories(self) -> List[str]:
         if not self.categories:
             return []
         return [cat.strip() for cat in self.categories.split(",")] if self.categories else []
-    
-    @get_categories.expression
-    def get_categories(cls):
-        return func.string_to_array(func.coalesce(cls.categories, ''), ',')
     
     def get_ace_config(self) -> str:
 
@@ -597,26 +552,26 @@ class Website(db.Model):
         self.should_email = Settings.get(key='default_notify_on_completion', default='false').lower() == 'true'
         self.tags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
 
-    def delete(self, delete_domain: bool = True):
+    def delete(self, delete_domain: bool = True, commit: bool = True):
         try:
-            for site in self.sites:
-                websites = site.websites.all()
-                if len(websites) <= 1:
+            for site in self.sites.all():  # snapshot: the relationship is modified below
+                if len(site.websites.all()) <= 1:
                     site.delete(commit=False)
                 else:
                     site.websites.remove(self)
                     db.session.add(site)
 
-            if delete_domain and len(self.domain.websites) <= 1:
-                self.domain.delete()
-
-            # remove all associations for self
-
+            domain = self.domain
             db.session.delete(self)
-            db.session.commit()
-        except Exception as e:
+            # Drop the domain only when this was its last website. Domain.delete skips
+            # websites already marked for deletion, so this one is not deleted twice.
+            if delete_domain and domain is not None and not [w for w in domain.websites if w is not self]:
+                domain.delete(commit=False)
+            if commit:
+                db.session.commit()
+        except Exception:
             db.session.rollback()
-            raise e
+            raise
 
     def __repr__(self):
         return f'<Website {self.id} url={self.url} admin={self.admin_id} categories={self.categories} tags={self.tags}>'
@@ -664,15 +619,18 @@ class Domain(db.Model):
             if domains.domain != domain:
                 self.parent = domains
     
-    def delete(self):
+    def delete(self, commit: bool = True):
         if self.parent:
-            for child in self.children:
+            for child in list(self.children):
                 child.parent = self.parent
                 db.session.add(child)
-        for website in self.websites:
-            website.delete(delete_domain=False)
+        for website in list(self.websites):
+            if website in db.session.deleted:
+                continue
+            website.delete(delete_domain=False, commit=False)
         db.session.delete(self)
-        db.session.commit()
+        if commit:
+            db.session.commit()
 
     @hybrid_method
     def part_of_domain(self, url):
@@ -683,13 +641,7 @@ class Domain(db.Model):
        
         return netloc.endswith(self.domain)
 
-    def deactivate(self):
-        self.active = False
-        for website in self.websites:
-            website.deactivate()
-        for child in self.children:
-            child.deactivate()
-        db.session.commit()
+
 
     def to_dict(self):
         return {

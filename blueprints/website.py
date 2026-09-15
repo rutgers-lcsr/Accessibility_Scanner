@@ -1,5 +1,5 @@
 import json
-from flask import Blueprint, jsonify, request, Response
+from flask import Blueprint, current_app, jsonify, request, Response
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
 from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail, ScanFinishedEmail
@@ -85,18 +85,23 @@ def create_website():
 
         db.session.add(new_website)
         db.session.commit()
-    except Exception as e:
+    except ValueError as e:
+        # Website() explains what is wrong (duplicate, no parent domain, ...)
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Error creating website %s", base_url)
+        return jsonify({'error': 'Could not create the website'}), 500
 
+    # The website is committed; a mail problem must not fail (or roll back) the request.
     try:
-        if should_email and 'email' in data:
+        if should_email:
             NewWebsiteEmail(new_website).send()
 
         AdminNewWebsiteEmail(new_website).send()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Error sending new-website mail for %s", base_url)
 
     if Settings.get('default_should_auto_scan', 'true').lower() == 'true':
         from scanner.tasks import scan_website
@@ -267,8 +272,6 @@ def update_website(website_id):
 
     # Admin only fields
     if current_user.profile.is_admin:
-        if 'email' in data:
-            website.email = data['email']
         if 'public' in data:
             website.public = data['public'] and True
         if 'active' in data:
@@ -500,12 +503,7 @@ def get_websites():
     if search:
         w_query = w_query.filter(Website.url.icontains(f"%{search}%"))
 
-    if current_user and not current_user.profile.is_admin:
-        w_query = w_query.filter(Website.can_view(current_user))
-
-    if not current_user:
-        # make sure that non-admin users can only see public websites
-        w_query = w_query.filter(Website.public == True)
+    w_query = w_query.filter(Website.visible_to(current_user))
 
 
 
@@ -653,7 +651,7 @@ def get_website_sites(website_id):
     # pages that have no report yet (every scan of them failed) in the listing so their
     # failure is visible; they sort last.
     sites_query = (
-        db.session.query(Site).order_by(Site.url.asc()).where(Site.id.in_(site_subq.select()))
+        db.session.query(Site).where(Site.id.in_(site_subq.select()))
         .outerjoin(latest_report_subq, latest_report_subq.c.site_id == Site.id)
         .outerjoin(
             Report,
@@ -772,7 +770,7 @@ def get_website_categories():
         return jsonify({'error': 'Unauthorized'}), 403
     
     # Get all categories for websites the user can view, split and flatten them in Python
-    categories_sql = db.session.query(Website.categories).filter(Website.categories.isnot(None), Website.categories != '').filter(Website.can_view(current_user)).all()
+    categories_sql = db.session.query(Website.categories).filter(Website.categories.isnot(None), Website.categories != '').filter(Website.visible_to(current_user)).all()
 
     categories = []
     for cat in categories_sql:

@@ -22,13 +22,9 @@ class AccessEmails():
             raise ValueError("Message not initialized")
         
         if TESTING:
-            print("Email content:")
-            print("Subject:", self.msg.subject)
-            print("To:", self.msg.recipients)
-            log_message(f"Message was not sent", 'info')
-            # print("Body:", self.msg.html)
-            
-            
+            log_message(f"TESTING: not sending email '{self.msg.subject}' to {self.msg.recipients}", 'info')
+            return
+
         # dont send if recipients is localhost
         if any("localhost" in recipient for recipient in self.msg.recipients):
             log_message(f"Email not sent to localhost address: {self.msg.recipients}", 'warning')
@@ -52,7 +48,7 @@ class AdminNewWebsiteEmail(AccessEmails):
         msg = Message("New Website Added",
                       recipients=[admin.email for admin in adminsUsers])
 
-        msg.html = render_template("emails/admin_new_website.html", website=self.website, client_url=self.client_url)
+        msg.html = render_template("emails/admin_new_website.html", year=self.year, website=self.website, client_url=self.client_url)
         self.msg = msg
         super().send()
         
@@ -71,8 +67,8 @@ class NewWebsiteEmail(AccessEmails):
         msg = Message("New Website Added",
                       recipients=emails)
 
-        jwt_token = generate_jwt_token({"action": "subscribe", "website_id": self.website.id, "email": self.website.email})
-        msg.html = render_template("emails/new_website.html", website=self.website, client_url=self.client_url, jwt_token=jwt_token)
+        jwt_token = generate_jwt_token({"action": "subscribe", "website_id": self.website.id})
+        msg.html = render_template("emails/new_website.html", year=self.year, website=self.website, client_url=self.client_url, jwt_token=jwt_token)
 
         self.msg = msg
         super().send()
@@ -98,7 +94,7 @@ class ScanFinishedEmail(AccessEmails):
         msg = Message("Accessibility Scan Finished",
                       recipients=emails)
 
-        msg.html = render_template("emails/scan_finished.html", website=self.website.to_dict(), client_url=self.client_url, scan=self.report_counts, timestamp=datetime.now().isoformat())
+        msg.html = render_template("emails/scan_finished.html", year=self.year, website=self.website.to_dict(), client_url=self.client_url, scan=self.report_counts, timestamp=datetime.now().isoformat())
         
         if not force:
             # check if we should email based on report counts

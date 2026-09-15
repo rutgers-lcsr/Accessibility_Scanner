@@ -291,8 +291,6 @@ class Rule(db.Model):
                         name=check_data.get("name", ""),
                         evaluate=check_data.get("evaluate", ""),
                         options=json.dumps(check_data.get("options")) if check_data.get("options") is not None else None,
-                        description=check_data.get("description", ""),
-                        impact=check_data.get("impact", "minor"),
                         pass_text=check_data.get("pass_text", ""),
                         fail_text=check_data.get("fail_text", ""),
                         incomplete_text=check_data.get("incomplete_text", "")

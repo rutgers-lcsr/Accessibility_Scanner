@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 from models.website import Site, Website
 from models import db
@@ -101,8 +101,9 @@ def scan_website():
                 "polling_endpoint": f"/api/scans/status/?site={site_id}"
             }), 202
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Error queueing scan (website=%s, site=%s)", website, site)
+        return jsonify({'error': 'Could not queue the scan'}), 500
 
     return jsonify({"error": "No valid website or site provided"}), 400
 

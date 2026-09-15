@@ -78,21 +78,10 @@ class Report(db.Model):
     def public(self):
         return self.site.public if self.site else False
 
-    @hybrid_property
+    @property
     def admin_id(self):
         return self.site.websites[0].admin_id if self.site and self.site.websites else None
 
-    @admin_id.expression
-    def admin_id(cls):
-        from sqlalchemy import select
-        from models.website import Site
-        return (
-            select(Site.admin_id)
-            .where(Site.id == cls.site_id)
-            .scalar_subquery()
-        )
-
-    @hybrid_method
     def can_view(self, user: User) -> bool:
         if self.public:
             return True
@@ -104,33 +93,17 @@ class Report(db.Model):
             return True
         return False
 
-    @can_view.expression
-    def can_view(cls, user: User):
-        from sqlalchemy import select, case, exists, literal
-        from models.website import Site, UserWebsiteAssoc, Website
-
-        # Subquery: does the user have access to any website for this site?
-        user_has_access = exists().where(
-            UserWebsiteAssoc.c.website_id.in_(
-                select(Website.id).where(Website.sites.any(Site.id == cls.site_id))
-            ) & (UserWebsiteAssoc.c.user_id == user.id)
+    @classmethod
+    def visible_to(cls, user: User | None):
+        """SQL criterion selecting the reports ``user`` may view: reports of pages that
+        belong to a website the user may view (Website.visible_to)."""
+        from sqlalchemy import select
+        from models.website import Site_Website_Assoc, Website
+        visible_websites = select(Website.id).where(Website.visible_to(user))
+        visible_sites = select(Site_Website_Assoc.c.site_id).where(
+            Site_Website_Assoc.c.website_id.in_(visible_websites)
         )
-
-        # Subquery: get admin_id for website of this site
-        is_admin = exists().where(
-            Website.id.in_(
-                select(Website.id).where(Website.sites.any(Site.id == cls.site_id))
-            ) & (Website.admin_id == user.id)
-        )
-
-        return case(
-            (cls.public == True, literal(True)),
-            (user == None, literal(False)),
-            (user.profile.is_admin == True, literal(True)),
-            (user_has_access, literal(True)),
-            (is_admin, literal(True)),
-            else_=literal(False)
-        )
+        return cls.site_id.in_(visible_sites)
 
     @public.expression
     def public(cls):
@@ -151,10 +124,9 @@ class Report(db.Model):
         return sum(1 for v in axereportList if v.get('impact') == impact)
 
 
-    @hybrid_property
+    @property
     def num_of_links(self):
-        links = self.links.get('links', [])
-        return len(links)
+        return len(self.links or [])
 
 
     def from_dict(self, data: AccessibilityReport):

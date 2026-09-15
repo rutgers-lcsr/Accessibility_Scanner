@@ -1,10 +1,28 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 from models import db
 from authentication.login import admin_required
 from utils.javascript import is_single_arrow_function, is_valid_js, is_valid_object
 from models.rules import Check, Rule
 
 axe_bp = Blueprint('axe', __name__)
+
+
+def _client_error(exc: Exception):
+    """400 with the message for validation errors (ValueError); a generic message
+    otherwise, so internal details are logged rather than returned."""
+    if isinstance(exc, ValueError):
+        return jsonify({'error': str(exc)}), 400
+    current_app.logger.exception("Unexpected error in axe rules endpoint")
+    return jsonify({'error': 'Request failed'}), 400
+
+
+def _client_error(exc: Exception):
+    """400 with the message for validation errors (ValueError); a generic message
+    otherwise, so internal details are logged rather than returned."""
+    if isinstance(exc, ValueError):
+        return jsonify({'error': str(exc)}), 400
+    current_app.logger.exception("Unexpected error in axe rules endpoint")
+    return jsonify({'error': 'Request failed'}), 400
 
 
 default_rule = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice", "wcag2a-obsolete", "wcag***" , "ACT", "section508", "TTv5", "EN-301-549" , "RGAAv4", "experimental", "wcag2aaa", "wcag22aa"]
@@ -89,7 +107,7 @@ def create_rule():
         return jsonify(rule.to_dict()), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        return _client_error(e)
 
 @axe_bp.route("/rules/<int:rule_id>/", methods=["GET"])
 @admin_required
@@ -118,14 +136,17 @@ def get_rule_checks(rule_id):
 @axe_bp.route("/rules/import/", methods=["POST"])
 @admin_required
 def import_rule():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     try:
-        rule = Rule.from_json(data)
+        if not data.get("name"):
+            return jsonify({'error': 'name is required'}), 400
+        rule = Rule(name=data["name"])
+        rule.from_json(data)
         rule.save()
         return jsonify(rule.to_dict()), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        return _client_error(e)
 
 @axe_bp.route("/rules/<int:rule_id>/export/", methods=["GET"])
 @admin_required
@@ -186,7 +207,7 @@ def update_rule(rule_id):
         return jsonify(rule.to_dict()), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        return _client_error(e)
 
 @axe_bp.route("/rules/<int:rule_id>/", methods=["DELETE"])
 @admin_required
@@ -205,7 +226,7 @@ def delete_rule(rule_id):
         return jsonify({'message': 'Rule deleted'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        return _client_error(e)
     
 @axe_bp.route("/checks/names/", methods=["GET"])
 @admin_required
@@ -241,7 +262,7 @@ def create_check():
         return jsonify(check.to_dict()), 201
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        return _client_error(e)
 
 
 @axe_bp.route("/checks/<int:check_id>/", methods=["GET"])
@@ -274,7 +295,7 @@ def update_check(check_id):
         return jsonify(check.to_dict()), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        return _client_error(e)
     
 @axe_bp.route("/checks/<int:check_id>/", methods=["DELETE"])
 @admin_required

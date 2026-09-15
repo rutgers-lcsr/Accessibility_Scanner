@@ -25,11 +25,11 @@ def unsubscribe():
     if not token:
         return jsonify({'error': 'Token is required'}), 400
 
-    email = decode_jwt_token(token)
-    if not email or email.get("error", None) is not None:
+    payload = decode_jwt_token(token)
+    if not payload or payload.get("error") is not None or payload.get("action") != "subscribe":
         return jsonify({'error': 'Invalid token'}), 401
 
-    website = db.session.query(Website).filter_by(email=email['email'], id=email['website_id']).first()
+    website = db.session.get(Website, payload.get('website_id'))
     if not website:
         return jsonify({'error': 'Website not found'}), 404
 

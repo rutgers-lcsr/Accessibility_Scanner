@@ -22,7 +22,8 @@ def get_reports():
     limit = params.get('limit', default=100, type=int)
     page = params.get('page', default=1, type=int)
     search = params.get('search', type=str)
-    desc = params.get('desc', default=True, type=bool)
+    # bool("false") is True, so parse the string ourselves
+    desc = params.get('desc', default='true', type=str).lower() != 'false'
 
     order_by = Report.timestamp.desc() if desc else Report.timestamp.asc()
 
@@ -32,11 +33,7 @@ def get_reports():
     if search:
         reports_q = reports_q.filter(Report.url.icontains(f"%{search}%"))
 
-    if not current_user:
-        reports_q = reports_q.filter(Report.public)
-
-    if current_user:
-        reports_q = reports_q.filter(Report.can_view(current_user))
+    reports_q = reports_q.filter(Report.visible_to(current_user))
 
     reports = reports_q.paginate(page=page, per_page=limit)
 
@@ -119,6 +116,12 @@ def get_report_photo(report_id):
 
     if not report.can_view(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
+
+    if not report.photo:
+        return jsonify({'error': 'This report has no screenshot'}), 404
+
+    if not report.photo:
+        return jsonify({'error': 'This report has no screenshot'}), 404
 
     image = Image.open(io.BytesIO(report.photo))
 
