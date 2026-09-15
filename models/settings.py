@@ -14,6 +14,9 @@ AppSetting = Literal[
     "default_notify_on_completion",
     "default_email_domain",
     "scan_page_concurrency",
+    "max_pages",
+    "max_depth",
+    "crawl_delay_ms",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -77,6 +80,9 @@ class Settings(db.Model):
             "default_notify_on_completion": "true",
             "default_email_domain": "",
             "scan_page_concurrency": "3",
+            "max_pages": "500",
+            "max_depth": "5",
+            "crawl_delay_ms": "250",
         }
         for key, value in defaults.items():
             if not db.session.query(Settings).filter_by(key=key).first():

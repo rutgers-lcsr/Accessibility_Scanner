@@ -11,6 +11,9 @@ type Settings = {
     default_email_domain: string;
     default_should_auto_activate: string;
     scan_page_concurrency: string;
+    max_pages: string;
+    max_depth: string;
+    crawl_delay_ms: string;
 };
 
 type SettingsContextType = {

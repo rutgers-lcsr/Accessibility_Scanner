@@ -16,7 +16,8 @@ def get_link_js(website):
     
     return f"""() => {{
         var aTags = Array.from(document.querySelectorAll('a'));
-        var links = aTags.filter(a => a.href.startsWith('{website}') || a.href.startsWith('/')).map(a=> a.href).filter(a => !a.includes('#')).filter(a =>!(a == '{website}' ||  a == '{website}/')).filter((value, index, self) => self.indexOf(value) === index);
+        // Drop the fragment rather than the whole link: "/docs#intro" still names a page.
+        var links = aTags.filter(a => a.href.startsWith('{website}') || a.href.startsWith('/')).map(a => a.href.split('#')[0]).filter(a =>!(a == '{website}' ||  a == '{website}/')).filter((value, index, self) => self.indexOf(value) === index);
         
         links = links.map(l => {{
             if (!l) return l;
@@ -33,7 +34,7 @@ def get_link_js(website):
                 return '{website}' + l;
             }}
             return l;
-        }}).filter(l => !/(.png|.jpg|.jpeg|.gif|.svg|.zip|.mp4|.webm|.pdf|.doc|.docx|.xls|.xlsx|.pptx|.ppt|.yaml|.yml)$/.test(l))
+        }}).filter(l => !/\\.(png|jpg|jpeg|gif|svg|zip|mp4|webm|pdf|doc|docx|xls|xlsx|pptx|ppt|yaml|yml)$/i.test(l))
         return links;
 }}"""
 

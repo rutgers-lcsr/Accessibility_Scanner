@@ -38,7 +38,9 @@ class Site(db.Model):
     __tablename__ = 'site'
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    url: Mapped[str] = db.Column(db.String(500), nullable=False)
+    # Unique so two crawl workers creating the same page collide in the database
+    # (handled in scanner.scan) instead of producing duplicate rows.
+    url: Mapped[str] = db.Column(db.String(500), nullable=False, unique=True, index=True)
     last_scanned: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     websites: Mapped[List['Website']] = db.relationship('Website', secondary=Site_Website_Assoc, back_populates='sites', lazy='dynamic')
     reports: Mapped[List['Report']] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
@@ -251,7 +253,7 @@ class WebsiteDict(TypedDict,total=False):
 class Website(db.Model):
     __tablename__ = 'website'
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    url: Mapped[str] = db.Column(db.String(500), nullable=True)
+    url: Mapped[str] = db.Column(db.String(500), nullable=True, unique=True, index=True)
     domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=False)
     sites: Mapped[List['Site']] = db.relationship('Site', secondary=Site_Website_Assoc, back_populates='websites', lazy='dynamic')
     last_scanned: Mapped[datetime] = db.Column(db.DateTime, nullable=True)

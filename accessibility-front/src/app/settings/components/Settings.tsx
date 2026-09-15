@@ -62,6 +62,40 @@ function Settings() {
                             for faster scans of large sites.
                         </div>
                         <div className="my-4" />
+                        <EditableInput
+                            label="Maximum pages per website scan"
+                            type="number"
+                            value={settings?.max_pages || ''}
+                            onChange={(value) => handleSave('max_pages', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            A crawl stops discovering new pages once this many have been found, so
+                            calendars and paginated listings cannot run a scan forever.
+                        </div>
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Maximum link depth"
+                            type="number"
+                            value={settings?.max_depth || ''}
+                            onChange={(value) => handleSave('max_depth', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            How many links away from the start page the crawler follows (0 scans
+                            only the start page).
+                        </div>
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Delay between page requests (ms)"
+                            type="number"
+                            value={settings?.crawl_delay_ms || ''}
+                            onChange={(value) => handleSave('crawl_delay_ms', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            Pause before each page request so small sites are not overwhelmed.
+                            Pages listed as disallowed for LCSRAccessibility (or all agents) in the
+                            site&apos;s robots.txt are skipped.
+                        </div>
+                        <div className="my-4" />
                         <label className="block mb-2 font-bold" htmlFor="default_tags">
                             Default Tags (for all scans)
                         </label>

@@ -86,6 +86,25 @@ def is_valid_url(url: str) -> bool:
     except Exception:
         return False
 
+def normalize_url(url: str) -> str:
+    """Canonical form used for crawl de-duplication and Site lookups.
+
+    Scheme and host are lowercased, a default port is dropped, and the fragment and
+    query are removed (the crawler never follows query variants). The path is kept
+    exactly as given, trailing slash included, so existing Site rows keep matching.
+    """
+    parsed = urlparse(url.strip())
+    scheme = parsed.scheme.lower()
+    host = (parsed.hostname or "").lower()
+    if ":" in host:  # bare IPv6 literal
+        host = f"[{host}]"
+    port = parsed.port
+    if port and not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)):
+        host = f"{host}:{port}"
+    path = parsed.path or "/"
+    return f"{scheme}://{host}{path}"
+
+
 def get_website_url(url:str):
     """
     Returns the website URL from a given URL

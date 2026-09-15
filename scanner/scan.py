@@ -1,10 +1,12 @@
 import asyncio
 from typing import List
+from urllib import robotparser
+import requests
 import time
 from flask import current_app, has_app_context
 from playwright.async_api import async_playwright
 from mail.emails import ScanFinishedEmail
-from scanner.browser.report import AccessibilityReport, AccessibilitySummary, generate_report
+from scanner.browser.report import ACCESSIBILITY_USER_AGENT, AccessibilityReport, AccessibilitySummary, generate_report
 from scanner.log import log_message
 from app import create_app
 from models import db
@@ -13,22 +15,58 @@ from models.report import Report
 from models.settings import Settings
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
-from utils.urls import get_full_url, get_netloc, get_site_netloc
-from sqlalchemy.exc import OperationalError
+from utils.urls import get_full_url, get_netloc, get_site_netloc, get_website_url, normalize_url
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 
 # --disable-dev-shm-usage: Chromium otherwise uses /dev/shm, which is 64 MB in Docker by
 # default and makes heavy pages crash the renderer.
 BROWSER_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
 DEFAULT_PAGE_CONCURRENCY = 3
+DEFAULT_MAX_PAGES = 500
+DEFAULT_MAX_DEPTH = 5
+DEFAULT_CRAWL_DELAY_MS = 250
+# The token sites can use in robots.txt to address this scanner specifically.
+ROBOTS_AGENT = 'LCSRAccessibility'
+
+
+def _int_setting(key: str, default: int) -> int:
+    try:
+        return max(0, int(Settings.get(key=key, default=str(default))))
+    except (TypeError, ValueError):
+        return default
 
 
 def page_concurrency() -> int:
     """Pages audited concurrently within one scan (Settings key scan_page_concurrency)."""
+    return max(1, _int_setting('scan_page_concurrency', DEFAULT_PAGE_CONCURRENCY))
+
+
+def crawl_limits() -> dict:
+    """Crawl budget from Settings: max pages per scan, max link depth from the start
+    page, and the pause before each page request (politeness)."""
+    return {
+        'max_pages': max(1, _int_setting('max_pages', DEFAULT_MAX_PAGES)),
+        'max_depth': _int_setting('max_depth', DEFAULT_MAX_DEPTH),
+        'crawl_delay': _int_setting('crawl_delay_ms', DEFAULT_CRAWL_DELAY_MS) / 1000,
+    }
+
+
+def load_robots(website_url: str) -> robotparser.RobotFileParser | None:
+    """Parse the website's robots.txt, or return None (everything allowed) when there is
+    none or it cannot be read. Redirects are not followed, so this cannot be bounced off
+    the (already allow-listed) origin."""
+    url = get_website_url(website_url) + '/robots.txt'
     try:
-        return max(1, int(Settings.get(key='scan_page_concurrency', default=str(DEFAULT_PAGE_CONCURRENCY))))
-    except (TypeError, ValueError):
-        return DEFAULT_PAGE_CONCURRENCY
+        response = requests.get(url, timeout=10, allow_redirects=False, headers={'User-Agent': ACCESSIBILITY_USER_AGENT})
+    except Exception as e:
+        log_message(f"Could not fetch {url}: {e}", 'warning')
+        return None
+    if response.status_code != 200:
+        return None
+    parser = robotparser.RobotFileParser()
+    parser.parse(response.text.splitlines())
+    return parser
 
 
 def get_app():
@@ -60,7 +98,9 @@ def commit_with_retry(max_retries=3, retry_delay=1):
     return False
 
 
-async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None) -> AccessibilityReport:
+async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None, limits: dict = None, depths: dict = None, robots: robotparser.RobotFileParser = None) -> AccessibilityReport:
+    """Crawl worker. ``limits`` (see crawl_limits) bounds the crawl, ``depths`` maps each
+    queued URL to its link depth from the start page, ``robots`` filters disallowed URLs."""
     while True:
         site = await queue.get()
         if site is None:  # sentinel to shut down
@@ -72,6 +112,12 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
             continue
         currently_processing.add(site)
         try:
+            if robots is not None and not robots.can_fetch(ROBOTS_AGENT, site):
+                log_message(f"[Worker {name}] Skipping {site}: disallowed by robots.txt", 'info')
+                continue
+            if limits and limits['crawl_delay']:
+                await asyncio.sleep(limits['crawl_delay'])
+
             res = await generate_report(browser, website=site, tags=tags, ace_config=ace_config)
             
             if 'error' in res and res['error'] is not None:
@@ -87,12 +133,23 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
                     await store_report_to_db(res, website_obj, app)
                 
                 # add links to queue if not already processing
+                depth = depths.get(site, 0) if depths is not None else 0
                 for site_link in res.get('links', []):
-                    if not site_link in sites_done and not site_link in currently_processing and not queue.exists(site_link):
-                        await queue.put(site_link)
-                        # Update total discovered sites
-                        if total_sites_ref is not None:
-                            total_sites_ref['count'] = queue.qsize() + len(currently_processing) + len(sites_done)
+                    site_link = normalize_url(site_link)
+                    if site_link in sites_done or site_link in currently_processing or queue.exists(site_link):
+                        continue
+                    if limits:
+                        if depth + 1 > limits['max_depth']:
+                            continue
+                        if queue.qsize() + len(currently_processing) + len(sites_done) >= limits['max_pages']:
+                            log_message(f"[Worker {name}] Page budget of {limits['max_pages']} reached; not queueing more links", 'warning')
+                            break
+                    if depths is not None:
+                        depths[site_link] = depth + 1
+                    await queue.put(site_link)
+                    # Update total discovered sites
+                    if total_sites_ref is not None:
+                        total_sites_ref['count'] = queue.qsize() + len(currently_processing) + len(sites_done)
 
                 results.append(AccessibilitySummary.from_report(res))
 
@@ -117,28 +174,19 @@ async def store_report_to_db(site_report: AccessibilityReport, website: Website,
         with app.app_context():
             try:
                 # Check if site url is based on website domain
-                site_netloc = get_netloc(site_report['url'])
-                website_netloc = get_netloc(website.url)
+                site_netloc = get_netloc(site_report['url']).lower()
+                website_netloc = get_netloc(website.url).lower()
                 if site_netloc != website_netloc:
                     log_message(f"Skipping site {site_report['url']} as it is not part of the website domain {website_netloc}", 'warning')
                     return None
-                
+
                 # Re-query website in this session
                 website_db = db.session.query(Website).filter_by(id=website.id).first()
                 if not website_db:
                     log_message(f"Website {website.id} not found in database", 'error')
                     return None
-                
-                # Check if site exists if not create one
-                site = db.session.query(Site).filter_by(url=site_report['url']).first()
-                
-                if site is None:
-                    site = Site(url=site_report['url'], website=website_db)
-                    db.session.add(site)
-                    db.session.flush()
-                else:
-                    if site not in website_db.sites:
-                        website_db.sites.append(site)
+
+                site = _get_or_create_site(site_report['url'], website_db.id)
                 
                 report = Report(site_report, site_id=site.id)
                 site.reports.append(report)
@@ -163,6 +211,34 @@ async def store_report_to_db(site_report: AccessibilityReport, website: Website,
     return await loop.run_in_executor(None, _store_in_db)
 
 
+def _get_or_create_site(url: str, website_id: int) -> Site:
+    """Return the Site for ``url`` attached to website ``website_id``, creating it if needed.
+
+    Concurrent workers can race on the same URL. site.url is unique, so the loser's
+    insert fails (IntegrityError, or ValueError when Site.__init__ already sees the
+    winner's row); it then rolls back and re-reads in a new transaction. The rollback
+    matters: under repeatable-read isolation the same transaction would never see the
+    row the other worker committed.
+    """
+    website_db = db.session.get(Website, website_id)
+    site = db.session.query(Site).filter_by(url=url).first()
+    if site is None:
+        try:
+            site = Site(url=url, website=website_db)
+            db.session.add(site)
+            db.session.flush()
+            return site
+        except (IntegrityError, ValueError):
+            db.session.rollback()
+            website_db = db.session.get(Website, website_id)
+            site = db.session.query(Site).filter_by(url=url).first()
+            if site is None:
+                raise
+    if site not in website_db.sites:
+        website_db.sites.append(site)
+    return site
+
+
 async def store_failure_to_db(site_report: AccessibilityReport, website: Website, app):
     """Record a failed page scan on its Site row (created if needed).
 
@@ -172,20 +248,14 @@ async def store_failure_to_db(site_report: AccessibilityReport, website: Website
     def _store_in_db():
         with app.app_context():
             try:
-                if get_netloc(site_report['url']) != get_netloc(website.url):
+                if get_netloc(site_report['url']).lower() != get_netloc(website.url).lower():
                     return None
 
                 website_db = db.session.query(Website).filter_by(id=website.id).first()
                 if not website_db:
                     return None
 
-                site = db.session.query(Site).filter_by(url=site_report['url']).first()
-                if site is None:
-                    site = Site(url=site_report['url'], website=website_db)
-                    db.session.add(site)
-                elif site not in website_db.sites:
-                    website_db.sites.append(site)
-
+                site = _get_or_create_site(site_report['url'], website_db.id)
                 site.scanning = False
                 site.last_scan_status = 'failed'
                 site.last_scan_error = (site_report.get('error') or 'Unknown error')[:2000]
@@ -308,6 +378,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
         db.session.add(website)
         commit_with_retry()
         num_workers = page_concurrency()
+        limits = crawl_limits()
 
 
     log_message(f"Starting scan for website: {target_website}", 'info')
@@ -328,10 +399,15 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
             outcome.update(status='unreachable', error='The website did not respond to the reachability check')
             return []
 
+        robots = await asyncio.get_event_loop().run_in_executor(None, load_robots, target_website)
+        log_message(f"Crawl limits for {target_website}: {limits}, robots.txt {'loaded' if robots else 'not used'}", 'info')
+
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True, args=BROWSER_ARGS)
             q = ListQueue()
-            await q.put(target_website)
+            start_url = normalize_url(target_website)
+            await q.put(start_url)
+            depths = {start_url: 0}
             workers = []
 
             # Create a simple website object to pass to workers (just ID and URL)
@@ -359,7 +435,10 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                         website_obj=website_proxy,
                         app=app,
                         progress_callback=progress_callback,
-                        total_sites_ref=total_sites_ref
+                        total_sites_ref=total_sites_ref,
+                        limits=limits,
+                        depths=depths,
+                        robots=robots,
                     ))
                     for i in range(num_workers)
                 ]
@@ -398,8 +477,8 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                 sitesFound = set()
                 for site_report in results:
                     # Check if the site URL matches the website domain
-                    site_netloc = get_netloc(site_report.url)
-                    website_netloc = get_netloc(website.url)
+                    site_netloc = get_netloc(site_report.url).lower()
+                    website_netloc = get_netloc(website.url).lower()
                     if site_netloc == website_netloc:
                         site = db.session.query(Site).filter_by(url=site_report.url).first()
                         if site:
