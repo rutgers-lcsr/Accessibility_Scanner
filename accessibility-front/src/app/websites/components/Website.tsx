@@ -2,7 +2,7 @@
 import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
 import PageHeading from '@/components/PageHeading';
 import { fetcherApi } from '@/lib/api';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 import {
@@ -24,7 +24,7 @@ const { Content } = Layout;
 
 type Props = {
     websiteId: number;
-    user: User | null;
+    user: PublicUser | null;
 };
 
 const Website = ({ websiteId, user }: Props) => {

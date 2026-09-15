@@ -3,7 +3,7 @@ import { APIError, fetcherApi } from '@/lib/api';
 import { getInitalPageSize, PageSize } from '@/lib/browser';
 import { Report } from '@/lib/types/axe';
 import { Paged } from '@/lib/types/Paged';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState } from 'react';
 import useSWR from 'swr';
@@ -25,7 +25,7 @@ type ReportsContextType = {
 
 const ReportsContext = createContext<ReportsContextType | undefined>(undefined);
 
-export const ReportsProvider: React.FC<{ children: React.ReactNode; user: User | null }> = ({
+export const ReportsProvider: React.FC<{ children: React.ReactNode; user: PublicUser | null }> = ({
     children,
     user,
 }) => {

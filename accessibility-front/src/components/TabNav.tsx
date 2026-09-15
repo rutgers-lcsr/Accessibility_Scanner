@@ -4,7 +4,7 @@
  * Handles the navigation between different tabs in the application.
  */
 
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import {
     CloudOutlined,
     CloudServerOutlined,
@@ -24,7 +24,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 type Props = {
-    user: User | null;
+    user: PublicUser | null;
 };
 
 type TabRoute = {

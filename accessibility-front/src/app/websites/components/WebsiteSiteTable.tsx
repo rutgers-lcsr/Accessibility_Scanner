@@ -2,7 +2,7 @@ import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { Site } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 import { Pagination, Table, Tag } from 'antd';
@@ -13,7 +13,7 @@ import SiteHistoryChart from './SiteHistoryChart';
 
 type Props = {
     websiteId: number;
-    user: User | null;
+    user: PublicUser | null;
 };
 
 function WebsiteSiteTable({ websiteId, user }: Props) {

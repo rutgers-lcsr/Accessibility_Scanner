@@ -1,6 +1,6 @@
 'use client';
 import { APIError, handleRequest } from '@/lib/api';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { login } from 'next-cas-client';
 import { createContext, ReactNode, useContext } from 'react';
 
@@ -12,7 +12,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 type UserProviderProps = {
     children: ReactNode;
-    user: User | null;
+    user: PublicUser | null;
 };
 
 export const UserProvider = ({ children, user }: UserProviderProps) => {

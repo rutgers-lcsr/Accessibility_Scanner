@@ -52,10 +52,11 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
      NEXT_CAS_CLIENT_SECRET="heA1hsrnQ6mrNe7eaqxsz3i74vAKZhM0" # 32 character random string used for session encryption
      NEXT_PUBLIC_BASE_URL="http://localhost:3000" # Public URL for the frontend e.g. http://a11y.example.com
      NEXT_PUBLIC_CAS_URL="https://localhost:8443/cas" # CAS server URL
-     NODE_TLS_REJECT_UNAUTHORIZED=0 # needed if using self-signed certificates for cas server
     ```
 
-    Note: `NODE_TLS_REJECT_UNAUTHORIZED=0` is needed if using self-signed certificates for cas server.
+    Note: only for local development against a CAS server with a self-signed certificate you may add
+    `NODE_TLS_REJECT_UNAUTHORIZED=0`. Never set it in production: it disables TLS verification for
+    every outbound request the frontend makes.
     Furthermore, this is because docker compose requires the .env file to be in the same level as the Dockerfile file.
 
 5. Build and start the Docker containers:

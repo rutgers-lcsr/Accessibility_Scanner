@@ -1,8 +1,13 @@
 import ProxyError from '@/components/ProxyError';
 import { Browser, getAxeLink, getCurrentBrowser } from '@/lib/browserServerSide';
+import { fetchPublicUrl, UnsafeTargetError } from '@/lib/safeTarget';
+import { Report as ReportType } from '@/lib/types/axe';
+import { User } from '@/lib/types/user';
 import axios from 'axios';
-import https from 'https';
+import { getCurrentUser } from 'next-cas-client/app';
 import { NextRequest, NextResponse } from 'next/server';
+
+const MAX_PAGE_BYTES = 10 * 1024 * 1024;
 function makeHtmlPage(body: string) {
     if (body.match(/<html/gi)) {
         return body;
@@ -204,15 +209,46 @@ function proxyError(status: Response['status'], browser?: Browser) {
     }
 }
 
+async function fetchReport(reportId: string): Promise<{ status: number; report?: ReportType }> {
+    const user = await getCurrentUser<User>();
+    const response = await fetch(`${process.env.API_URL}/api/reports/${reportId}/`, {
+        headers: user ? { Authorization: `Bearer ${user.access_token || ''}` } : {},
+        cache: 'no-store',
+    });
+    if (!response.ok) {
+        return { status: response.status };
+    }
+    return { status: 200, report: (await response.json()) as ReportType };
+}
+
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
-
+    const reportId = searchParams.get('report') || '';
     const url = searchParams.get('url') || '';
-    const scriptToken = searchParams.get('scriptToken') || '';
     const { renderToString } = await import('react-dom/server');
     const userAgent = req.headers.get('User-Agent') || 'Mozilla/5.0';
 
     const browser = getCurrentBrowser(userAgent);
+    const errorPage = (status: number) =>
+        new NextResponse(renderToString(proxyError(status, browser)), {
+            status,
+            headers: { 'Content-Type': 'text/html' },
+        });
+
+    // The target is never taken from the query alone: it must be the URL of a report the
+    // current user may view, so this route cannot be pointed at arbitrary hosts. The
+    // report also supplies the script token, which therefore never appears in page URLs.
+    if (!/^\d+$/.test(reportId)) {
+        return errorPage(400);
+    }
+    const { status, report } = await fetchReport(reportId);
+    if (!report) {
+        return errorPage(status === 401 ? 403 : status);
+    }
+    if (report.url !== url) {
+        return errorPage(400);
+    }
+    const scriptToken = report.script_token;
 
     try {
         const requestHeaders = new Headers();
@@ -223,21 +259,15 @@ export async function GET(req: NextRequest) {
         );
         requestHeaders.set('Accept', req.headers.get('Accept') || '*/*');
 
-        const agent = new https.Agent({
-            rejectUnauthorized: false,
-        });
-        const response = await axios.get(url, {
+        // Public hosts only, certificate verification on, every redirect hop checked.
+        const response = await fetchPublicUrl(url, {
             headers: Object.fromEntries(requestHeaders.entries()),
-            httpsAgent: agent,
             responseType: 'text',
-            validateStatus: () => true,
+            maxContentLength: MAX_PAGE_BYTES,
         });
 
         if (!response.status || response.status >= 400) {
-            return new NextResponse(renderToString(proxyError(response.status, browser)), {
-                status: response.status,
-                headers: { 'Content-Type': 'text/html' },
-            });
+            return errorPage(response.status);
         }
 
         let body = await response.data;
@@ -270,10 +300,7 @@ export async function GET(req: NextRequest) {
         body = body.replace(/<base href="[^"]*">/gi, ''); // Remove any base href tags to prevent issues with relative links
         body = body.replace(/<link[^>]*rel=["']?icon["']?[^>]*>/gi, ''); // Remove any favicon link tags
 
-        // If the script token is present, inject the report highlighter script
-        if (scriptToken) {
-            body = injectScript(body, url, scriptToken);
-        }
+        body = injectScript(body, url, scriptToken);
         if (!body) {
             body = '<html><body><h1>No content</h1></body></html>';
         }
@@ -283,25 +310,18 @@ export async function GET(req: NextRequest) {
                 'Content-Type': response.headers
                     ? String(response.headers['content-type'] || '') || 'text/html'
                     : 'text/html',
-                'Access-Control-Allow-Origin': '*',
-                'Content-Security-Policy': 'frame-ancestors *',
-                'Content-Security-Policy-Report-Only':
-                    "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;",
-                'Content-Origin-Policy': 'cross-origin',
-                'X-Frame-Options': 'ALLOWALL',
+                // Only this app may frame the preview.
+                'Content-Security-Policy': "frame-ancestors 'self'",
+                'X-Content-Type-Options': 'nosniff',
             },
         });
     } catch (err) {
-        if (err instanceof TypeError) {
-            return new NextResponse(renderToString(proxyError(502, browser)), {
-                status: 502,
-                headers: { 'Content-Type': 'text/html' },
-            });
+        if (err instanceof UnsafeTargetError) {
+            return errorPage(403);
         }
-
-        return new NextResponse(renderToString(proxyError(500, browser)), {
-            status: 500,
-            headers: { 'Content-Type': 'text/html' },
-        });
+        if (axios.isAxiosError(err) || err instanceof TypeError) {
+            return errorPage(502);
+        }
+        return errorPage(500);
     }
 }

@@ -6,7 +6,6 @@ import {
     InfoCircleOutlined,
     WarningOutlined,
 } from '@/lib/icons';
-import { headers } from 'next/headers';
 
 import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
@@ -49,9 +48,8 @@ const getReport = async (reportId: string) => {
 };
 
 async function Report({ params }: { params: Promise<{ reportId: string }> }) {
-    const headersList = await headers();
-    const host = headersList.get('host');
     const { reportId } = await params;
+    const user = await getCurrentUser<User>();
 
     const report = await getReport(reportId);
     if (typeof report === 'string') return <PageError title={report} status={403} />;
@@ -60,7 +58,8 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
 
     const violations = report.report_counts.violations;
 
-    const report_script_full_url = `https://${host}/api/reports/script/${report.script_token}/`;
+    // Built from configuration, not the request's Host header, which a client controls.
+    const report_script_full_url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/script/${report.script_token}/`;
 
     const report_photo_url = `/api/reports/${reportId}/photo/`;
 
@@ -233,7 +232,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 </p>
                             </Card>
                         </section>
-                        <AdminReportItems report={report} />
+                        {user?.is_admin && <AdminReportItems report={report} />}
                     </Card>
 
                     <Card>
@@ -251,7 +250,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 }
                             >
                                 <PageIframe
-                                    url={'/proxy?url=' + report.url + '&scriptToken=' + report.script_token}
+                                    url={`/proxy?report=${report.id}&url=${encodeURIComponent(report.url)}`}
                                 >
                                     <Console
                                         label="Accessibility Report Script"

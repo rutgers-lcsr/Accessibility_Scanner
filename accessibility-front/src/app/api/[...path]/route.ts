@@ -3,6 +3,61 @@ import { CasUser, ValidatorProtocol } from 'next-cas-client';
 import { getCurrentUser, handleAuth } from 'next-cas-client/app';
 import { NextRequest, NextResponse } from 'next/server';
 const API_URL = process.env.API_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
+
+// Backend paths the browser may reach through this proxy. The login endpoint is
+// deliberately absent: only loadUser (below) may call it.
+const ALLOWED_PATHS = [
+    '/api/auth/logout',
+    '/api/domains',
+    '/api/reports',
+    '/api/sites',
+    '/api/users',
+    '/api/websites',
+    '/api/scans',
+    '/api/axe',
+    '/api/settings',
+    '/api/v1',
+    '/api/docs',
+    '/api/apispec_1.json',
+    '/api/flasgger_static',
+];
+
+// Only these client headers reach the backend. Cookies (the CAS session) and any
+// client-supplied identity headers never do; Authorization is set from the session.
+const FORWARDED_REQUEST_HEADERS = [
+    'content-type',
+    'accept',
+    'accept-language',
+    'user-agent',
+    'x-api-key',
+    'x-forwarded-for',
+    'x-forwarded-proto',
+];
+
+// Only these backend headers reach the client. Set-Cookie must not, and the body is
+// already decoded here so content-encoding/content-length would be wrong.
+const FORWARDED_RESPONSE_HEADERS = [
+    'content-type',
+    'content-disposition',
+    'cache-control',
+    'retry-after',
+    'x-ratelimit-limit',
+    'x-ratelimit-remaining',
+    'x-ratelimit-reset',
+];
+
+function isAllowedPath(path: string) {
+    return ALLOWED_PATHS.some((allowed) => path === allowed || path.startsWith(`${allowed}/`));
+}
+
+function isSameOriginTarget(target: string) {
+    try {
+        return new URL(target, BASE_URL).origin === new URL(BASE_URL).origin;
+    } catch {
+        return false;
+    }
+}
 
 function rewriteUrl(path: string, query: string) {
     const url = query ? `${API_URL}${path}?${query}` : `${API_URL}${path}`;
@@ -12,9 +67,7 @@ function rewriteUrl(path: string, query: string) {
 async function proxyRequest(req: NextRequest, method: string) {
     const path = req.nextUrl.pathname;
 
-    // Only loadUser (below) may call the backend login endpoint; it is never
-    // reachable through the generic proxy.
-    if (path === '/api/auth/cas') {
+    if (!isAllowedPath(path)) {
         return new NextResponse('Not Found', { status: 404 });
     }
 
@@ -23,13 +76,26 @@ async function proxyRequest(req: NextRequest, method: string) {
     const url = rewriteUrl(path, query);
     const user: User | null = await getCurrentUser();
 
+    const headers = new Headers();
+    for (const name of FORWARDED_REQUEST_HEADERS) {
+        const value = req.headers.get(name);
+        if (value) {
+            headers.set(name, value);
+        }
+    }
     if (user) {
-        req.headers.set('Authorization', `Bearer ${user.access_token || ''}`);
+        headers.set('Authorization', `Bearer ${user.access_token || ''}`);
+    } else {
+        // API-key clients may also present their key as a bearer token.
+        const authorization = req.headers.get('authorization');
+        if (authorization) {
+            headers.set('Authorization', authorization);
+        }
     }
 
     const request: RequestInit = {
         method,
-        headers: req.headers,
+        headers,
         body: ['POST', 'PUT', 'PATCH'].includes(method) ? await req.text() : null,
         redirect: 'follow',
     };
@@ -42,9 +108,17 @@ async function proxyRequest(req: NextRequest, method: string) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 
+        const responseHeaders = new Headers();
+        for (const name of FORWARDED_RESPONSE_HEADERS) {
+            const value = res.headers.get(name);
+            if (value) {
+                responseHeaders.set(name, value);
+            }
+        }
+
         return new NextResponse(data, {
             status: res.status,
-            headers: res.headers,
+            headers: responseHeaders,
         });
     } catch {
         return new NextResponse('Internal Server Error', { status: 500 });
@@ -70,7 +144,11 @@ const cas_get_route = handleAuth({ loadUser, validator: ValidatorProtocol.CAS30 
 
 export async function GET(req: NextRequest) {
     if (req.nextUrl.pathname === '/api/cas/login') {
-        // Handle token refresh
+        // The CAS client redirects to ?redirect= after login; keep it on this origin.
+        const redirect = req.nextUrl.searchParams.get('redirect');
+        if (redirect && !isSameOriginTarget(redirect)) {
+            return new NextResponse('Invalid redirect', { status: 400 });
+        }
         return cas_get_route(req, {
             params: { client: 'login' },
         });

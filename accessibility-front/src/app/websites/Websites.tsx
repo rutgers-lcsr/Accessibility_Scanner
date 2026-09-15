@@ -2,7 +2,7 @@
 import PageError from '@/components/PageError';
 import PageHeading from '@/components/PageHeading';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useWebsites } from '@/providers/Websites';
 import {
@@ -20,7 +20,7 @@ import { Content } from 'antd/es/layout/layout';
 import { formatDate } from 'date-fns';
 import CreateWebsite from './modals/createWebsite';
 type Props = {
-    user: User | null;
+    user: PublicUser | null;
 };
 
 function Websites({ user }: Props) {

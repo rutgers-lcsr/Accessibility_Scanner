@@ -1,5 +1,5 @@
 import { rutgersTheme } from '@/lib/theme';
-import { User } from '@/lib/types/user';
+import { User, toPublicUser } from '@/lib/types/user';
 import { AlertsProvider } from '@/providers/Alerts';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { ConfigProvider, Layout } from 'antd';
@@ -37,7 +37,7 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const user: User | null = await getCurrentUser();
+    const user = toPublicUser(await getCurrentUser<User>());
 
     return (
         <html lang="en" className="scroll-smooth h-full">

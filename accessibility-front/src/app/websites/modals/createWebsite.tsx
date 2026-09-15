@@ -1,10 +1,10 @@
 'use client';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { useWebsites } from '@/providers/Websites';
 import { Button, Form, Input, Modal, Select } from 'antd';
 import React, { useState } from 'react';
 
-const CreateWebsite: React.FC<{ user: User | null }> = ({ user }) => {
+const CreateWebsite: React.FC<{ user: PublicUser | null }> = ({ user }) => {
     const { requestWebsite } = useWebsites();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);

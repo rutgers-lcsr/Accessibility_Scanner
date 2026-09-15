@@ -1,6 +1,7 @@
-import axios from 'axios';
-import https from 'https';
+import { fetchPublicUrl, UnsafeTargetError } from '@/lib/safeTarget';
 import { NextRequest, NextResponse } from 'next/server';
+
+const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 
 // Serves proxied site assets from our own origin as /proxy/asset/<scheme>/<host>/<path>.
 // Module scripts are always fetched in CORS mode, so they must come from the same
@@ -17,17 +18,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
     const url = `${scheme}://${host}/${rest.join('/')}${req.nextUrl.search}`;
 
     try {
-        const agent = new https.Agent({
-            rejectUnauthorized: false,
-        });
-        const response = await axios.get(url, {
+        // Only public hosts, with certificate verification on (see lib/safeTarget).
+        const response = await fetchPublicUrl(url, {
             headers: {
                 'User-Agent': req.headers.get('User-Agent') || 'Mozilla/5.0',
                 Accept: req.headers.get('Accept') || '*/*',
             },
-            httpsAgent: agent,
             responseType: 'arraybuffer',
-            validateStatus: () => true,
+            maxContentLength: MAX_ASSET_BYTES,
         });
 
         return new NextResponse(response.data, {
@@ -40,7 +38,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
                 'Cache-Control': 'public, max-age=3600',
             },
         });
-    } catch {
+    } catch (err) {
+        if (err instanceof UnsafeTargetError) {
+            return new NextResponse('Forbidden', { status: 403 });
+        }
         return new NextResponse('Failed to fetch asset', { status: 502 });
     }
 }

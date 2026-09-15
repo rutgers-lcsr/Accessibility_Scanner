@@ -65,7 +65,6 @@ function PageIframe({ url, children }: Props) {
                 title="Page Preview"
                 className={isFullscreen ? 'w-full h-full' : 'w-full min-h-[700px]'}
                 style={{ border: 'none' }}
-                allow="*"
             />
         </div>
     );

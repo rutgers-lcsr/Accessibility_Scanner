@@ -2,7 +2,7 @@
 import { APIError, fetcherApi } from '@/lib/api';
 import { getInitalPageSize, PageSize } from '@/lib/browser';
 import { Paged } from '@/lib/types/Paged';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { Website } from '@/lib/types/website';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext, useState } from 'react';
@@ -30,7 +30,7 @@ type WebsitesContextType = {
 
 const WebsitesContext = createContext<WebsitesContextType | undefined>(undefined);
 
-export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: User | null }> = ({
+export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: PublicUser | null }> = ({
     children,
     user,
 }) => {

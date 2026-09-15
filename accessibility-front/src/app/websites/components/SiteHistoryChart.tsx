@@ -5,14 +5,14 @@ import PageLoading from '@/components/PageLoading';
 import { fetcherApi } from '@/lib/api';
 import { HistoryPoint } from '@/lib/types/history';
 import { Paged } from '@/lib/types/Paged';
-import { User } from '@/lib/types/user';
+import { PublicUser } from '@/lib/types/user';
 import { useUser } from '@/providers/User';
 import useSWR from 'swr';
 import HistoryChart from './HistoryChart';
 
 type Props = {
     siteId: number;
-    user: User | null;
+    user: PublicUser | null;
 };
 
 function SiteHistoryChart({ siteId, user }: Props) {
