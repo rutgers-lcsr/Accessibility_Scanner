@@ -1,7 +1,7 @@
 """Tests for the scan trigger + status endpoints (celery mocked)."""
 import types
 
-import blueprints.api as api
+import services.scan as scan_service
 
 
 def _key_header(token):
@@ -29,7 +29,7 @@ def test_scan_website_queues_task(
     _, token = make_api_key(user)
 
     monkeypatch.setattr(
-        api.scan_website_task, "delay", lambda url: types.SimpleNamespace(id="task-123")
+        scan_service.scan_website_task, "delay", lambda url: types.SimpleNamespace(id="task-123")
     )
 
     resp = client.post(
@@ -39,8 +39,9 @@ def test_scan_website_queues_task(
     body = resp.get_json()
     assert body["task_id"] == "task-123"
     assert body["status_endpoint"] == "/api/v1/scans/task-123"
-    # the website now tracks the running task
+    # the website now tracks the running task, and remembers it for status polling
     assert website.current_task_id == "task-123"
+    assert website.last_task_id == "task-123"
 
 
 def test_scan_website_missing(client, make_user, make_api_key):
@@ -75,13 +76,13 @@ def test_scan_website_already_in_progress(
     _, token = make_api_key(user)
 
     monkeypatch.setattr(
-        api.scan_website_task,
+        scan_service.scan_website_task,
         "AsyncResult",
         lambda task_id: _FakeAsyncResult(state="PROGRESS"),
     )
     # delay must NOT be called when a scan is already running
     monkeypatch.setattr(
-        api.scan_website_task,
+        scan_service.scan_website_task,
         "delay",
         lambda url: (_ for _ in ()).throw(AssertionError("should not queue")),
     )
@@ -104,12 +105,13 @@ def test_scan_site_queues_task(
     _, token = make_api_key(user)
 
     monkeypatch.setattr(
-        api.scan_site_task, "delay", lambda url: types.SimpleNamespace(id="site-task-9")
+        scan_service.scan_site_task, "delay", lambda url: types.SimpleNamespace(id="site-task-9")
     )
 
     resp = client.post(f"/api/v1/sites/{site.id}/scan", headers=_key_header(token))
     assert resp.status_code == 202
     assert resp.get_json()["task_id"] == "site-task-9"
+    assert site.last_task_id == "site-task-9"
 
 
 def test_scan_site_already_scanning(
@@ -130,8 +132,19 @@ def test_scan_site_already_scanning(
 # --- scan status ------------------------------------------------------------
 
 
-def test_scan_status_success(client, make_user, make_api_key, monkeypatch):
+def _own_task(make_site, user, task_id):
+    """Give ``user`` a website whose most recent scan is ``task_id``."""
+    from models import db
+
+    website = make_site(user).websites.first()
+    website.last_task_id = task_id
+    db.session.commit()
+    return website
+
+
+def test_scan_status_success(client, make_user, make_site, make_api_key, monkeypatch):
     user = make_user()
+    _own_task(make_site, user, "task-123")
     _, token = make_api_key(user)
 
     fake = _FakeAsyncResult(state="SUCCESS", result={"reports_generated": 3})
@@ -144,8 +157,9 @@ def test_scan_status_success(client, make_user, make_api_key, monkeypatch):
     assert body["result"] == {"reports_generated": 3}
 
 
-def test_scan_status_progress(client, make_user, make_api_key, monkeypatch):
+def test_scan_status_progress(client, make_user, make_site, make_api_key, monkeypatch):
     user = make_user()
+    _own_task(make_site, user, "task-123")
     _, token = make_api_key(user)
 
     fake = _FakeAsyncResult(
@@ -162,3 +176,19 @@ def test_scan_status_progress(client, make_user, make_api_key, monkeypatch):
 
 def test_scan_status_requires_key(client):
     assert client.get("/api/v1/scans/whatever").status_code == 401
+
+
+def test_scan_status_hidden_for_other_users_task(
+    client, make_user, make_site, make_api_key, monkeypatch
+):
+    owner = make_user("bob")
+    other = make_user("alice")
+    _own_task(make_site, owner, "task-123")
+    _, token = make_api_key(other)
+
+    fake = _FakeAsyncResult(state="SUCCESS", result={"reports_generated": 3})
+    monkeypatch.setattr("celery.result.AsyncResult", lambda task_id, app=None: fake)
+
+    assert client.get("/api/v1/scans/task-123", headers=_key_header(token)).status_code == 404
+    # an id nobody owns is indistinguishable from a foreign one
+    assert client.get("/api/v1/scans/nope", headers=_key_header(token)).status_code == 404

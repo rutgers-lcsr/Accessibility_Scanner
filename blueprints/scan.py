@@ -1,19 +1,19 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
-from authentication.login import admin_required
 from models.website import Site, Website
 from models import db
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from config import DEBUG
-from utils.urls import get_full_url
-from scanner.tasks import scan_website as scan_website_task, scan_site as scan_site_task
+from services.scan import (
+    queue_site_scan,
+    queue_website_scan,
+    resolve_task_target,
+    serialize_task_state,
+)
+from utils.limiter import limiter
 
-scan_limiter = Limiter(key_func=get_remote_address)
 scan_bp = Blueprint('scan', __name__)
 
 @scan_bp.route('/scan/', methods=['POST'])
-@scan_limiter.limit("1/minute" if DEBUG else "5/minute")
+@limiter.limit("5/minute")
 @jwt_required()
 def scan_website():
     """
@@ -63,32 +63,17 @@ def scan_website():
             if not website_obj.can_scan(current_user):
                 return jsonify({"error": "Unauthorized"}), 403
 
-            # Check if scan is active
-            if website_obj.current_task_id:
-                
-                # Sometimes if app crashes, scanning flag is not reset so check if theres a task in progress
-                # check websites task
-                website_task = scan_website_task.AsyncResult(website_obj.current_task_id)
-                if website_task.state in ['PENDING', 'PROGRESS']:
-                    return jsonify({"info": "Scan already in progress", 
-                                    "task_id": website_obj.current_task_id, 
-                                    "status_endpoint": f"/api/scans/status/{website_task.id}", 
-                                    "polling_endpoint": f"/api/scans/status/?website={website_id}" 
-                                    }), 202
-
-            # Queue the Celery task
-            task = scan_website_task.delay(website_obj.url)
-            
-            # set the websites current task id
-            website_obj.current_task_id = task.id
-            db.session.commit()
-
-            return jsonify({
-                "message": "Scan queued successfully",
-                "task_id": task.id,
-                "status_endpoint": f"/api/scans/status/{task.id}",
-                "polling_endpoint": f"/api/scans/status/?website={website_id}"
-            }), 202
+            task_id, queued = queue_website_scan(website_obj)
+            response = {
+                "task_id": task_id,
+                "status_endpoint": f"/api/scans/status/{task_id}",
+                "polling_endpoint": f"/api/scans/status/?website={website_id}",
+            }
+            if queued:
+                response["message"] = "Scan queued successfully"
+            else:
+                response["info"] = "Scan already in progress"
+            return jsonify(response), 202
 
         if site:
             try:
@@ -107,13 +92,11 @@ def scan_website():
             if site_obj.scanning:
                 return jsonify({"error": "Scan already in progress"}), 409
 
-            # Queue the Celery task
-            task = scan_site_task.delay(site_obj.url)
-            
+            task_id = queue_site_scan(site_obj)
             return jsonify({
                 "message": "Scan queued successfully",
-                "task_id": task.id,
-                "status_endpoint": f"/api/scans/status/{task.id}",
+                "task_id": task_id,
+                "status_endpoint": f"/api/scans/status/{task_id}",
                 "polling_endpoint": f"/api/scans/status/?site={site_id}"
             }), 202
 
@@ -127,6 +110,8 @@ def scan_website():
 def get_task_status(task_id):
     """
     Get the status of a Celery task by its ID.
+
+    Only the task's own website/site owners (or anyone who may view it) can read it.
     ---
     tags:
         - Scans
@@ -140,42 +125,13 @@ def get_task_status(task_id):
         200:
             description: Task status information
         404:
-            description: Task not found
+            description: Task not found (or not visible to this user)
     """
-    from celery.result import AsyncResult
-    from celery_app import celery
-    
-    task = AsyncResult(task_id, app=celery)
-    
-    if task.state == 'PENDING':
-        response = {
-            'state': task.state,
-            'status': 'Task is waiting to be executed...',
-        }
-    elif task.state == 'PROGRESS':
-        response = {
-            'state': task.state,
-            'status': task.info.get('status', ''),
-            'current': task.info.get('current', 0),
-            'total': task.info.get('total', 1),
-        }
-    elif task.state == 'SUCCESS':
-        response = {
-            'state': task.state,
-            'result': task.result,
-        }
-    elif task.state == 'FAILURE':
-        response = {
-            'state': task.state,
-            'status': str(task.info),  # Exception message
-        }
-    else:
-        response = {
-            'state': task.state,
-            'status': str(task.info),
-        }
-    
-    return jsonify(response), 200
+    target = resolve_task_target(task_id)
+    if not target or not target.can_view(current_user):
+        return jsonify({'error': 'Task not found'}), 404
+
+    return jsonify(serialize_task_state(task_id)), 200
 
 @scan_bp.route('/status/', methods=['GET'])
 @jwt_required()

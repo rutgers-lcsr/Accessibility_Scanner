@@ -12,11 +12,13 @@ from sqlalchemy import case, func
 from flask_sqlalchemy import pagination
 
 from scanner.utils.service import check_url
+from utils.limiter import limiter
 from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
 @website_bp.route('/', methods=['POST'])
+@limiter.limit("5/minute")
 @jwt_required()
 def create_website():
     """
@@ -842,9 +844,9 @@ def get_website_axe(website_id):
     if not website:
         return jsonify({'error': 'Website not found'}), 404
 
-    if current_user:
-        if not current_user.profile.is_admin and website.user_id != current_user.id:
-            return jsonify({'error': 'Unauthorized'}), 403
+    # can_view handles anonymous callers (public websites only) and members.
+    if not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
 
     response = Response(website.get_ace_config(), mimetype='application/json')
     response.headers['Content-Disposition'] = f'attachment; filename=website_{website_id}_ace_config.json'

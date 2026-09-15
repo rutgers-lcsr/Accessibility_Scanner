@@ -61,3 +61,10 @@ MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "True") == "True"
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
+# Rate limiting (Flask-Limiter, see utils/limiter.py). Counters live in Redis so the
+# gunicorn workers share them; a Redis outage must not take the API down.
+RATELIMIT_ENABLED = os.environ.get("RATELIMIT_ENABLED", "False" if TESTING else "True") == "True"
+RATELIMIT_STORAGE_URI = "memory://" if TESTING else os.environ.get("RATELIMIT_STORAGE_URI", CELERY_BROKER_URL)
+RATELIMIT_SWALLOW_ERRORS = True
+RATELIMIT_HEADERS_ENABLED = True
+

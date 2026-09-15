@@ -42,6 +42,8 @@ class Site(db.Model):
     reports: Mapped[List['Report']] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
+    # Id of the most recent scan task; never cleared, used to authorise status polling.
+    last_task_id: Mapped[str] = db.Column(db.String(36), nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -247,6 +249,9 @@ class Website(db.Model):
     # Whether the website reports are public 
     public: Mapped[bool] = db.Column(db.Boolean, default=False)
     current_task_id: Mapped[str] = db.Column(db.String(100), nullable=True)
+    # Id of the most recent scan task; never cleared (unlike current_task_id), used to
+    # authorise status polling after the scan finishes.
+    last_task_id: Mapped[str] = db.Column(db.String(36), nullable=True)
     admin_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     admin: Mapped['User'] = db.relationship('User', back_populates='admin_websites', lazy=True)
     users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)

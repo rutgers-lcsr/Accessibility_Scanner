@@ -4,8 +4,13 @@ from authentication.api_key import api_key_required
 from models import db
 from models.report import Report
 from models.website import Site, Website
-from scanner.tasks import scan_site as scan_site_task
-from scanner.tasks import scan_website as scan_website_task
+from services.scan import (
+    queue_site_scan,
+    queue_website_scan,
+    resolve_task_target,
+    serialize_task_state,
+)
+from utils.limiter import limiter
 from utils.markdown import (
     report_to_agent_prompt,
     report_to_markdown,
@@ -342,13 +347,8 @@ def get_latest_report_by_website(website_id):
     return _render_report_list(website, reports)
 
 
-def _scan_in_progress(task_id: str | None) -> bool:
-    if not task_id:
-        return False
-    return scan_website_task.AsyncResult(task_id).state in ('PENDING', 'PROGRESS')
-
-
 @api_bp.route('/websites/<int:website_id>/scan', methods=['POST'])
+@limiter.limit("5/minute")
 @api_key_required
 def scan_website_endpoint(website_id):
     """Queue a scan of every page of a website.
@@ -380,26 +380,17 @@ def scan_website_endpoint(website_id):
     if not website.can_scan(g.api_user):
         return jsonify({'error': 'Unauthorized'}), 403
 
-    if _scan_in_progress(website.current_task_id):
-        return jsonify({
-            'message': 'Scan already in progress',
-            'task_id': website.current_task_id,
-            'status_endpoint': f'/api/v1/scans/{website.current_task_id}',
-            'report_endpoint': f'/api/v1/websites/{website_id}/reports/latest',
-        }), 202
-
-    task = scan_website_task.delay(website.url)
-    website.current_task_id = task.id
-    db.session.commit()
+    task_id, queued = queue_website_scan(website)
     return jsonify({
-        'message': 'Scan queued',
-        'task_id': task.id,
-        'status_endpoint': f'/api/v1/scans/{task.id}',
+        'message': 'Scan queued' if queued else 'Scan already in progress',
+        'task_id': task_id,
+        'status_endpoint': f'/api/v1/scans/{task_id}',
         'report_endpoint': f'/api/v1/websites/{website_id}/reports/latest',
     }), 202
 
 
 @api_bp.route('/sites/<int:site_id>/scan', methods=['POST'])
+@limiter.limit("5/minute")
 @api_key_required
 def scan_site_endpoint(site_id):
     """Queue a scan of a single page (site).
@@ -432,11 +423,11 @@ def scan_site_endpoint(site_id):
     if site.scanning:
         return jsonify({'error': 'Scan already in progress'}), 409
 
-    task = scan_site_task.delay(site.url)
+    task_id = queue_site_scan(site)
     return jsonify({
         'message': 'Scan queued',
-        'task_id': task.id,
-        'status_endpoint': f'/api/v1/scans/{task.id}',
+        'task_id': task_id,
+        'status_endpoint': f'/api/v1/scans/{task_id}',
         'report_endpoint': f'/api/v1/sites/{site_id}/reports/latest',
     }), 202
 
@@ -447,7 +438,8 @@ def get_scan_status_endpoint(task_id):
     """Get the status of a queued scan.
 
     State is one of PENDING, PROGRESS, SUCCESS, or FAILURE. When SUCCESS, fetch
-    the report from the relevant report endpoint.
+    the report from the relevant report endpoint. Only tasks for websites or sites
+    the key's owner can view are returned.
     ---
     tags:
       - Scans
@@ -462,25 +454,11 @@ def get_scan_status_endpoint(task_id):
         description: Scan status.
       401:
         description: Missing, invalid, or revoked API key.
+      404:
+        description: No visible website or site has a scan with this task id.
     """
-    from celery.result import AsyncResult
+    target = resolve_task_target(task_id)
+    if not target or not target.can_view(g.api_user):
+        return jsonify({'error': 'Task not found'}), 404
 
-    from celery_app import celery
-
-    task = AsyncResult(task_id, app=celery)
-    state = task.state
-    response = {'task_id': task_id, 'state': state}
-
-    if state == 'PROGRESS':
-        info = task.info or {}
-        response['status'] = info.get('status', '')
-        response['current'] = info.get('current', 0)
-        response['total'] = info.get('total', 1)
-    elif state == 'SUCCESS':
-        response['result'] = task.result
-    elif state == 'FAILURE':
-        response['status'] = str(task.info)
-    else:
-        response['status'] = str(task.info) if task.info else ''
-
-    return jsonify(response), 200
+    return jsonify(serialize_task_state(task_id)), 200

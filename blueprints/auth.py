@@ -5,6 +5,7 @@ from flask_jwt_extended import create_access_token, jwt_required
 from authentication.permissions import is_site_admin
 from models.user import Profile, User
 from models import db
+from utils.limiter import limiter
 auth_bp = Blueprint('auth', __name__)
 
 
@@ -22,6 +23,7 @@ def get_domain_from_netloc(netloc):
     return netloc
 
 @auth_bp.route("/cas", methods=["GET"])
+@limiter.limit("60/minute")
 def cas_login():
     """CAS login endpoint
 

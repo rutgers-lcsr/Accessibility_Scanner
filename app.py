@@ -7,6 +7,8 @@ from authentication.login import jwt
 from models.user import Profile, User
 from models.api_key import ApiKey
 from mail import mail
+from utils.limiter import limiter
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash
 import os
 
@@ -48,6 +50,9 @@ def check_api_config(app):
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
+    # Behind nginx -> Next.js; trust one hop of X-Forwarded-For/-Proto so rate limits
+    # and URL building see the real client.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
     # Only the Next.js client origin may make cross-origin requests. Credentials are not
     # allowed because tokens travel in the Authorization header, never in cookies.
     CORS(app, origins=[app.config["CLIENT_URL"]])
@@ -88,6 +93,7 @@ def create_app():
     db.init_app(app)
     Migrate(app, db)
     jwt.init_app(app)
+    limiter.init_app(app)
     
     
     
