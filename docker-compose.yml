@@ -29,11 +29,12 @@ services:
         build:
             context: ./accessibility-front
             dockerfile: ./Dockerfile
-        env_file:
-            - .env
+            # Inlined into the client bundle at build time; secrets are runtime-only.
+            args:
+                NEXT_PUBLIC_BASE_URL: ${CLIENT_URL}
+                NEXT_PUBLIC_CAS_URL: ${NEXT_PUBLIC_CAS_URL}
         environment:
             - API_URL=http://a11y-api:5000
-            - JWT_SECRET_KEY=${JWT_SECRET_KEY}
             - NEXT_PUBLIC_BASE_URL=${CLIENT_URL}
             - NEXT_PUBLIC_CAS_URL=${NEXT_PUBLIC_CAS_URL}
             - NEXT_CAS_CLIENT_SAML_TOLERANCE=180000
@@ -44,7 +45,12 @@ services:
                 condition: service_healthy
         healthcheck:
             test:
-                ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+                [
+                    "CMD",
+                    "node",
+                    "-e",
+                    "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+                ]
             interval: 30s
             timeout: 10s
             retries: 5
@@ -59,10 +65,10 @@ services:
         build:
             context: .
             target: api
-        env_file:
-            - .env
         environment:
             - FLASK_ENV=${FLASK_ENV}
+            - DEBUG=${DEBUG:-False}
+            - TESTING=${TESTING:-False}
             - DATABASE_URL=mariadb+mariadbconnector://ally-user:${DB_PASSWORD}@a11y-db:3306/a11y
             - JWT_SECRET_KEY=${JWT_SECRET_KEY}
             - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET}

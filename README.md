@@ -43,8 +43,9 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
    when logging users in so that nothing else can call the login endpoint. `SITE_ADMINS` is
    a comma-separated list of full email addresses. `ADMIN_EMAIL` and `ADMIN_PASSWORD` are
    optional; when either is unset no bootstrap admin user is created.
-4. Set up .env in `accessibility-front` directories and set the appropriate values.
-   The `.env` file in `accessibility-front` should look something like this:
+4. For local development without Docker, create `accessibility-front/.env` with the frontend
+   values below. With Docker Compose these come from the root `.env` and nothing is copied
+   into the frontend directory (its `.dockerignore` keeps env files out of the image).
 
     ```bash
      API_URL=http://localhost:5000  # URL of the backend api e.g. http://a11y-api:5000 if using docker
@@ -57,7 +58,6 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     Note: only for local development against a CAS server with a self-signed certificate you may add
     `NODE_TLS_REJECT_UNAUTHORIZED=0`. Never set it in production: it disables TLS verification for
     every outbound request the frontend makes.
-    Furthermore, this is because docker compose requires the .env file to be in the same level as the Dockerfile file.
 
 5. Build and start the Docker containers:
     ```bash
