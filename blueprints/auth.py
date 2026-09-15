@@ -1,11 +1,9 @@
-import datetime
 from urllib.parse import urlparse
-from flask import Blueprint, app, json, redirect, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, current_user, jwt_required, unset_jwt_cookies, set_access_cookies, set_refresh_cookies
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import create_access_token, jwt_required
 from authentication.permissions import is_site_admin
 from models.user import Profile, User
 from models import db
-from werkzeug.security import check_password_hash
 auth_bp = Blueprint('auth', __name__)
 
 
@@ -37,9 +35,6 @@ def cas_login():
 
     if cas_user is None:
         return jsonify({'error': 'CAS user missing'}), 400
-    
-    
-    
 
     cas_server = request.headers.get('x-cas-server')
     if cas_server is None:
@@ -54,34 +49,21 @@ def cas_login():
     user_email = cas_user + '@' + cas_server_domain
 
     user = db.session.query(User).filter_by(username=cas_user).first()
-    if user:
-        # Create a JWT token for the user
-        access_token = create_access_token(identity=user, expires_delta=datetime.timedelta(hours=24))
-        response = jsonify(**user.to_dict(), access_token=access_token)
-        set_access_cookies(response, access_token)
-        return response, 200
-    else:
+    if not user:
         user = User(username=cas_user, email=user_email)
-        user.profile = Profile(user=user, is_admin=is_site_admin(cas_user)) 
+        user.profile = Profile(user=user, is_admin=is_site_admin(cas_user))
         db.session.add(user)
         db.session.commit()
-        # Create a JWT token for the user
-        access_token = create_access_token(identity=user, expires_delta=datetime.timedelta(hours=24))
-        response = jsonify(**user.to_dict(), access_token=access_token)
-        set_access_cookies(response, access_token)
-        return response, 200
 
-@auth_bp.route("/refresh", methods=["POST"])
-@jwt_required(refresh=True)
-def refresh():
-    access_token = create_access_token(identity=current_user)
-    response = jsonify(access_token=access_token)
-    set_access_cookies(response, access_token)
-    return response, 200
+    # Lifetime comes from JWT_ACCESS_TOKEN_EXPIRES in config.py. The token is returned in
+    # the body only; the Next.js proxy stores it in its own session and sends it as a
+    # bearer header on every request.
+    access_token = create_access_token(identity=user)
+    return jsonify(**user.to_dict(), access_token=access_token), 200
 
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
-    response = jsonify({"msg": "logout successful"})
-    unset_jwt_cookies(response)
-    return response, 200
+    # Tokens are only ever carried in the Authorization header, so there is no
+    # server-side state to clear; the client simply discards its token.
+    return jsonify({"msg": "logout successful"}), 200

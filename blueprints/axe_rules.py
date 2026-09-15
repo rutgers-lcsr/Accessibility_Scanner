@@ -1,5 +1,4 @@
-from flask import Blueprint, app, json, redirect, request, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, current_user, jwt_required, unset_jwt_cookies, set_access_cookies, set_refresh_cookies
+from flask import Blueprint, request, jsonify
 from models import db
 from authentication.login import admin_required
 from utils.javascript import is_single_arrow_function, is_valid_js, is_valid_object

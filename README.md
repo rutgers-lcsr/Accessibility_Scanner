@@ -38,6 +38,8 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     cd Accessibility_Scanner
     ```
 3. Set up environment variables in a `.env` file based on the provided `.env.example` file.
+   `JWT_SECRET_KEY` is required; the backend refuses to start without it. `ADMIN_EMAIL` and
+   `ADMIN_PASSWORD` are optional; when either is unset no bootstrap admin user is created.
 4. Set up .env in `accessibility-front` directories and set the appropriate values.
    The `.env` file in `accessibility-front` should look something like this:
 

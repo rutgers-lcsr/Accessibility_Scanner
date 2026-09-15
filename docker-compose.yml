@@ -162,6 +162,8 @@ services:
         environment:
             - CELERY_BROKER_URL=redis://a11y-redis:6379/0
             - CELERY_RESULT_BACKEND=redis://a11y-redis:6379/0
+            # celery_app imports config.py, which requires JWT_SECRET_KEY at import time
+            - JWT_SECRET_KEY=${JWT_SECRET_KEY}
             - FLOWER_BASIC_AUTH=${ADMIN_EMAIL}:${ADMIN_PASSWORD}
         depends_on:
             - a11y-redis

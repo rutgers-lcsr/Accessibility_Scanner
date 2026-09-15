@@ -1,8 +1,6 @@
-from multiprocessing import Process
 from flask import Flask
 from flask_cors import CORS
 from flask_migrate import Migrate
-import jwt
 from sqlalchemy import inspect
 from models import db
 from authentication.login import jwt
@@ -13,8 +11,11 @@ from werkzeug.security import generate_password_hash
 import os
 
 def init_admin(app):
-    admin_user = os.environ.get("ADMIN_EMAIL", "admin")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    admin_user = os.environ.get("ADMIN_EMAIL")
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+    if not admin_user or not admin_password:
+        print("ADMIN_EMAIL/ADMIN_PASSWORD not set, skipping bootstrap admin user")
+        return
 
     with app.app_context():
         user = db.session.query(User).filter_by(email=admin_user).first()
@@ -33,7 +34,9 @@ def init_admin(app):
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
-    CORS(app, supports_credentials=True)
+    # Only the Next.js client origin may make cross-origin requests. Credentials are not
+    # allowed because tokens travel in the Authorization header, never in cookies.
+    CORS(app, origins=[app.config["CLIENT_URL"]])
 
     # Swagger docs for the public API key surface (/api/v1).
     # Everything is served under /api/ so the Next.js proxy forwards it.
@@ -65,11 +68,11 @@ def create_app():
         "swagger_ui": True,
         "specs_route": "/api/docs/",
     }
-    swagger = Swagger(app, template=swagger_template, config=swagger_config)
+    Swagger(app, template=swagger_template, config=swagger_config)
 
     mail.init_app(app)
     db.init_app(app)
-    migrate = Migrate(app, db)
+    Migrate(app, db)
     jwt.init_app(app)
     
     

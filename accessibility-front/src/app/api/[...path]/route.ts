@@ -18,11 +18,7 @@ async function proxyRequest(req: NextRequest, method: string) {
     const user: User | null = await getCurrentUser();
 
     if (user) {
-        if (req.nextUrl.pathname === '/api/auth/refresh') {
-            req.headers.set('Authorization', `Bearer ${user?.refresh_token || ''}`);
-        } else {
-            req.headers.set('Authorization', `Bearer ${user?.access_token || ''}`);
-        }
+        req.headers.set('Authorization', `Bearer ${user.access_token || ''}`);
     }
 
     const request: RequestInit = {

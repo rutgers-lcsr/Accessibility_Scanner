@@ -1,4 +1,24 @@
 import os
+from datetime import timedelta
+
+TESTING = os.environ.get("TESTING", "False") == "True"
+
+
+def _require(name: str) -> str:
+    """Return a required environment variable, failing fast at startup when it is unset.
+
+    Under TESTING a placeholder is returned so the test suite needs no real secrets.
+    """
+    value = os.environ.get(name)
+    if value:
+        return value
+    if os.environ.get("TESTING", "False") == "True":
+        return f"testing-only-placeholder-value-for-{name.lower()}"
+    raise RuntimeError(
+        f"{name} is not set. Export it (or add it to .env, see .env.example) before starting the app."
+    )
+
+
 SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///audit.db")
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -18,16 +38,17 @@ else:
         'pool_recycle': 3600,
     }
 
-DEBUG = os.environ.get("DEBUG", "True") == "True"
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 FLASK_ENV = os.environ.get("FLASK_ENV", "development")
-JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "KHJADoishdjfo")
-JWT_TOKEN_LOCATION = ['headers', 'cookies']
+JWT_SECRET_KEY = _require("JWT_SECRET_KEY")
+# Tokens travel in the Authorization header only; the Next.js proxy attaches it server-side.
+JWT_TOKEN_LOCATION = ['headers']
+JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
 
-SITE_ADMINS = os.environ.get("SITE_ADMINS", "mk1800@rutgers.edu").split(",")
+SITE_ADMINS = [admin.strip() for admin in os.environ.get("SITE_ADMINS", "").split(",") if admin.strip()]
 
 HOSTNAME = os.environ.get("HOSTNAME", "localhost")
 CLIENT_URL = os.environ.get("CLIENT_URL", "http://localhost:3000")
-TESTING = os.environ.get("TESTING", "False") == "True"
 MAIL_SERVER = os.environ.get("MAIL_SERVER", "mx.farside.rutgers.edu")
 MAIL_PORT = os.environ.get("MAIL_PORT", 25)
 MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "help@cs.rutgers.edu")

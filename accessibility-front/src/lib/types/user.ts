@@ -5,7 +5,6 @@ export type User = CasUser & {
     is_admin: boolean;
     is_active: boolean;
     access_token: string;
-    refresh_token: string;
     username: string;
 };
 
