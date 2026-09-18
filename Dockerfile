@@ -28,6 +28,7 @@ RUN pip install --upgrade pip && \
 # Copy application code
 COPY authentication/ ./authentication/
 COPY scanner/ ./scanner/
+COPY services/ ./services/
 COPY blueprints/ ./blueprints/
 COPY mail/ ./mail/
 COPY models/ ./models/
