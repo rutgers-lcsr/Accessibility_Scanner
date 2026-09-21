@@ -18,6 +18,34 @@ from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
+def _get_or_create_user(username: str):
+    """The user called ``username``, created with the default email domain when missing.
+
+    Returns ``(user, error)``; the new user is flushed, not committed, so a request that
+    fails later leaves no user behind.
+    """
+    user = db.session.query(User).filter_by(username=username).first()
+    if user:
+        return user, None
+    domain = Settings.get('default_email_domain', '')
+    if not domain:
+        return None, f'No email domain set to create user {username}, Please ask an admin to set a default'
+    user = User(username=username, email=f"{username}@{domain}")
+    user.profile = Profile(user=user, is_admin=False)
+    db.session.add(user)
+    db.session.flush()
+    return user, None
+
+
+def _csv_list(value) -> list:
+    """Non-empty, stripped strings from a list or a comma-separated string."""
+    if isinstance(value, str):
+        value = value.split(',')
+    if not isinstance(value, list):
+        raise ValueError('Categories must be a list of strings or a comma-separated string')
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
 @website_bp.route('/', methods=['POST'])
 @limiter.limit("5/minute")
 @jwt_required()
@@ -40,6 +68,17 @@ def create_website():
                     should_email:
                         type: boolean
                         example: true
+                    admin:
+                        type: string
+                        description: Site admins only. Username of the website's admin (created if unknown); defaults to the caller.
+                    categories:
+                        type: array
+                        items:
+                            type: string
+                        description: Site admins only.
+                    create_domain:
+                        type: boolean
+                        description: Site admins only. When the host is not under an allowed domain, allow-list the host and continue.
     responses:
         200:
             description: Website created successfully
@@ -72,17 +111,43 @@ def create_website():
     if not current_user:
         return jsonify({'error': 'User is not authenticated'}), 401
 
+    is_admin = bool(current_user.profile and current_user.profile.is_admin)
+
     # Allow-list first: only hosts under an admin-added parent domain are ever probed,
     # so this endpoint cannot be used to test reachability of arbitrary hosts.
     if not Website.find_parent_domain(base_url):
-        return jsonify({'error': 'No active parent domain found, an administrator must add it first'}), 400
+        host = get_netloc(base_url).lower()
+        if not (is_admin and data.get('create_domain')):
+            # code/domain let the UI offer a site admin to allow-list the host and retry.
+            return jsonify({
+                'error': f'No active parent domain found for {host}, an administrator must add it first',
+                'code': 'no_parent_domain',
+                'domain': host,
+            }), 400
+        # Allow-list the host together with the website. Nothing is committed until the
+        # website is, so a failed probe leaves no domain behind.
+        domain = db.session.query(Domain).filter_by(domain=host).first()
+        if domain is None:
+            domain = Domain(domain=host)
+        domain.active = True
+        db.session.add(domain)
+
+    admin_user = current_user
+    if is_admin and data.get('admin'):
+        admin_user, error = _get_or_create_user(str(data['admin']).strip())
+        if error:
+            db.session.rollback()
+            return jsonify({'error': error}), 400
 
     try:
         is_accessible = check_url(base_url)
         if not is_accessible:
+            db.session.rollback()
             return jsonify({'error': 'The provided URL is not accessible'}), 400
 
-        new_website = Website(url=base_url, user_id=current_user.id)
+        new_website = Website(url=base_url, user_id=admin_user.id)
+        if is_admin and 'categories' in data:
+            new_website.categories = ",".join(_csv_list(data['categories']))
 
         db.session.add(new_website)
         db.session.commit()

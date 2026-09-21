@@ -10,6 +10,13 @@ import useSWR from 'swr';
 import { useAlerts } from './Alerts';
 import { useUser } from './User';
 
+// Extra fields a site admin can send when adding a website (see POST /api/websites/).
+export type NewWebsiteOptions = {
+    admin?: string;
+    categories?: string[];
+    create_domain?: boolean;
+};
+
 type WebsitesContextType = {
     websites: Website[] | null;
     websitesTotal: number;
@@ -18,7 +25,7 @@ type WebsitesContextType = {
     WebsitePage: number;
     WebsiteLimit: number;
     categories?: string[];
-    requestWebsite: (url: string) => Promise<Website | null>;
+    requestWebsite: (url: string, options?: NewWebsiteOptions) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: PageSize) => void;
@@ -65,7 +72,7 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
         router.push(`/websites?id=${id}`);
     };
 
-    const requestWebsite = async (url: string) => {
+    const requestWebsite = async (url: string, options: NewWebsiteOptions = {}) => {
         try {
             const getter = user ? handlerUserApiRequest<Website> : fetcherApi<Website>;
 
@@ -74,7 +81,7 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ base_url: url }),
+                body: JSON.stringify({ base_url: url, ...options }),
             });
             // Optimistically update the cache
             mutate(
@@ -87,6 +94,11 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
             addAlert('Website created successfully', 'success');
             return newWebsite;
         } catch (error) {
+            // The host is not under an allowed domain: the caller decides (a site admin
+            // can retry with create_domain), so no alert here.
+            if ((error as APIError).details?.code === 'no_parent_domain') {
+                throw error;
+            }
             addAlert(`Failed to add website ${(error as APIError).getReason()}`, 'error');
             return null;
         }

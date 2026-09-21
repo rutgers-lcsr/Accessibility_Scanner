@@ -8,7 +8,7 @@ export const handleRequest = async <T>(url: string, options?: RequestInit): Prom
             reason = { error: 'Not Found' };
         }
 
-        throw new APIError(response, reason.error || 'API request failed');
+        throw new APIError(response, reason.error || 'API request failed', reason);
     }
     return response.json();
 };
@@ -16,11 +16,14 @@ export const handleRequest = async <T>(url: string, options?: RequestInit): Prom
 export class APIError extends Error {
     response: Response;
     message: string;
+    // The parsed error body, when the API sent one (e.g. { error, code, domain })
+    details: Record<string, unknown>;
 
-    constructor(response: Response, message?: string) {
+    constructor(response: Response, message?: string, details: Record<string, unknown> = {}) {
         super(message);
         this.response = response;
         this.message = message || 'API request failed';
+        this.details = details;
     }
     getReason() {
         return this.message;
