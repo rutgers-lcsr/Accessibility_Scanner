@@ -50,9 +50,12 @@ def check_api_config(app):
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile('config.py')
-    # Behind nginx -> Next.js; trust one hop of X-Forwarded-For/-Proto so rate limits
-    # and URL building see the real client.
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+    # Behind nginx -> Next.js; trust one hop of X-Forwarded-For so rate limits see the
+    # real client. X-Forwarded-Proto is deliberately NOT trusted: the proxy reaches
+    # this app over plain HTTP, and honouring the browser's https would make Flask's
+    # trailing-slash redirects point at https://a11y-api:5000, which the proxy cannot
+    # follow (every frontend call then failed with a bare 500).
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
     # Only the Next.js client origin may make cross-origin requests. Credentials are not
     # allowed because tokens travel in the Authorization header, never in cookies.
     CORS(app, origins=[app.config["CLIENT_URL"]])

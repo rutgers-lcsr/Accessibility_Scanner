@@ -132,3 +132,13 @@ def test_init_admin_creates_admin_when_configured(app, monkeypatch):
     init_admin(app)
     user = db.session.query(User).filter_by(email="root@example.com").one()
     assert user.profile.is_admin
+
+
+def test_redirects_stay_http_behind_the_proxy(client):
+    """The Next.js proxy reaches Flask over plain HTTP and follows Flask's
+    trailing-slash redirects itself, so X-Forwarded-Proto from the browser must
+    not turn those redirects into https://backend URLs."""
+    resp = client.get("/api/websites", headers={"X-Forwarded-Proto": "https"})
+    assert resp.status_code == 308
+    assert resp.headers["Location"].startswith("http://")
+    assert resp.headers["Location"].endswith("/api/websites/")

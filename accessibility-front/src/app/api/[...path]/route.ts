@@ -25,6 +25,8 @@ const ALLOWED_PATHS = [
 
 // Only these client headers reach the backend. Cookies (the CAS session) and any
 // client-supplied identity headers never do; Authorization is set from the session.
+// X-Forwarded-Proto is not forwarded: the backend is reached over plain HTTP and must
+// build its redirects for that, not for the browser's https.
 const FORWARDED_REQUEST_HEADERS = [
     'content-type',
     'accept',
@@ -32,7 +34,6 @@ const FORWARDED_REQUEST_HEADERS = [
     'user-agent',
     'x-api-key',
     'x-forwarded-for',
-    'x-forwarded-proto',
 ];
 
 // Only these backend headers reach the client. Set-Cookie must not, and the body is
