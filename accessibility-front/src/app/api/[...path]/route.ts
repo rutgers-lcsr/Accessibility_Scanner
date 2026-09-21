@@ -120,7 +120,11 @@ async function proxyRequest(req: NextRequest, method: string) {
             status: res.status,
             headers: responseHeaders,
         });
-    } catch {
+    } catch (error) {
+        // Reaching here means no HTTP response came back from the backend at all
+        // (DNS, connection, TLS, ...). Say so in the server log, not just a bare 500.
+        const cause = error instanceof Error ? (error.cause ?? error.message) : error;
+        console.error(`API proxy: ${method} ${url} failed:`, cause);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
