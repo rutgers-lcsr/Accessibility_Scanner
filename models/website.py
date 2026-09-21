@@ -205,6 +205,7 @@ class WebsiteDict(TypedDict,total=False):
     domain_id: int
     sites: List[int]
     last_scanned: datetime | None
+    last_notified: datetime | None
     report_counts: dict[AxeReportKeys, AxeReportCounts]
     tags: List[str]
     extra_start_urls: List[str]
@@ -240,6 +241,9 @@ class Website(db.Model):
     # error text for the latter two. Written by the scanner when a scan ends.
     last_scan_status: Mapped[str] = db.Column(db.String(20), nullable=True)
     last_scan_error: Mapped[str] = db.Column(db.Text, nullable=True)
+    # When the website's admin and users were last emailed (new-website or scan-finished
+    # notification, automatic or sent by hand). Written by mail.emails.
+    last_notified: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     admin_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     admin: Mapped['User'] = db.relationship('User', back_populates='admin_websites', lazy=True)
     users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)
@@ -521,6 +525,7 @@ class Website(db.Model):
             'last_scanned': self.last_scanned.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_scanned else None,
             'last_scan_status': self.last_scan_status,
             'last_scan_error': self.last_scan_error,
+            'last_notified': self.last_notified.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_notified else None,
             'tags': [tag.strip() for tag in self.tags.split(",")] if self.tags else [],
             'default_tags': defaultTags,
             'report': report,

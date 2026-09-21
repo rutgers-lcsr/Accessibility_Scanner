@@ -12,6 +12,8 @@ export type Website = {
     last_scanned: string;
     last_scan_status: 'completed' | 'failed' | 'unreachable' | null;
     last_scan_error: string | null;
+    // when the admin and users were last emailed about this website
+    last_notified: string | null;
     tags: string[];
     default_tags: string[];
     categories: string[];

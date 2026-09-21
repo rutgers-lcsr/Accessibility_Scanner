@@ -189,6 +189,7 @@ function AdminItems({ website, mutate }: Props) {
                 body: JSON.stringify({}),
             });
             addAlert('Email sent successfully', 'success');
+            mutate(); // refresh last_notified
         } catch {
             addAlert('Failed to send email', 'error');
         }
@@ -536,6 +537,12 @@ function AdminItems({ website, mutate }: Props) {
                             </Button>
                         </Tooltip>
                     </Flex>
+                    <div className="text-xs text-gray-500 mt-2">
+                        Last notified:{' '}
+                        {website.last_notified
+                            ? new Date(website.last_notified).toLocaleString()
+                            : 'Never'}
+                    </div>
                 </div>
 
                 {/* Public Access Controls */}

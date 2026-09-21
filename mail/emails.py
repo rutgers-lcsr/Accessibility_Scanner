@@ -8,7 +8,7 @@ from models.user import User
 from models import db
 from models.website import Website
 from models.user import Profile
-from datetime import datetime
+from datetime import datetime, timezone
 
 from scanner.log import log_message
 from utils.jwt import generate_jwt_token
@@ -17,24 +17,38 @@ class AccessEmails():
         self.client_url = CLIENT_URL
         self.year = datetime.now().year
 
-    def send(self):
+    def send(self) -> bool:
+        """Hand the message to the mail server.
+
+        Returns True when it was sent (or would have been, under TESTING) and False when
+        it was skipped or delivery failed, so callers can record the notification.
+        """
         if not self.msg:
             raise ValueError("Message not initialized")
         
         if TESTING:
             log_message(f"TESTING: not sending email '{self.msg.subject}' to {self.msg.recipients}", 'info')
-            return
+            return True
 
         # dont send if recipients is localhost
         if any("localhost" in recipient for recipient in self.msg.recipients):
             log_message(f"Email not sent to localhost address: {self.msg.recipients}", 'warning')
-            return
+            return False
         
         try:
             mail.send(self.msg)
             log_message(f"Email sent to {self.msg.recipients}", 'info')
+            return True
         except Exception as e:
             log_message(f"Error sending email: {e}", 'error')
+            return False
+
+
+def _mark_notified(website: Website) -> None:
+    """Record that the website's admin and users were just emailed."""
+    website.last_notified = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.add(website)
+    db.session.commit()
 
 
 class AdminNewWebsiteEmail(AccessEmails):
@@ -71,7 +85,8 @@ class NewWebsiteEmail(AccessEmails):
         msg.html = render_template("emails/new_website.html", year=self.year, website=self.website, client_url=self.client_url, jwt_token=jwt_token)
 
         self.msg = msg
-        super().send()
+        if super().send():
+            _mark_notified(self.website)
 
 class ScanFinishedEmail(AccessEmails):
     def __init__(self, website: Website):
@@ -117,4 +132,5 @@ class ScanFinishedEmail(AccessEmails):
                 return
 
         self.msg = msg
-        super().send()
+        if super().send():
+            _mark_notified(self.website)
