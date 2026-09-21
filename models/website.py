@@ -11,7 +11,8 @@ from models.rules import Rule
 from models.settings import Settings
 from models.user import User
 from scanner.accessibility.ace import AxeReportKeys, AxeResult, WebsiteAxeReport
-from utils.urls import get_netloc, is_valid_url
+from utils.urls import get_netloc, is_valid_url, normalize_url
+from urllib.parse import urlparse
 
 class SiteDict(TypedDict):
     id: int
@@ -206,6 +207,7 @@ class WebsiteDict(TypedDict,total=False):
     last_scanned: datetime | None
     report_counts: dict[AxeReportKeys, AxeReportCounts]
     tags: List[str]
+    extra_start_urls: List[str]
     email: str | None
     should_email: bool
     active: bool
@@ -244,6 +246,9 @@ class Website(db.Model):
     # storing tags as comma separated values
     tags: Mapped[str] = db.Column(db.Text, nullable=True) # comma separated list of tags
     categories: Mapped[str] = db.Column(db.Text, default="") # comma separated list of categories
+    # Pages a full scan starts from besides the website URL, one per line. For websites
+    # whose sections are not linked from the root (see set_extra_start_urls).
+    extra_start_urls: Mapped[str] = db.Column(db.Text, nullable=True)
     description: Mapped[str] = db.Column(db.Text, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
@@ -351,6 +356,38 @@ class Website(db.Model):
         return config
 
         
+
+    def get_extra_start_urls(self) -> List[str]:
+        """Pages a full scan starts from besides the website URL itself."""
+        if not self.extra_start_urls:
+            return []
+        return [line.strip() for line in self.extra_start_urls.splitlines() if line.strip()]
+
+    def set_extra_start_urls(self, urls: List[str]) -> None:
+        """Set the pages a full scan starts from besides the website URL itself.
+
+        Some websites do not link to every section from their root (a course site under a
+        personal GitHub Pages host, say), so a crawl from the root never reaches them.
+        Each entry is crawled as another root of this website: it must be a full http(s)
+        URL on the website's host. Entries are normalised and de-duplicated, and the root
+        itself is dropped. Raises ValueError for an entry that is not a page of this website.
+        """
+        root = normalize_url(self.url)
+        host = urlparse(root).netloc
+        cleaned: List[str] = []
+        for raw in urls:
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            candidate = raw.strip()
+            parsed = urlparse(candidate)
+            if parsed.scheme.lower() not in ('http', 'https') or not parsed.netloc:
+                raise ValueError(f"'{candidate}' is not a full http(s) URL")
+            url = normalize_url(candidate)
+            if urlparse(url).netloc != host:
+                raise ValueError(f"'{candidate}' is not on {host}; start pages must be pages of this website")
+            if url != root and url not in cleaned:
+                cleaned.append(url)
+        self.extra_start_urls = "\n".join(cleaned)
 
     @hybrid_method
     def get_report_counts(self) -> AxeReportCounts | None:
@@ -493,6 +530,7 @@ class Website(db.Model):
             'public': self.public,
             'description': self.description,
             'categories': [cat.strip() for cat in self.categories.split(",")] if self.categories else [],
+            'extra_start_urls': self.get_extra_start_urls(),
             'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
             'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }

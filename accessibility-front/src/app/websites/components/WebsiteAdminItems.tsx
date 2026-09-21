@@ -13,6 +13,7 @@ import { useAlerts } from '@/providers/Alerts';
 import { Button, Descriptions, Select, Space } from 'antd';
 import { useState } from 'react';
 import { useScan } from '@/hooks/useScan';
+import ExtraStartUrls from './ExtraStartUrls';
 
 type Props = {
     website: Website;
@@ -127,6 +128,9 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                             Start typing to add users who can view this website. Users and Admin
                             will be notified when a scan finishes. Leave empty to remove all users.
                         </div>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Additional Start Pages">
+                        <ExtraStartUrls website={website} mutate={mutate} />
                     </Descriptions.Item>
                     <Descriptions.Item label="Actions">
                         <Button

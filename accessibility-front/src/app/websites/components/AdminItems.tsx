@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { useScan } from '@/hooks/useScan';
+import ExtraStartUrls from './ExtraStartUrls';
 
 type Props = {
     website: Website;
@@ -424,6 +425,15 @@ function AdminItems({ website, mutate }: Props) {
                                     }}
                                 />
                             </Tooltip>
+                        </div>
+                        <div style={{ minWidth: 320, flex: 1 }}>
+                            <label
+                                htmlFor="extra-start-urls"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Additional Start Pages
+                            </label>
+                            <ExtraStartUrls website={website} mutate={mutate} />
                         </div>
                     </Flex>
 

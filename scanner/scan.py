@@ -77,6 +77,18 @@ def get_app():
     return create_app()
 
 
+def crawl_start_urls(website: Website) -> List[str]:
+    """Pages a full scan is seeded with: the website URL and its extra start pages
+    (Website.set_extra_start_urls), normalised, de-duplicated, root first. Every one is
+    crawled at depth 0, so sections that are not linked from the root are still audited."""
+    seeds = [normalize_url(website.url)]
+    for url in website.get_extra_start_urls():
+        url = normalize_url(url)
+        if url not in seeds:
+            seeds.append(url)
+    return seeds
+
+
 def commit_with_retry(max_retries=3, retry_delay=1):
     """
     Commit database changes with retry logic for transient failures: SQLite lock
@@ -379,6 +391,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
         commit_with_retry()
         num_workers = page_concurrency()
         limits = crawl_limits()
+        start_urls = crawl_start_urls(website)
 
 
     log_message(f"Starting scan for website: {target_website}", 'info')
@@ -401,13 +414,16 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
 
         robots = await asyncio.get_event_loop().run_in_executor(None, load_robots, target_website)
         log_message(f"Crawl limits for {target_website}: {limits}, robots.txt {'loaded' if robots else 'not used'}", 'info')
+        if len(start_urls) > 1:
+            log_message(f"Extra start pages for {target_website}: {start_urls[1:]}", 'info')
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True, args=BROWSER_ARGS)
             q = ListQueue()
-            start_url = normalize_url(target_website)
-            await q.put(start_url)
-            depths = {start_url: 0}
+            depths = {}
+            for start_url in start_urls:
+                await q.put(start_url)
+                depths[start_url] = 0
             workers = []
 
             # Create a simple website object to pass to workers (just ID and URL)
@@ -419,7 +435,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
             website_proxy = WebsiteProxy(website_id, target_website) if website_id else None
             
             # Create a mutable reference for tracking total sites discovered
-            total_sites_ref = {'count': 1}  # Start with 1 (the initial site)
+            total_sites_ref = {'count': len(start_urls)}
             
             try:
                 workers = [

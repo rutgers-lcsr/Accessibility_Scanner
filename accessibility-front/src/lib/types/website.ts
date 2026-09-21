@@ -15,6 +15,8 @@ export type Website = {
     tags: string[];
     default_tags: string[];
     categories: string[];
+    // Pages a full scan starts from besides the website URL (sections not linked from the root)
+    extra_start_urls: string[];
     description: string;
     report: WebsiteAxeReport;
     report_counts: Record<AxeReportKeys, AxeReportCounts>;

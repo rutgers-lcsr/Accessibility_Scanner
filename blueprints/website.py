@@ -199,6 +199,11 @@ def update_website(website_id):
                         type: array
                         items:
                             type: string
+                    extra_start_urls:
+                        type: array
+                        items:
+                            type: string
+                        description: Pages a full scan starts from besides the website URL (must be on the website's host).
                     rate_limit:
                         type: integer
                     hard_limit:
@@ -270,6 +275,17 @@ def update_website(website_id):
             return jsonify({'error': 'Users must be a list of usernames'}), 400
 
 
+
+    if 'extra_start_urls' in data:
+        urls = data['extra_start_urls']
+        if isinstance(urls, str):
+            urls = urls.splitlines()
+        if not isinstance(urls, list):
+            return jsonify({'error': 'extra_start_urls must be a list of URLs'}), 400
+        try:
+            website.set_extra_start_urls(urls)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
 
     # Admin only fields
     if current_user.profile.is_admin:
