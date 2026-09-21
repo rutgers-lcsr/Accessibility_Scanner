@@ -9,6 +9,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || '';
 // deliberately absent: only loadUser (below) may call it.
 const ALLOWED_PATHS = [
     '/api/auth/logout',
+    '/api/dashboard',
     '/api/domains',
     '/api/reports',
     '/api/sites',

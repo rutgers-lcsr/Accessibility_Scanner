@@ -12,6 +12,7 @@ from sqlalchemy import case, func
 from flask_sqlalchemy import pagination
 
 from scanner.utils.service import check_url
+from services.history import daily_history
 from utils.limiter import limiter
 from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
@@ -716,37 +717,7 @@ def get_website_history(website_id):
         .order_by(Report.timestamp.asc())
         .all()
     )
-
-    categories = ['violations', 'inaccessible', 'incomplete', 'passes']
-    subkeys = ['total', 'critical', 'serious', 'moderate', 'minor']
-
-    def sum_counts(per_site):
-        total = {cat: {sk: 0 for sk in subkeys} for cat in categories}
-        for counts in per_site.values():
-            for cat in categories:
-                cat_counts = counts.get(cat) if counts else None
-                if not cat_counts:
-                    continue
-                for sk in subkeys:
-                    total[cat][sk] += cat_counts.get(sk, 0)
-        return total
-
-    # Daily carry-forward: walk reports in time order, keeping the latest report
-    # per URL, and emit one aggregate point per day that any scan happened. This
-    # keeps the website total correct on days when only some URLs were rescanned.
-    items = []
-    latest_per_site = {}
-    current_day = None
-    for site_id, timestamp, report_counts in reports:
-        if not timestamp:
-            continue
-        day = timestamp.strftime("%Y-%m-%d")
-        if current_day is not None and day != current_day:
-            items.append({'date': current_day, 'report_counts': sum_counts(latest_per_site)})
-        latest_per_site[site_id] = report_counts
-        current_day = day
-    if current_day is not None:
-        items.append({'date': current_day, 'report_counts': sum_counts(latest_per_site)})
+    items = daily_history(reports)
 
     return jsonify({'count': len(items), 'items': items}), 200
 

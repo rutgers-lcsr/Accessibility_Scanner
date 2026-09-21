@@ -8,6 +8,7 @@ import { PublicUser } from '@/lib/types/user';
 import {
     CloudOutlined,
     CloudServerOutlined,
+    DashboardOutlined,
     FormOutlined,
     HomeOutlined,
     LoginOutlined,
@@ -40,6 +41,7 @@ export default function TabNav({ user }: Props) {
     // Define tab routes
     const tabRoutes: TabRoute[] = [
         { key: '1', path: '/' },
+        { key: '9', path: '/dashboard' },
         { key: '2', path: '/websites' },
         { key: '3', path: '/reports' },
         { key: '4', path: '/rules' },
@@ -62,6 +64,7 @@ export default function TabNav({ user }: Props) {
         user && user.is_admin
             ? [
                   { label: 'Home', key: '1', icon: <HomeOutlined /> },
+                  { label: 'Dashboard', key: '9', icon: <DashboardOutlined /> },
                   { label: 'Domains', key: '5', icon: <CloudOutlined /> },
                   { label: 'Rules', key: '4', icon: <FormOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
@@ -75,6 +78,7 @@ export default function TabNav({ user }: Props) {
               ]
             : [
                   { label: 'Home', key: '1', icon: <HomeOutlined /> },
+                  { label: 'Dashboard', key: '9', icon: <DashboardOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
                   { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
                   { label: 'Settings', key: '7', icon: <SettingOutlined /> },

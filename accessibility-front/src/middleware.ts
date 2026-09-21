@@ -6,6 +6,7 @@ const casUrl = process.env.NEXT_PUBLIC_CAS_URL as string;
 
 const appPaths = [
     '/help',
+    '/dashboard',
     '/rules',
     '/proxy',
     '/settings',

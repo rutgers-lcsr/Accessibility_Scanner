@@ -113,6 +113,7 @@ def create_app():
     from blueprints.settings import settings_bp
     from blueprints.api import api_bp
     from blueprints.api_keys import api_keys_bp
+    from blueprints.dashboard import dashboard_bp
     
     @app.route('/health', methods=['GET'])
     def health_check():
@@ -129,6 +130,7 @@ def create_app():
     app.register_blueprint(settings_bp, url_prefix='/api/settings')
     app.register_blueprint(api_bp, url_prefix='/api/v1')
     app.register_blueprint(api_keys_bp, url_prefix='/api/users/me/api-keys')
+    app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
     with app.app_context():
         inspector = inspect(db.engine)
