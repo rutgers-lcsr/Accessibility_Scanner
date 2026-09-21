@@ -8,10 +8,13 @@ import os
 import sys
 import logging
 
-# Add the project directory to Python path
+# Keep the project directory on sys.path for the life of the process. Celery's
+# `-A celery_app.celery` import adds the working directory only temporarily (see
+# celery.utils.imports.cwd_in_path) and removes it afterwards, before the lazy
+# autodiscover_tasks() below runs. A guarded insert would be skipped inside that
+# window, and `scanner` would then be unimportable in the worker.
 project_dir = os.path.dirname(os.path.abspath(__file__))
-if project_dir not in sys.path:
-    sys.path.insert(0, project_dir)
+sys.path.insert(0, project_dir)
 
 from config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND, SCAN_CHECK_INTERVAL_SECONDS
 
