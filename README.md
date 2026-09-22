@@ -117,6 +117,10 @@ Run inside the API container, for example `docker compose exec a11y-api flask fi
 
 - `flask findings backfill [--batch 50] [--website <id>]`: creates findings (one row per failing element, tracked across scans) from the latest report of every page that has not been synced yet. Run it once after deploying the findings feature; it is safe to run again.
 
+## Weekly digest
+
+Every week, site admins get an email summarising all websites: totals, the websites whose violations moved most, websites audited for the first time, failing or unreachable websites, websites never scanned, and the most common rules. The day and hour come from `DIGEST_DAY_OF_WEEK` and `DIGEST_HOUR_UTC` (UTC) on the beat container; the digest can be switched off in Settings.
+
 ## Notes
 
 - Ensure that Backend API is not publicly accessible without proper authentication and authorization. Frontend should handle user authentication and restrict access to authorized users only.

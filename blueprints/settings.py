@@ -57,6 +57,7 @@ VALIDATORS = {
     "max_pages": _int_at_least(1),
     "max_depth": _int_at_least(0),
     "crawl_delay_ms": _int_at_least(0),
+    "admin_digest_enabled": _boolean,
 }
 
 

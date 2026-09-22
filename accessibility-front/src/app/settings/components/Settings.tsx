@@ -91,8 +91,8 @@ function Settings() {
                             onChange={(value) => handleSave('crawl_delay_ms', value)}
                         />
                         <div className="text-sm text-gray-500">
-                            Pause before each page request so small sites are not overwhelmed.
-                            Pages listed as disallowed for LCSRAccessibility (or all agents) in the
+                            Pause before each page request so small sites are not overwhelmed. Pages
+                            listed as disallowed for LCSRAccessibility (or all agents) in the
                             site&apos;s robots.txt are skipped.
                         </div>
                         <div className="my-4" />
@@ -203,6 +203,32 @@ function Settings() {
                         <div className="text-sm text-gray-500">
                             Should users be notified by email when a scan completes, this can be
                             overridden per website.
+                        </div>
+                        <label className="block mb-2 font-bold" htmlFor="admin_digest_enabled">
+                            Weekly Digest To Site Admins
+                        </label>
+                        <Select
+                            id="admin_digest_enabled"
+                            value={
+                                settings?.admin_digest_enabled?.toString() === 'false'
+                                    ? 'false'
+                                    : 'true'
+                            }
+                            onChange={(value) =>
+                                handleSave(
+                                    'admin_digest_enabled',
+                                    value === 'true' ? 'true' : 'false'
+                                )
+                            }
+                            options={[
+                                { label: 'Enabled', value: 'true' },
+                                { label: 'Disabled', value: 'false' },
+                            ]}
+                        />
+                        <div className="text-sm text-gray-500">
+                            A weekly email to site admins summarising all websites: totals, biggest
+                            movers, failing and never-scanned websites. The day and hour are set on
+                            the server.
                         </div>
                         <div className="my-4" />
                         <EditableInput

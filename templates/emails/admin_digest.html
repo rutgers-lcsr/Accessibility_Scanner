@@ -1,0 +1,95 @@
+{% extends "emails/base_template.html" %}
+{% block content %}
+<h2>Weekly accessibility digest</h2>
+<p>
+    {{ digest.period.since | datetimeformat }} to {{ digest.period.until | datetimeformat }}.
+    {{ digest.websites_count }} websites, {{ digest.totals.pages_audited }} of {{ digest.totals.pages }} pages audited,
+    {{ digest.scanned_this_period }} websites scanned this period.
+</p>
+<table cellpadding="6" cellspacing="0" border="0" style="border-collapse: collapse;">
+    <tr style="background: #f2f2f2;">
+        <th align="left">Open violations</th>
+        <th align="left">Critical</th>
+        <th align="left">Serious</th>
+        <th align="left">Moderate</th>
+        <th align="left">Minor</th>
+    </tr>
+    <tr>
+        <td><strong>{{ digest.totals.violations.total }}</strong></td>
+        <td>{{ digest.totals.violations.critical }}</td>
+        <td>{{ digest.totals.violations.serious }}</td>
+        <td>{{ digest.totals.violations.moderate }}</td>
+        <td>{{ digest.totals.violations.minor }}</td>
+    </tr>
+</table>
+
+{% if digest.movers_up %}
+<h3>Got worse</h3>
+<ul>
+    {% for m in digest.movers_up %}
+    <li><a href="{{ client_url }}/websites/{{ m.id }}?tab=changes">{{ m.url }}</a>: {{ m.previous }} → {{ m.current }} (+{{ m.delta }})</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if digest.movers_down %}
+<h3>Got better</h3>
+<ul>
+    {% for m in digest.movers_down %}
+    <li><a href="{{ client_url }}/websites/{{ m.id }}?tab=changes">{{ m.url }}</a>: {{ m.previous }} → {{ m.current }} ({{ m.delta }})</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if digest.newly_audited %}
+<h3>Audited for the first time</h3>
+<ul>
+    {% for w in digest.newly_audited %}
+    <li><a href="{{ client_url }}/websites/{{ w.id }}">{{ w.url }}</a>: {{ w.violations }} violations</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if digest.failing %}
+<h3>Failing or unreachable</h3>
+<ul>
+    {% for w in digest.failing %}
+    <li><a href="{{ client_url }}/websites/{{ w.id }}">{{ w.url }}</a>: {{ w.status | capitalize }}{% if w.error %} <small>({{ w.error }})</small>{% endif %}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if digest.never_scanned %}
+<h3>Never scanned</h3>
+<ul>
+    {% for w in digest.never_scanned %}
+    <li><a href="{{ client_url }}/websites/{{ w.id }}">{{ w.url }}</a>{% if not w.active %} (inactive){% endif %}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if digest.new_websites %}
+<h3>Added this period</h3>
+<ul>
+    {% for w in digest.new_websites %}
+    <li><a href="{{ client_url }}/websites/{{ w.id }}">{{ w.url }}</a>{% if w.admin %}, admin {{ w.admin }}{% endif %}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% if digest.top_rules %}
+<h3>Most common issues</h3>
+<table cellpadding="6" cellspacing="0" border="0" style="border-collapse: collapse; width: 100%;">
+    <tr style="background: #f2f2f2;">
+        <th align="left">Impact</th>
+        <th align="left">Rule</th>
+        <th align="left">Pages</th>
+        <th align="left">Elements</th>
+    </tr>
+    {% for rule in digest.top_rules %}
+    <tr style="border-bottom: 1px solid #e5e5e5;">
+        <td>{{ (rule.impact or 'unknown') | capitalize }}</td>
+        <td>{{ rule.help or rule.id }}{% if rule.help_url %} <small><a href="{{ rule.help_url }}">how to fix</a></small>{% endif %}</td>
+        <td>{{ rule.pages }}</td>
+        <td>{{ rule.occurrences }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+<p><a class="btn" href="{{ client_url }}/dashboard">Open the dashboard</a></p>
+<p><small>This digest can be switched off in Settings.</small></p>
+{% endblock content %}

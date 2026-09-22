@@ -14,6 +14,7 @@ type Settings = {
     max_pages: string;
     max_depth: string;
     crawl_delay_ms: string;
+    admin_digest_enabled: string;
 };
 
 type SettingsContextType = {
@@ -27,10 +28,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 export const SettingsProvider = ({ children }: { children: React.ReactNode }) => {
     const { handlerUserApiRequest } = useUser();
-    const {
-        data: settings,
-        mutate,
-    } = useSWR('/api/settings', handlerUserApiRequest<Settings>);
+    const { data: settings, mutate } = useSWR('/api/settings', handlerUserApiRequest<Settings>);
 
     const { data: tags } = useSWR('/api/axe/rules/tags/', handlerUserApiRequest<string[]>);
 

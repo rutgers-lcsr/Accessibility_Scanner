@@ -6,7 +6,7 @@ only (never the report JSON or the screenshot), except top_rules, which has to r
 the violation lists.
 """
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
 
@@ -223,4 +223,57 @@ def scan_summary(website: Website, top: int = 5) -> dict:
         'status': website.last_scan_status,
         'error': website.last_scan_error,
         'last_scanned': iso(website.last_scanned),
+    }
+
+
+def build_digest(days: int = 7) -> dict:
+    """The weekly system digest for site admins: totals now, the websites that moved most
+    since ``days`` ago, websites audited for the first time, failing and never-scanned
+    websites, websites added, and the top rules. Plain data, ready for a template."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    cutoff = now - timedelta(days=days)
+    websites = db.session.query(Website).order_by(Website.url).all()
+    overview = build_overview(websites, top=10)
+    then = latest_reports([website.id for website in websites], before=cutoff)
+    latest = overview['latest_by_site']
+    sites_of = overview['sites_of']
+    row_of = {row['id']: row for row in overview['websites']}
+
+    movers, newly_audited = [], []
+    for website in websites:
+        site_ids = sites_of.get(website.id, set())
+        current = row_of[website.id]['violations']['total']
+        then_rows = {site_id: then[site_id] for site_id in site_ids if site_id in then}
+        if then_rows:
+            previous = sum_counts({
+                site_id: effective_counts(row.report_counts, row.suppressed_counts)
+                for site_id, row in then_rows.items()
+            })['violations']['total']
+            if current != previous:
+                movers.append({'id': website.id, 'url': website.url, 'previous': previous,
+                               'current': current, 'delta': current - previous})
+        elif any(site_id in latest for site_id in site_ids):
+            newly_audited.append({'id': website.id, 'url': website.url, 'violations': current})
+
+    return {
+        'period': {'days': days, 'since': iso(cutoff), 'until': iso(now)},
+        'websites_count': len(websites),
+        'totals': overview['totals'],
+        'top_rules': overview['top_rules'],
+        'movers_up': sorted((m for m in movers if m['delta'] > 0), key=lambda m: (-m['delta'], m['url']))[:5],
+        'movers_down': sorted((m for m in movers if m['delta'] < 0), key=lambda m: (m['delta'], m['url']))[:5],
+        'newly_audited': newly_audited,
+        'failing': [
+            {'id': w.id, 'url': w.url, 'status': w.last_scan_status, 'error': w.last_scan_error, 'last_scanned': iso(w.last_scanned)}
+            for w in websites if w.last_scan_status in ('failed', 'unreachable')
+        ],
+        'never_scanned': [
+            {'id': w.id, 'url': w.url, 'active': bool(w.active), 'created_at': iso(w.created_at)}
+            for w in websites if w.last_scanned is None
+        ],
+        'scanned_this_period': sum(1 for w in websites if w.last_scanned and w.last_scanned >= cutoff),
+        'new_websites': [
+            {'id': w.id, 'url': w.url, 'admin': w.admin.username if w.admin else None}
+            for w in websites if w.created_at and w.created_at >= cutoff
+        ],
     }

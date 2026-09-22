@@ -96,6 +96,12 @@ def _unsubscribe_token(website: Website, user: User) -> str:
     })
 
 
+def _admin_emails() -> list:
+    """Addresses of the active site admins."""
+    admins = db.session.query(User).join(User.profile).filter(User.is_active == True, Profile.is_admin == True).all()
+    return [admin.email for admin in admins if admin.email]
+
+
 def _mark_notified(website: Website) -> None:
     """Record that the website's admin and users were just emailed."""
     website.last_notified = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -109,10 +115,7 @@ class AdminNewWebsiteEmail(AccessEmails):
         super().__init__()
 
     def send(self):
-        adminsUsers = db.session.query(User).join(User.profile).filter(User.is_active==True, Profile.is_admin==True).all()
-
-        msg = Message("New Website Added",
-                      recipients=[admin.email for admin in adminsUsers])
+        msg = Message("New Website Added", recipients=_admin_emails())
 
         msg.html = render_template("emails/admin_new_website.html", year=self.year, website=self.website, client_url=self.client_url)
         self.msg = msg
@@ -240,3 +243,28 @@ class ScanRegressionEmail(AccessEmails):
         if sent:
             _mark_notified(self.website)
         return sent
+
+
+class AdminDigestEmail(AccessEmails):
+    """Weekly system digest to site admins (scanner.tasks.send_admin_digest)."""
+
+    def __init__(self, days: int = 7):
+        self.days = days
+        super().__init__()
+
+    def send(self) -> bool:
+        from services.overview import build_digest  # local import: services import models
+
+        recipients = _admin_emails()
+        if not recipients:
+            log_message("No active site admins to send the digest to", 'warning')
+            return False
+        digest = build_digest(self.days)
+        if not digest['websites_count']:
+            log_message("No websites yet; digest not sent", 'info')
+            return False
+
+        msg = Message(f"Weekly accessibility digest: {datetime.now().strftime('%b %d, %Y')}", recipients=recipients)
+        msg.html = render_template("emails/admin_digest.html", year=self.year, client_url=self.client_url, digest=digest)
+        self.msg = msg
+        return super().send()

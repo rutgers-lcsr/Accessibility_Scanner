@@ -215,3 +215,18 @@ def rescan_site(self, site_id: int):
         return {'status': 'already running', 'site_url': site.url, 'task_id': site.last_task_id}
     task_id = queue_site_scan(site)
     return {'status': 'queued', 'site_url': site.url, 'task_id': task_id}
+
+
+@celery.task(name='scanner.tasks.send_admin_digest')
+def send_admin_digest():
+    """Weekly system digest to site admins (scheduled by beat), unless switched off in
+    Settings (admin_digest_enabled)."""
+    from mail.emails import AdminDigestEmail
+    from models.settings import Settings
+
+    if (Settings.get('admin_digest_enabled') or '').lower() != 'true':
+        log_message("Admin digest is switched off in Settings", 'info')
+        return {'sent': False, 'recipients': 0}
+    sender = AdminDigestEmail()
+    sent = sender.send()
+    return {'sent': sent, 'recipients': len(sender.msg.recipients) if sent and sender.msg else 0}

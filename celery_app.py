@@ -3,6 +3,7 @@ Celery application instance for the Accessibility Scanner.
 This module initializes Celery with Redis broker for background task processing.
 """
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import setup_logging, worker_process_init
 import os
 import sys
@@ -16,7 +17,7 @@ import logging
 project_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_dir)
 
-from config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND, SCAN_CHECK_INTERVAL_SECONDS
+from config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND, DIGEST_DAY_OF_WEEK, DIGEST_HOUR_UTC, SCAN_CHECK_INTERVAL_SECONDS
 
 TASK_TIME_LIMIT = 3600 * 4  # hard limit for one scan
 
@@ -73,6 +74,12 @@ celery.conf.update(
         'check-and-queue-scans': {
             'task': 'scanner.tasks.check_and_queue_scans',
             'schedule': float(SCAN_CHECK_INTERVAL_SECONDS),
+        },
+        # Weekly digest to site admins: day and hour come from the environment (beat
+        # reads them at start-up); on/off is the admin_digest_enabled Setting.
+        'admin-weekly-digest': {
+            'task': 'scanner.tasks.send_admin_digest',
+            'schedule': crontab(day_of_week=DIGEST_DAY_OF_WEEK, hour=DIGEST_HOUR_UTC, minute=0),
         },
     },
 )

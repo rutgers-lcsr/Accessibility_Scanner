@@ -17,6 +17,7 @@ AppSetting = Literal[
     "max_pages",
     "max_depth",
     "crawl_delay_ms",
+    "admin_digest_enabled",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -33,6 +34,7 @@ DEFAULTS: dict[AppSetting, str] = {
     "max_pages": "500",
     "max_depth": "5",
     "crawl_delay_ms": "250",
+    "admin_digest_enabled": "true",
 }
 
 class Settings(db.Model):
