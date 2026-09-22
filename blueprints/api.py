@@ -1,9 +1,12 @@
+from urllib.parse import urlparse
+
 from flask import Blueprint, Response, g, jsonify, request
+from sqlalchemy import func
 
 from authentication.api_key import api_key_required
 from models import db
 from models.report import Report
-from models.website import Site, Website
+from models.website import Domain, Site, Website
 from services.scan import (
     queue_site_scan,
     queue_website_scan,
@@ -113,6 +116,183 @@ def _render_report_list(website: Website, reports: list[Report]):
         }), 400
 
     return jsonify({'error': f"Unknown format '{fmt}'. Use json, markdown, or agent."}), 400
+
+
+def _normalize_host(raw: str) -> str | None:
+    """Lower-cased hostname of ``raw``, which may be a bare host or a full URL.
+
+    Returns None when no hostname can be read from it. utils.urls.get_netloc is not
+    used because it only recognizes lower-case schemes.
+    """
+    raw = raw.strip().lower()
+    if not raw.startswith(('http://', 'https://')):
+        raw = 'https://' + raw
+    try:
+        host = urlparse(raw).hostname or ''
+    except ValueError:  # unbalanced IPv6 bracket
+        return None
+    return host.strip('.') or None
+
+
+def _host_suffixes(host: str) -> list[str]:
+    """Every domain ``host`` is or sits under: a.b.edu -> [a.b.edu, b.edu, edu]."""
+    labels = host.split('.')
+    return ['.'.join(labels[i:]) for i in range(len(labels))]
+
+
+def _search_params() -> tuple[int, int, str | None, str | None]:
+    """page, limit, search and normalized host from the query string.
+
+    Blank search/host are treated as absent. Raises ValueError with a message
+    suitable for a 400 response when a value is unusable.
+    """
+    page = request.args.get('page', default=1, type=int)
+    limit = request.args.get('limit', default=100, type=int)
+    if page < 1 or limit < 1:
+        raise ValueError('page and limit must be at least 1')
+    search = request.args.get('search', default='', type=str).strip() or None
+    host = request.args.get('host', default='', type=str).strip() or None
+    if host is not None:
+        host = _normalize_host(host)
+        if host is None:
+            raise ValueError('host is not a valid host or URL')
+    return page, limit, search, host
+
+
+@api_bp.route('/websites', methods=['GET'])
+@api_key_required
+def list_websites():
+    """Search websites by URL substring or exact host.
+
+    Lists the websites the key's owner can view: public ones, their own, and those
+    they are a member of (everything for site admins). A count of 0 therefore means
+    the website is absent or not visible to the key's owner. Use this to check
+    whether a site is already in the scanner before adding it.
+    ---
+    tags:
+      - Websites
+    parameters:
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Case-insensitive substring of the website URL.
+      - name: host
+        in: query
+        type: string
+        required: false
+        description: >
+          Bare hostname or full URL. Matches websites whose host is exactly this
+          (case-insensitive, ASCII hostnames); example.edu does not match
+          www.example.edu. Use search for a broader match. Combinable with search.
+      - name: page
+        in: query
+        type: integer
+        required: false
+        default: 1
+        description: Page number, starting at 1. A page past the end returns no items.
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 100
+        description: Results per page, capped at 100.
+    responses:
+      200:
+        description: count (total matches) and items (the websites on this page).
+      400:
+        description: page or limit below 1, or host is not a valid host or URL.
+      401:
+        description: Missing, invalid, or revoked API key.
+    """
+    try:
+        page, limit, search, host = _search_params()
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+    query = db.session.query(Website).filter(Website.visible_to(g.api_user))
+    if search:
+        query = query.filter(Website.url.icontains(search, autoescape=True))
+    if host:
+        query = query.filter(Website.domain.has(func.lower(Domain.domain) == host))
+    result = query.order_by(Website.url.asc()).paginate(
+        page=page, per_page=limit, max_per_page=100, error_out=False
+    )
+    return jsonify({
+        'count': result.total,
+        'items': [website.to_dict() for website in result.items],
+    }), 200
+
+
+@api_bp.route('/domains', methods=['GET'])
+@api_key_required
+def list_domains():
+    """Search the domain allow-list (site admins only).
+
+    With host, returns every allow-list entry the host is or sits under, most
+    specific first: sub.cs.example.edu returns cs.example.edu and example.edu when
+    both exist. Inactive entries are included; check the active field. A website
+    can only be added when at least one active entry covers its host.
+    ---
+    tags:
+      - Domains
+    parameters:
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Case-insensitive substring of the domain name.
+      - name: host
+        in: query
+        type: string
+        required: false
+        description: >
+          Bare hostname or full URL. Returns the entries that are this host or one
+          of its parent domains (case-insensitive, ASCII hostnames), longest first.
+          Combinable with search.
+      - name: page
+        in: query
+        type: integer
+        required: false
+        default: 1
+        description: Page number, starting at 1. A page past the end returns no items.
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 100
+        description: Results per page, capped at 100.
+    responses:
+      200:
+        description: count (total matches) and items (the domains on this page).
+      400:
+        description: page or limit below 1, or host is not a valid host or URL.
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner is not a site admin.
+    """
+    if not (g.api_user.profile is not None and g.api_user.profile.is_admin):
+        return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        page, limit, search, host = _search_params()
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+    query = db.session.query(Domain)
+    if search:
+        query = query.filter(Domain.domain.icontains(search, autoescape=True))
+    if host:
+        query = query.filter(func.lower(Domain.domain).in_(_host_suffixes(host))).order_by(
+            func.length(Domain.domain).desc(), Domain.id.asc()
+        )
+    else:
+        query = query.order_by(Domain.domain.asc())
+    result = query.paginate(page=page, per_page=limit, max_per_page=100, error_out=False)
+    return jsonify({
+        'count': result.total,
+        'items': [domain.to_dict() for domain in result.items],
+    }), 200
 
 
 @api_bp.route('/reports/<int:report_id>', methods=['GET'])
