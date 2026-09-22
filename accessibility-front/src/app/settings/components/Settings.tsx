@@ -231,6 +231,51 @@ function Settings() {
                             the server.
                         </div>
                         <div className="my-4" />
+                        <label className="block mb-2 font-bold" htmlFor="retention_enabled">
+                            Report Retention
+                        </label>
+                        <Select
+                            id="retention_enabled"
+                            value={
+                                settings?.retention_enabled?.toString() === 'true'
+                                    ? 'true'
+                                    : 'false'
+                            }
+                            onChange={(value) =>
+                                handleSave('retention_enabled', value === 'true' ? 'true' : 'false')
+                            }
+                            options={[
+                                { label: 'Enabled', value: 'true' },
+                                { label: 'Disabled', value: 'false' },
+                            ]}
+                        />
+                        <div className="text-sm text-gray-500">
+                            Nightly clean-up of old reports. Off by default: run{' '}
+                            <code>flask maintenance retention --dry-run</code> on the server first
+                            and read the plan. A page&apos;s latest report is never deleted.
+                        </div>
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Days kept in full"
+                            type="number"
+                            value={settings?.retention_keep_days || ''}
+                            onChange={(value) => handleSave('retention_keep_days', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            Every report younger than this is kept with its screenshot.
+                        </div>
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Days kept as one report per month"
+                            type="number"
+                            value={settings?.retention_max_days || ''}
+                            onChange={(value) => handleSave('retention_max_days', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            Older than the full window and younger than this, one report per month
+                            survives without its screenshot; anything older is deleted.
+                        </div>
+                        <div className="my-4" />
                         <EditableInput
                             id="default_email_domain"
                             label="Default Email Domain"

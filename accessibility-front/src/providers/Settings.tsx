@@ -15,6 +15,9 @@ type Settings = {
     max_depth: string;
     crawl_delay_ms: string;
     admin_digest_enabled: string;
+    retention_enabled: string;
+    retention_keep_days: string;
+    retention_max_days: string;
 };
 
 type SettingsContextType = {

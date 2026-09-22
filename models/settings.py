@@ -18,6 +18,9 @@ AppSetting = Literal[
     "max_depth",
     "crawl_delay_ms",
     "admin_digest_enabled",
+    "retention_enabled",
+    "retention_keep_days",
+    "retention_max_days",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -35,6 +38,10 @@ DEFAULTS: dict[AppSetting, str] = {
     "max_depth": "5",
     "crawl_delay_ms": "250",
     "admin_digest_enabled": "true",
+    # Report retention is opt-in: run `flask maintenance retention --dry-run` first.
+    "retention_enabled": "false",
+    "retention_keep_days": "90",
+    "retention_max_days": "365",
 }
 
 class Settings(db.Model):

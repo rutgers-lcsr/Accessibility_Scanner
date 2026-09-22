@@ -134,8 +134,9 @@ def create_app():
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(findings_bp, url_prefix='/api/findings')
 
-    from commands import findings_cli
+    from commands import findings_cli, maintenance_cli
     app.cli.add_command(findings_cli)
+    app.cli.add_command(maintenance_cli)
 
     with app.app_context():
         inspector = inspect(db.engine)

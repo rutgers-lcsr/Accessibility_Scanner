@@ -116,6 +116,8 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
 Run inside the API container, for example `docker compose exec a11y-api flask findings backfill`.
 
 - `flask findings backfill [--batch 50] [--website <id>]`: creates findings (one row per failing element, tracked across scans) from the latest report of every page that has not been synced yet. Run it once after deploying the findings feature; it is safe to run again.
+- `flask maintenance retention [--dry-run] [--batch 200]`: applies the report retention policy from Settings (keep `retention_keep_days` in full, one report per month up to `retention_max_days`, older ones deleted; screenshots dropped from the monthly survivors; a page's latest report is never touched). Beat runs it nightly once `retention_enabled` is true; run the dry run first and read the per-page plan.
+- `flask maintenance slim-reports [--dry-run] [--batch 200]`: one-off rewrite of reports stored before slimming, dropping the node lists of passing and inapplicable rules (most of each report's size). Safe to run again.
 
 ## Weekly digest
 

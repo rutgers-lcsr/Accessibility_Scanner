@@ -230,3 +230,24 @@ def send_admin_digest():
     sender = AdminDigestEmail()
     sent = sender.send()
     return {'sent': sent, 'recipients': len(sender.msg.recipients) if sent and sender.msg else 0}
+
+
+@celery.task(name='scanner.tasks.prune_reports')
+def prune_reports():
+    """Nightly report retention (scheduled by beat). Always logs the plan; applies it
+    only when the retention_enabled Setting is true."""
+    from services.maintenance import apply_retention, plan_retention, retention_settings
+
+    settings = retention_settings()
+    plan = plan_retention()
+    summary = plan.summary
+    log_message(
+        f"Retention plan: {summary['delete']} reports to delete, {summary['strip_photos']} screenshots to drop "
+        f"across {summary['sites']} pages (keep {settings['keep_days']} days, max {settings['max_days']} days); "
+        f"{'applying' if settings['enabled'] else 'not applied: retention_enabled is false'}",
+        'info',
+    )
+    if not settings['enabled']:
+        return {'applied': False, 'deleted': 0, 'photos_stripped': 0, 'sites': summary['sites']}
+    result = apply_retention(plan)
+    return {'applied': True, 'deleted': result['deleted'], 'photos_stripped': result['photos_stripped'], 'sites': summary['sites']}

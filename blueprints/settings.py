@@ -58,6 +58,9 @@ VALIDATORS = {
     "max_depth": _int_at_least(0),
     "crawl_delay_ms": _int_at_least(0),
     "admin_digest_enabled": _boolean,
+    "retention_enabled": _boolean,
+    "retention_keep_days": _int_at_least(1),
+    "retention_max_days": _int_at_least(1),
 }
 
 
