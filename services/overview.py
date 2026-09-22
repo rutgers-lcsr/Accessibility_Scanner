@@ -12,7 +12,7 @@ from sqlalchemy import func
 
 from models import db
 from models.report import Report
-from models.website import Site_Website_Assoc, Website
+from models.website import Site, Site_Website_Assoc, Website
 from services.history import effective_counts, sum_counts
 
 IMPACT_ORDER = {'critical': 0, 'serious': 1, 'moderate': 2, 'minor': 3}
@@ -174,4 +174,53 @@ def build_overview(websites, top: int = 10) -> dict:
         'top_rules': top_rules([row.id for row in latest_by_site.values()], top),
         'latest_by_site': latest_by_site,
         'sites_of': site_ids_of,
+    }
+
+
+def scan_summary(website: Website, top: int = 5) -> dict:
+    """What the scan-finished email says: effective counts over the latest report of
+    every page, the top rules, the worst pages, coverage, and the change since the
+    website's people were last emailed."""
+    site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
+    latest = latest_reports([website.id])
+    counts = sum_counts({
+        site_id: effective_counts(row.report_counts, row.suppressed_counts)
+        for site_id, row in latest.items()
+    })
+
+    pages = []
+    for row in latest.values():
+        violations = effective_counts(row.report_counts, row.suppressed_counts)['violations']
+        pages.append({'url': row.url, 'report_id': row.id, 'violations': violations['total'],
+                      'critical': violations['critical'], 'serious': violations['serious']})
+    worst_pages = sorted((page for page in pages if page['violations']), key=lambda p: (-p['violations'], -p['critical'], p['url']))[:top]
+
+    since_last_email = None
+    if website.last_notified:
+        then = latest_reports([website.id], before=website.last_notified)
+        if then:
+            previous = sum_counts({
+                site_id: effective_counts(row.report_counts, row.suppressed_counts)
+                for site_id, row in then.items()
+            })['violations']['total']
+            since_last_email = {'previous': previous, 'current': counts['violations']['total'],
+                                'when': iso(website.last_notified)}
+
+    failed = 0
+    if site_ids:
+        failed = db.session.query(Site.id).filter(Site.id.in_(site_ids), Site.last_scan_status == 'failed').count()
+
+    return {
+        'violations': counts['violations'],
+        'passes': counts['passes']['total'],
+        'incomplete': counts['incomplete']['total'],
+        'top_issues': top_rules([row.id for row in latest.values()], top),
+        'worst_pages': worst_pages,
+        'since_last_email': since_last_email,
+        'pages_total': len(site_ids),
+        'pages_audited': len(latest),
+        'pages_failed': failed,
+        'status': website.last_scan_status,
+        'error': website.last_scan_error,
+        'last_scanned': iso(website.last_scanned),
     }

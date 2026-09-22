@@ -1,44 +1,74 @@
 {% extends "emails/base_template.html" %}
 {% block content %}
-<h1>Accessibility Scan Complete</h1>
-<p>Hello,</p>
+<h2>Accessibility scan {% if summary.status in ('unreachable', 'failed') %}{{ summary.status }}{% else %}complete{% endif %}</h2>
 <p>
-    Your website <strong><a href="{{ website.url }}">{{ website.url }}</a></strong> has finished its accessibility scan.
+    Website: <a href="{{ website.url }}">{{ website.url }}</a><br>
+    Scanned: {{ timestamp | datetimeformat }}
 </p>
+{% if summary.status in ('unreachable', 'failed') %}
 <p>
-    <strong>Scan Summary:</strong>
+    {% if summary.status == 'unreachable' %}
+    The scanner could not reach the website, so there are no new results.
+    {% else %}
+    The scan did not finish, so there are no new results.
+    {% endif %}
+    {% if summary.error %}<br><small>{{ summary.error }}</small>{% endif %}
 </p>
+<p><a class="btn" href="{{ client_url }}/websites/{{ website.id }}">Open the website page</a></p>
+{% else %}
+<p>
+    {{ summary.pages_audited }} of {{ summary.pages_total }} pages audited{% if summary.pages_failed %}, {{ summary.pages_failed }} could not be loaded{% endif %}.
+</p>
+<table cellpadding="6" cellspacing="0" border="0" style="border-collapse: collapse;">
+    <tr style="background: #f2f2f2;">
+        <th align="left">Violations</th>
+        <th align="left">Critical</th>
+        <th align="left">Serious</th>
+        <th align="left">Moderate</th>
+        <th align="left">Minor</th>
+    </tr>
+    <tr>
+        <td><strong>{{ summary.violations.total }}</strong></td>
+        <td>{{ summary.violations.critical }}</td>
+        <td>{{ summary.violations.serious }}</td>
+        <td>{{ summary.violations.moderate }}</td>
+        <td>{{ summary.violations.minor }}</td>
+    </tr>
+</table>
+<p><small>Counts are rules violated per page, summed over pages. Passes: {{ summary.passes }}, needs review: {{ summary.incomplete }}.</small></p>
+
+{% if summary.top_issues %}
+<h3>Top issues</h3>
+<table cellpadding="6" cellspacing="0" border="0" style="border-collapse: collapse; width: 100%;">
+    <tr style="background: #f2f2f2;">
+        <th align="left">Impact</th>
+        <th align="left">Rule</th>
+        <th align="left">Pages</th>
+        <th align="left">Elements</th>
+    </tr>
+    {% for rule in summary.top_issues %}
+    <tr style="border-bottom: 1px solid #e5e5e5;">
+        <td>{{ (rule.impact or 'unknown') | capitalize }}</td>
+        <td>
+            <a href="{{ client_url }}/websites/{{ website.id }}?tab=violations&rule={{ rule.id }}">{{ rule.help or rule.id }}</a>
+            {% if rule.help_url %}<br><small><a href="{{ rule.help_url }}">How to fix {{ rule.id }}</a></small>{% endif %}
+        </td>
+        <td>{{ rule.pages }}</td>
+        <td>{{ rule.occurrences }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{% if summary.worst_pages %}
+<h3>Pages with the most issues</h3>
 <ul>
-    <li>
-        <strong>Date:</strong> {{ timestamp | datetimeformat }}
-    </li>
-    <li>
-        <strong>Total Violations:</strong> {{ scan.violations.total }}
-    </li>
-    <li>
-        <strong>Critical:</strong> {{ scan.violations.critical }}
-    </li>
-    <li>
-        <strong>Serious:</strong> {{ scan.violations.serious }}
-    </li>
-    <li>
-        <strong>Moderate:</strong> {{ scan.violations.moderate }}
-    </li>
-    <li>
-        <strong>Minor:</strong> {{ scan.violations.minor }}
-    </li>
+    {% for page in summary.worst_pages %}
+    <li><a href="{{ client_url }}/reports/{{ page.report_id }}">{{ page.url }}</a>: {{ page.violations }} violations{% if page.critical %}, {{ page.critical }} critical{% endif %}</li>
+    {% endfor %}
 </ul>
-<p>
-    You can view the full report and recommendations here:
-    <a class="btn" href="{{ client_url }}/websites/{{ website.id }}">View Full Report</a>
-</p>
-<p>
-    For more information on accessibility standards, visit
-    <a href="https://www.w3.org/WAI/standards-guidelines/wcag/">WCAG 2.1AA</a>.
-    <br>
-    or visit <a href="https://accessibility.rutgers.edu/">Accessibility Rutgers</a> for university recommendations.
-</p>
-<p>If you have questions or need help, reply to this email or contact the Rutgers LCSR team.</p>
+{% endif %}
+
 {% if changes and changes.since %}
 <h3>Since the previous scan</h3>
 <p>
@@ -48,6 +78,22 @@
     <a href="{{ client_url }}/websites/{{ website.id }}?tab=changes">See what changed</a>.
 </p>
 {% endif %}
+{% if summary.since_last_email %}
+<p><small>Since your last email ({{ summary.since_last_email.when | datetimeformat }}): {{ summary.since_last_email.previous }} → {{ summary.since_last_email.current }} violations.</small></p>
+{% endif %}
+
+<p>
+    <a class="btn" href="{{ client_url }}/websites/{{ website.id }}">View website report</a>
+    &nbsp;
+    <a href="{{ client_url }}/dashboard">Dashboard</a>
+</p>
+{% endif %}
+<p>
+    For more information on accessibility standards, visit
+    <a href="https://www.w3.org/WAI/WCAG21/quickref/">WCAG 2.1 AA</a>
+    or <a href="https://accessibility.rutgers.edu">Accessibility Rutgers</a> for university recommendations.
+</p>
+<p>If you have questions or need help, reply to this email or contact the Rutgers LCSR team.</p>
 {% if jwt_token %}
 <p>
     If you'd like to stop receiving these emails, please visit <a

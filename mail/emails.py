@@ -150,6 +150,8 @@ class ScanFinishedEmail(AccessEmails):
             from models.website import Site
             changes = changes_for_sites([row.id for row in website.sites.with_entities(Site.id).all()])
         self.changes = changes
+        from services.overview import scan_summary  # local import: services import models
+        self.summary = scan_summary(website)
         super().__init__()
 
     def _worth_sending(self) -> bool:
@@ -167,12 +169,21 @@ class ScanFinishedEmail(AccessEmails):
             log_message(f"Scan counts: {self.report_counts}", 'info')
         return significant
 
+    def _subject(self) -> str:
+        host = get_netloc(self.website.url)
+        status = self.summary.get('status')
+        if status in ('unreachable', 'failed'):
+            return f"Accessibility scan {status}: {host}"
+        violations = self.summary['violations']
+        return (f"Accessibility scan finished: {host}: {violations['total']} violations "
+                f"({violations['critical']} critical)")
+
     def _message(self, address: str, jwt_token: str | None) -> Message:
-        msg = Message("Accessibility Scan Finished", recipients=[address])
+        msg = Message(self._subject(), recipients=[address])
         msg.html = render_template(
             "emails/scan_finished.html", year=self.year, website=self.website.to_dict(),
-            client_url=self.client_url, scan=self.report_counts, changes=self.changes,
-            timestamp=datetime.now().isoformat(), jwt_token=jwt_token,
+            client_url=self.client_url, scan=self.report_counts, summary=self.summary,
+            changes=self.changes, timestamp=datetime.now().isoformat(), jwt_token=jwt_token,
         )
         return msg
 
