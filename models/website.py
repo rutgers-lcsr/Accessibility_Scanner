@@ -1,4 +1,5 @@
 
+import logging
 from datetime import datetime
 from typing import List, TypedDict
 from sqlalchemy import and_, case, func, or_, select
@@ -13,6 +14,8 @@ from models.user import User
 from scanner.accessibility.ace import AxeReportKeys, AxeResult, WebsiteAxeReport
 from utils.urls import get_netloc, is_valid_url, normalize_url
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 class SiteDict(TypedDict):
     id: int
@@ -326,7 +329,7 @@ class Website(db.Model):
         return list(emails)
 
     def get_tags(self) -> List[str]:
-        defaultTags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
+        defaultTags = Settings.get(key='default_tags')
         if not self.tags and defaultTags:
             return [tag.strip() for tag in defaultTags.split(",")]
         
@@ -344,12 +347,12 @@ class Website(db.Model):
 
         all_tags = self.get_tags()
         if not all_tags:
-            print("No tags found for ACE config")
+            logger.debug("No tags found for ACE config")
             return ""
         
         filter = [Rule.tags.like(f"%{tag.strip()}%") for tag in all_tags]
         rules = db.session.query(Rule).filter(Rule.enabled == True, or_(*filter)).distinct().all()
-        print(f"Generating ACE config for website {self.id} with tags {self.tags} found {len(rules)} rules")
+        logger.debug("Generating ACE config for website %s with tags %s found %d rules", self.id, self.tags, len(rules))
         all_rules = [rule.to_js_object() for rule in rules]
         all_checks = set()
         
@@ -508,7 +511,7 @@ class Website(db.Model):
         else:
             report = None
 
-        defaultTags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
+        defaultTags = Settings.get(key='default_tags')
         if defaultTags == '':
             defaultTags = []
         elif defaultTags:
@@ -590,10 +593,10 @@ class Website(db.Model):
         
         # set defaults from settings
 
-        self.rate_limit = Settings.get(key='default_rate_limit', default=30)
-        self.active = Settings.get(key='default_should_auto_activate', default='true').lower() == 'true'
-        self.should_email = Settings.get(key='default_notify_on_completion', default='false').lower() == 'true'
-        self.tags = Settings.get(key='default_tags', default='wcag2a, wcag2aa, wcag21a, wcag21aa')
+        self.rate_limit = int(Settings.get(key='default_rate_limit'))
+        self.active = Settings.get(key='default_should_auto_activate').lower() == 'true'
+        self.should_email = Settings.get(key='default_notify_on_completion').lower() == 'true'
+        self.tags = Settings.get(key='default_tags')
 
     def delete(self, delete_domain: bool = True, commit: bool = True):
         try:

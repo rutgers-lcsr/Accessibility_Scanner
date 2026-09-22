@@ -4,7 +4,8 @@ import PageHeading from '@/components/PageHeading';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { Domain } from '@/lib/types/domain';
 import { useDomains } from '@/providers/Domain';
-import { Button, Flex, Input, Pagination, Table, TableColumnsType } from 'antd';
+import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { Button, Flex, Input, Pagination, Table, TableColumnsType, Tag } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import AddDomain from './modals/addDomain';
 import DeleteDomain from './modals/deleteDomain';
@@ -38,6 +39,20 @@ export default function Domains() {
             render: (parent: Domain) => {
                 return <span>{parent?.domain || 'Is Parent'}</span>;
             },
+        },
+        {
+            title: 'Active',
+            dataIndex: 'active',
+            key: 'active',
+            width: '10%',
+            render: (active: boolean) =>
+                active ? (
+                    <Tag color="green" icon={<CheckCircleOutlined />}>
+                        Active
+                    </Tag>
+                ) : (
+                    <Tag icon={<MinusCircleOutlined />}>Inactive</Tag>
+                ),
         },
         {
             title: 'Actions',

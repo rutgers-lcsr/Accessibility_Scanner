@@ -80,8 +80,6 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
                     ))}
                 </>
             ),
-            onFilter: (value: boolean | React.Key, record: Site) =>
-                record.tags.includes(value as string),
             dataIndex: 'tags',
         },
         {

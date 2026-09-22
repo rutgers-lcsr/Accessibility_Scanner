@@ -346,7 +346,6 @@ document.body.appendChild(accessScriptElement);`}
                     )}
                 </Space>
             </Content>
-            {/* <pre>{JSON.stringify(report, null, 2)}</pre> */}
         </>
     );
 }

@@ -52,7 +52,7 @@ export const ReportsProvider: React.FC<{ children: React.ReactNode; user: Public
     );
 
     const openReport = (id: string) => {
-        router.push(`/reports?id=${id}`);
+        router.push(`/reports/${id}`);
     };
 
     return (

@@ -20,6 +20,21 @@ AppSetting = Literal[
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
+# The value every setting has until an admin changes it. Settings.get falls back to
+# this, so callers never need to repeat a default (and cannot disagree with it).
+DEFAULTS: dict[AppSetting, str] = {
+    "default_tags": 'wcag2a, wcag2aa, wcag21a, wcag21aa',
+    "default_rate_limit": "30",
+    "default_should_auto_scan": "true",
+    "default_should_auto_activate": "false",
+    "default_notify_on_completion": "true",
+    "default_email_domain": "",
+    "scan_page_concurrency": "3",
+    "max_pages": "500",
+    "max_depth": "5",
+    "crawl_delay_ms": "250",
+}
+
 class Settings(db.Model):
     __tablename__ = 'settings'
     
@@ -35,10 +50,13 @@ class Settings(db.Model):
     
     @staticmethod
     def get(key: AppSetting, default: str = None) -> str | None:
+        """The stored value, else ``default``, else the declared default for the key."""
         setting = db.session.query(Settings).filter_by(key=key).first()
         if setting:
             return setting.value
-        return default
+        if default is not None:
+            return default
+        return DEFAULTS.get(key)
     
     @staticmethod
     def set(key: AppSetting, value: str, description: str = None) -> None:
@@ -53,38 +71,13 @@ class Settings(db.Model):
         db.session.commit()
 
     @staticmethod
-    def getList(key: AppSetting, default: str = "") -> list[str]:
-        if key not in APP_SETTINGS:
-            raise ValueError(f"Invalid setting key: {key}")
-        
-        if key not in ["default_tags"]:
-            raise ValueError(f"Setting {key} is not a list type setting")
-        
-        setting = db.session.query(Settings).filter_by(key=key).first()
-        if setting and setting.value:
-            return [s.strip() for s in setting.value.split(",") if s.strip()]
-        return [s.strip() for s in default.split(",") if s.strip()]
-    
-    @staticmethod
     def to_dict() -> dict:
         settings = db.session.query(Settings).all()
         return {setting.key: setting.value for setting in settings}
     
     @staticmethod
     def init_defaults() -> None:
-        defaults = {
-            "default_tags": 'wcag2a, wcag2aa, wcag21a, wcag21aa',
-            "default_rate_limit": "30",
-            "default_should_auto_scan": "true",
-            "default_should_auto_activate": "false",
-            "default_notify_on_completion": "true",
-            "default_email_domain": "",
-            "scan_page_concurrency": "3",
-            "max_pages": "500",
-            "max_depth": "5",
-            "crawl_delay_ms": "250",
-        }
-        for key, value in defaults.items():
+        for key, value in DEFAULTS.items():
             if not db.session.query(Settings).filter_by(key=key).first():
                 setting = Settings(key=key, value=value)
                 db.session.add(setting)

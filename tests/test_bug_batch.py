@@ -100,7 +100,12 @@ def test_create_website_survives_a_mail_failure(client, make_user, jwt_header, m
     user = make_user()
     _allow_domain()
     monkeypatch.setattr(website_bp, "check_url", lambda url: True)
-    monkeypatch.setattr(website_bp.Settings, "get", lambda key, default=None: "false")
+    real_get = website_bp.Settings.get
+    monkeypatch.setattr(
+        website_bp.Settings,
+        "get",
+        lambda key, default=None: "false" if key == "default_should_auto_scan" else real_get(key, default),
+    )
 
     def broken_send(self):
         raise RuntimeError("smtp down")
@@ -329,3 +334,52 @@ def test_num_of_links_counts_the_list(app, make_user, make_site, add_report):
     report = add_report(make_site(make_user()))
     report.links = ["a", "b"]
     assert report.num_of_links == 2
+
+
+# --- settings defaults ----------------------------------------------------------------
+
+
+def test_settings_get_falls_back_to_the_declared_default(app):
+    from models import db
+    from models.settings import DEFAULTS, Settings
+
+    db.session.query(Settings).filter_by(key="max_pages").delete()
+    db.session.commit()
+    assert Settings.get("max_pages") == DEFAULTS["max_pages"] == "500"
+    assert Settings.get("max_pages", "7") == "7"
+
+
+def test_new_website_defaults_follow_the_declared_defaults(app, make_user):
+    """The call sites used to carry their own defaults, opposite to init_defaults."""
+    from models import db
+    from models.settings import Settings
+    from models.website import Domain, Website
+
+    for key in ("default_should_auto_activate", "default_notify_on_completion", "default_rate_limit"):
+        db.session.query(Settings).filter_by(key=key).delete()
+    db.session.commit()
+    domain = Domain(domain="example.com")
+    db.session.add(domain)
+    db.session.commit()
+
+    website = Website(url="https://example.com", user_id=make_user().id)
+
+    assert website.active is False
+    assert website.should_email is True
+    assert website.rate_limit == 30
+
+
+# --- csv export -----------------------------------------------------------------------
+
+
+def test_websites_csv_export_lists_websites(client, make_user, make_website, jwt_header):
+    admin = make_user("root", is_admin=True)
+    make_website(admin, base="https://export.example.com")
+
+    resp = client.get("/api/websites/?format=csv", headers=jwt_header(admin))
+
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/csv"
+    body = resp.get_data(as_text=True)
+    assert "https://export.example.com" in body
+    assert body.splitlines()[0].startswith("id,url")

@@ -80,8 +80,7 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                     <Descriptions.Item label="Rate Limit">
                         {website.rate_limit}
                         <div className="mt-1 text-xs text-gray-500">
-                            The maximum number of pages that can be scanned per month for this
-                            website.
+                            Days between automatic scans of this website.
                         </div>
                     </Descriptions.Item>
                     <Descriptions.Item label="Last Scanned">

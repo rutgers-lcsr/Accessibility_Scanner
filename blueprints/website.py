@@ -593,8 +593,6 @@ def get_websites():
         from sqlalchemy.orm import joinedload
 
         w: pagination.Pagination[Website] = w_query.options(joinedload(Website.admin),joinedload(Website.users) ).paginate(page=page, per_page=limit)
-        items: list[Website] = w.items
-
 
         items: list[dict] = []
         for website in w.items:

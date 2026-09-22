@@ -97,28 +97,27 @@ const Website = ({ websiteId, user }: Props) => {
 
                 {user && user.is_admin && <AdminItems website={websiteReport} mutate={mutate} />}
                 {/** Admin items for the website For Regular Users Usually the Owner of the site */}
-                {(isUserPartOfUsers || process.env['NODE_ENV'] === 'development') && (
-                    <WebsiteAdminItems website={websiteReport} mutate={mutate} />
-                )}
+                {isUserPartOfUsers && <WebsiteAdminItems website={websiteReport} mutate={mutate} />}
                 <h2 className="mb-4 text-lg text-gray-500">
                     Last Scanned:{' '}
                     {websiteReport?.last_scanned
                         ? new Date(websiteReport.last_scanned).toLocaleString()
                         : 'Never'}
                 </h2>
-                {websiteReport.last_scan_status && websiteReport.last_scan_status !== 'completed' && (
-                    <Alert
-                        className="mb-6"
-                        type="error"
-                        showIcon
-                        message={
-                            websiteReport.last_scan_status === 'unreachable'
-                                ? 'The last scan could not reach this website'
-                                : 'The last scan failed'
-                        }
-                        description={websiteReport.last_scan_error || undefined}
-                    />
-                )}
+                {websiteReport.last_scan_status &&
+                    websiteReport.last_scan_status !== 'completed' && (
+                        <Alert
+                            className="mb-6"
+                            type="error"
+                            showIcon
+                            message={
+                                websiteReport.last_scan_status === 'unreachable'
+                                    ? 'The last scan could not reach this website'
+                                    : 'The last scan failed'
+                            }
+                            description={websiteReport.last_scan_error || undefined}
+                        />
+                    )}
                 <section
                     aria-labelledby="accessibility-report"
                     className="rounded-lg bg-gray-50 p-6"

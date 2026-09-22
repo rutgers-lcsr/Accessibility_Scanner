@@ -2,7 +2,7 @@
 import { AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { CopyOutlined, RobotOutlined } from '@ant-design/icons';
 import { Button, Modal, Tooltip, message } from 'antd';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 type Props = {
     violations: (AxeResult | WebsiteAxeResult)[];
@@ -59,7 +59,6 @@ function buildPrompt(violations: (AxeResult | WebsiteAxeResult)[], url?: string)
 
 function GenerateAIPromptButton({ violations, url }: Props) {
     const [open, setOpen] = useState(false);
-    const preRef = useRef<HTMLPreElement>(null);
 
     if (!violations || violations.length === 0) return null;
 
@@ -100,10 +99,7 @@ function GenerateAIPromptButton({ violations, url }: Props) {
                     Copy this prompt and paste it into your AI coding agent to fix all listed
                     accessibility issues.
                 </p>
-                <pre
-                    ref={preRef}
-                    className="max-h-[500px] overflow-auto rounded bg-gray-100 p-4 text-xs whitespace-pre-wrap"
-                >
+                <pre className="max-h-[500px] overflow-auto rounded bg-gray-100 p-4 text-xs whitespace-pre-wrap">
                     {prompt}
                 </pre>
             </Modal>

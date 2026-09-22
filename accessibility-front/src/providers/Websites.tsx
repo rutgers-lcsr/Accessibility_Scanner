@@ -92,7 +92,7 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
 
     const openWebsite = (id: number) => {
         // Logic to open the website
-        router.push(`/websites?id=${id}`);
+        router.push(`/websites/${id}`);
     };
 
     const requestWebsite = async (url: string, options: NewWebsiteOptions = {}) => {
