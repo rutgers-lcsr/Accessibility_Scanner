@@ -70,6 +70,8 @@ celery.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,  # Only fetch one task at a time per worker
     worker_max_tasks_per_child=5,  # Each scan holds a Chromium; recycle children often
+    # Task results live a day: that is how long a quick scan's result can be viewed.
+    result_expires=86400,
     beat_schedule={
         'check-and-queue-scans': {
             'task': 'scanner.tasks.check_and_queue_scans',

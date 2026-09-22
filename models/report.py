@@ -42,6 +42,27 @@ class ReportDict(TypedDict):
     updated_at: str
     
 
+def _count_axe(report: dict, type: AxeReportKeys, impact: str | None) -> int:
+    rules: List[AxeResult] = (report or {}).get(type, []) or []
+    if impact is None:
+        return len(rules)
+    return sum(1 for rule in rules if rule.get('impact') == impact)
+
+
+def compute_report_counts(report: dict) -> dict:
+    """Rules per result bucket and impact, as stored in Report.report_counts."""
+    return {
+        bucket: {
+            'total': _count_axe(report, bucket, None),
+            'critical': _count_axe(report, bucket, 'critical'),
+            'serious': _count_axe(report, bucket, 'serious'),
+            'moderate': _count_axe(report, bucket, 'moderate'),
+            'minor': _count_axe(report, bucket, 'minor'),
+        }
+        for bucket in ('violations', 'incomplete', 'passes')
+    }
+
+
 class Report(db.Model):
     __tablename__ = 'report'
     
@@ -120,12 +141,7 @@ class Report(db.Model):
         )
 
     def _count_axe(self,type: AxeReportKeys, impact: str| None) -> int:
-        axereportList:List[AxeResult] = self.report.get(type, [])
-
-        if impact is None:
-            return len(axereportList)
-
-        return sum(1 for v in axereportList if v.get('impact') == impact)
+        return _count_axe(self.report, type, impact)
 
 
     @property
@@ -146,29 +162,7 @@ class Report(db.Model):
         self.base_url = data.get('base_url', '')
         self.timestamp = datetime.fromisoformat(data['timestamp']).replace(tzinfo=timezone.utc)
         self.report = slim_axe_report(data['report'])
-        self.report_counts = {
-            'violations': {
-                'total': self._count_axe("violations", None),
-                'critical': self._count_axe("violations", "critical"),
-                'serious': self._count_axe("violations", "serious"),
-                'moderate': self._count_axe("violations", "moderate"),
-                'minor': self._count_axe("violations", "minor")
-            },
-            "incomplete": {
-                'total': self._count_axe("incomplete", None),
-                'critical': self._count_axe("incomplete", "critical"),
-                'serious': self._count_axe("incomplete", "serious"),
-                'moderate': self._count_axe("incomplete", "moderate"),
-                'minor': self._count_axe("incomplete", "minor")
-            },
-            "passes": {
-                'total': self._count_axe("passes", None),
-                'critical': self._count_axe("passes", "critical"),
-                'serious': self._count_axe("passes", "serious"),
-                'moderate': self._count_axe("passes", "moderate"),
-                'minor': self._count_axe("passes", "minor")
-            }
-        }
+        self.report_counts = compute_report_counts(self.report)
         self.links = data['links']
         self.videos = data['videos']
         self.imgs = data['imgs']

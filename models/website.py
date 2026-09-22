@@ -41,6 +41,24 @@ Site_Website_Assoc = db.Table(
 )
 
 
+def ace_config_for_tags(tags: List[str]) -> str:
+    """The axe.configure() payload with every enabled custom rule matching ``tags``."""
+    all_tags = [tag.strip() for tag in tags or [] if tag and tag.strip()]
+    if not all_tags:
+        logger.debug("No tags found for ACE config")
+        return ""
+
+    filter = [Rule.tags.like(f"%{tag}%") for tag in all_tags]
+    rules = db.session.query(Rule).filter(Rule.enabled == True, or_(*filter)).distinct().all()
+    logger.debug("Generating ACE config for tags %s found %d rules", all_tags, len(rules))
+    all_rules = [rule.to_js_object() for rule in rules]
+    all_checks = set()
+    for rule in rules:
+        all_checks.update(rule.getChecksJson())
+
+    return f"""{{ "checks": [{','.join(list(all_checks))}],"rules": [{','.join(all_rules)}]}}"""
+
+
 class Site(db.Model):
     __tablename__ = 'site'
 
@@ -376,23 +394,7 @@ class Website(db.Model):
         return [cat.strip() for cat in self.categories.split(",")] if self.categories else []
     
     def get_ace_config(self) -> str:
-
-        all_tags = self.get_tags()
-        if not all_tags:
-            logger.debug("No tags found for ACE config")
-            return ""
-        
-        filter = [Rule.tags.like(f"%{tag.strip()}%") for tag in all_tags]
-        rules = db.session.query(Rule).filter(Rule.enabled == True, or_(*filter)).distinct().all()
-        logger.debug("Generating ACE config for website %s with tags %s found %d rules", self.id, self.tags, len(rules))
-        all_rules = [rule.to_js_object() for rule in rules]
-        all_checks = set()
-        
-        for rule in rules:
-            all_checks.update(rule.getChecksJson())
-
-        config = f"""{{ "checks": [{','.join(list(all_checks))}],"rules": [{','.join(all_rules)}]}}"""
-        return config
+        return ace_config_for_tags(self.get_tags())
 
         
 

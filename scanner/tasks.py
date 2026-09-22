@@ -11,7 +11,7 @@ from scanner.log import log_message
 from models import db
 from models.website import Site, Website
 from models.report import Report
-from scanner.scan import generate_reports as async_generate_reports, generate_single_site_report as async_generate_single_site_report
+from scanner.scan import generate_reports as async_generate_reports, generate_single_site_report as async_generate_single_site_report, run_quick_scan as async_run_quick_scan
 from mail.emails import ScanFinishedEmail
 
 
@@ -251,3 +251,28 @@ def prune_reports():
         return {'applied': False, 'deleted': 0, 'photos_stripped': 0, 'sites': summary['sites']}
     result = apply_retention(plan)
     return {'applied': True, 'deleted': result['deleted'], 'photos_stripped': result['photos_stripped'], 'sites': summary['sites']}
+
+
+@celery.task(bind=True, name='scanner.tasks.quick_scan', soft_time_limit=240, time_limit=300)
+def quick_scan(self, url: str):
+    """Audit one page ad hoc. Returns services.quick_scan.shape_result; a page that
+    fails to load is a completed task with status 'failed', only unexpected errors
+    (and the time limit) fail the task."""
+    from models.settings import Settings
+    from models.website import ace_config_for_tags
+    from services.quick_scan import shape_result
+
+    log_message(f"[Celery Task {self.request.id}] Quick scan of {url}", 'info')
+    self.update_state(state='PROGRESS', meta={'status': 'Loading the page…', 'current': 0, 'total': 1, 'url': url})
+    tags = [tag.strip() for tag in (Settings.get('default_tags') or '').split(',') if tag.strip()]
+    ace_config = ace_config_for_tags(tags)
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        report = _run_scan(loop, async_run_quick_scan(url, tags, ace_config), f"quick scan of {url}")
+    finally:
+        loop.close()
+    result = shape_result(report)
+    log_message(f"[Celery Task {self.request.id}] Quick scan of {url} {result['status']}", 'info')
+    return result

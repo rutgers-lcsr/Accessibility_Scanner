@@ -305,6 +305,16 @@ async def store_failure_to_db(site_report: AccessibilityReport, website: Website
 
         
 
+async def run_quick_scan(url: str, tags: List[str], ace_config: str) -> AccessibilityReport:
+    """Audit one page without touching the database (quick scans)."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=BROWSER_ARGS)
+        try:
+            return await generate_report(browser, website=url, tags=tags, ace_config=ace_config)
+        finally:
+            await browser.close()
+
+
 async def generate_single_site_report(site_url:str) -> AccessibilityReport:
     app = get_app()
     scan_error = None

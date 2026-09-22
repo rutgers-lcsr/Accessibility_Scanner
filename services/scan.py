@@ -83,11 +83,13 @@ def resolve_task_target(task_id: str) -> Website | Site | None:
     return db.session.query(Site).filter_by(last_task_id=task_id).first()
 
 
-def serialize_task_state(task_id: str) -> dict:
+def serialize_task_state(task_id: str, light: bool = False) -> dict:
     """Describe a Celery task for status polling.
 
     Always includes ``task_id`` and ``state``; PROGRESS adds ``status``/``current``/
     ``total``, SUCCESS adds ``result`` and FAILURE puts the error text in ``status``.
+    ``light`` drops the report and screenshot from a quick scan's result, which the
+    result endpoint serves instead.
     """
     from celery_app import celery as celery_app
 
@@ -103,7 +105,10 @@ def serialize_task_state(task_id: str) -> dict:
         response['current'] = info.get('current', 0)
         response['total'] = info.get('total', 1)
     elif state == 'SUCCESS':
-        response['result'] = task.result
+        result = task.result
+        if light and isinstance(result, dict):
+            result = {key: value for key, value in result.items() if key not in ('report', 'photo')}
+        response['result'] = result
     else:  # FAILURE, REVOKED, RETRY, ...
         response['status'] = str(task.info) if task.info else ''
 
