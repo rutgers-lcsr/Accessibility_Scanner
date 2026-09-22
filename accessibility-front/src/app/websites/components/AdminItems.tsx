@@ -289,7 +289,7 @@ function AdminItems({ website, mutate }: Props) {
                             <Button
                                 type="primary"
                                 loading={loadingScan}
-                                onClick={startScan}
+                                onClick={() => startScan()}
                                 disabled={loadingScan}
                             >
                                 {loadingScan ? 'Scanning...' : 'Scan Website'}

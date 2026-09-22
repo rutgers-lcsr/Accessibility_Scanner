@@ -16,6 +16,7 @@ import {
     QuestionCircleOutlined,
     SettingOutlined,
     SolutionOutlined,
+    ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Menu } from 'antd';
 import Sider from 'antd/es/layout/Sider';
@@ -42,6 +43,7 @@ export default function TabNav({ user }: Props) {
     const tabRoutes: TabRoute[] = [
         { key: '1', path: '/' },
         { key: '9', path: '/dashboard' },
+        { key: '10', path: '/scan' },
         { key: '2', path: '/websites' },
         { key: '3', path: '/reports' },
         { key: '4', path: '/rules' },
@@ -68,6 +70,7 @@ export default function TabNav({ user }: Props) {
                   { label: 'Domains', key: '5', icon: <CloudOutlined /> },
                   { label: 'Rules', key: '4', icon: <FormOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
+                  { label: 'Quick scan', key: '10', icon: <ThunderboltOutlined /> },
                   { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
                   {
                       label: 'Settings',
@@ -80,6 +83,7 @@ export default function TabNav({ user }: Props) {
                   { label: 'Home', key: '1', icon: <HomeOutlined /> },
                   { label: 'Dashboard', key: '9', icon: <DashboardOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
+                  { label: 'Quick scan', key: '10', icon: <ThunderboltOutlined /> },
                   { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
                   { label: 'Settings', key: '7', icon: <SettingOutlined /> },
                   { label: 'Help', key: '8', icon: <QuestionCircleOutlined /> },

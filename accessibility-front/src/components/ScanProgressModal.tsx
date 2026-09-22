@@ -189,16 +189,26 @@ const ScanProgressModal = ({
                         description={
                             <div>
                                 <p>
-                                    <strong>Website:</strong> {taskStatus.result.website_url}
+                                    <strong>
+                                        {taskStatus.result.website_url ? 'Website' : 'Page'}:
+                                    </strong>{' '}
+                                    {taskStatus.result.website_url ?? taskStatus.result.url}
                                 </p>
-                                <p>
-                                    <strong>Reports Generated:</strong>{' '}
-                                    {taskStatus.result.reports_generated}
-                                </p>
-                                <p>
-                                    <strong>Sites Scanned:</strong>{' '}
-                                    {taskStatus.result.sites_scanned}
-                                </p>
+                                {taskStatus.result.reports_generated !== undefined && (
+                                    <p>
+                                        <strong>Reports Generated:</strong>{' '}
+                                        {taskStatus.result.reports_generated}
+                                    </p>
+                                )}
+                                {taskStatus.result.sites_scanned !== undefined && (
+                                    <p>
+                                        <strong>Sites Scanned:</strong>{' '}
+                                        {taskStatus.result.sites_scanned}
+                                    </p>
+                                )}
+                                {taskStatus.result.status === 'failed' && (
+                                    <p>The page could not be audited: {taskStatus.result.error}</p>
+                                )}
                             </div>
                         }
                         type="success"
