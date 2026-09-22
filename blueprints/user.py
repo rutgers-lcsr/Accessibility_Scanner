@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
+from config import CLIENT_URL
 from flask_jwt_extended import current_user, jwt_required
 from models.user import User
 from models import db
@@ -26,14 +27,22 @@ def unsubscribe():
         return jsonify({'error': 'Token is required'}), 400
 
     payload = decode_jwt_token(token)
-    if not payload or payload.get("error") is not None or payload.get("action") != "subscribe":
+    if not payload or payload.get("error") is not None:
+        return jsonify({'error': 'Invalid token'}), 401
+    if payload.get("action") == "subscribe":
+        # Links from before opt-outs were per user; honouring them would silence the
+        # whole website, which is what they used to do.
+        return jsonify({'error': 'This unsubscribe link is out of date; use the link in a newer email '
+                                 'or the notifications switch on the website page'}), 400
+    if payload.get("action") != "unsubscribe" or not payload.get("user_id"):
         return jsonify({'error': 'Invalid token'}), 401
 
     website = db.session.get(Website, payload.get('website_id'))
-    if not website:
+    user = db.session.get(User, payload.get('user_id'))
+    if not website or not user:
         return jsonify({'error': 'Website not found'}), 404
 
-    website.should_email = False
-    db.session.commit()
+    website.set_subscribed(user, False)
 
-    return jsonify({'message': 'You have been unsubscribed from email notifications.'}), 200
+    # The link is opened in a browser, so answer with a page rather than JSON.
+    return render_template('unsubscribed.html', website=website, client_url=CLIENT_URL), 200

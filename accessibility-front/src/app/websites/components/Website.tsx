@@ -12,6 +12,7 @@ import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
 import AdminItems from './AdminItems';
+import NotificationToggle from './NotificationToggle';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteReport from './WebsiteReport';
@@ -97,6 +98,7 @@ const Website = ({ websiteId, user }: Props) => {
                 {user && user.is_admin && <AdminItems website={websiteReport} mutate={mutate} />}
                 {/** Admin items for the website For Regular Users Usually the Owner of the site */}
                 {isUserPartOfUsers && <WebsiteAdminItems website={websiteReport} mutate={mutate} />}
+                {user && <NotificationToggle website={websiteReport} user={user} />}
                 <h2 className="mb-4 text-lg text-gray-500">
                     Last Scanned:{' '}
                     {websiteReport?.last_scanned

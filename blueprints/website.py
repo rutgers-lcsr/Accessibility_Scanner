@@ -229,6 +229,55 @@ def email_website_report(website_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@website_bp.route('/<int:website_id>/notifications/', methods=['GET', 'PUT'])
+@jwt_required()
+def website_notifications(website_id):
+    """
+    Whether the caller receives this website's notification emails.
+    ---
+    tags:
+        - Websites
+    parameters:
+        - in: path
+          name: website_id
+          type: integer
+          required: true
+        - in: body
+          name: body
+          required: false
+          schema:
+              type: object
+              properties:
+                  subscribed:
+                      type: boolean
+    responses:
+        200:
+            description: subscribed (this user's switch) and website_wide (the admin switch).
+        400:
+            description: subscribed missing or not a boolean.
+        403:
+            description: The caller may not view this website.
+        404:
+            description: Website not found.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    if request.method == 'PUT':
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data.get('subscribed'), bool):
+            return jsonify({'error': 'subscribed must be true or false'}), 400
+        website.set_subscribed(current_user, data['subscribed'])
+
+    return jsonify({
+        'subscribed': website.is_subscribed(current_user),
+        'website_wide': bool(website.should_email),
+    }), 200
+
+
 @website_bp.route('/<int:website_id>/', methods=['PATCH'])
 @jwt_required()
 def update_website(website_id):

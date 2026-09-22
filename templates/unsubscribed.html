@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Unsubscribed</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 3rem auto; max-width: 36rem; padding: 0 1rem; color: #222; }
+        a { color: #cc0033; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>You will no longer receive emails about {{ website.url }}</h1>
+        <p>Scan results for this website will still be available on its page, and you can turn emails back on there at any time.</p>
+        <p><a href="{{ client_url }}/websites/{{ website.id }}">Open the website page</a></p>
+    </main>
+</body>
+</html>

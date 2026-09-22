@@ -23,25 +23,35 @@ def test_unsubscribe_link_round_trip(client, make_user, make_website):
     from models import db
     from utils.jwt import generate_jwt_token
 
-    website = make_website(make_user())
+    owner = make_user()
+    website = make_website(owner)
     website.should_email = True
     db.session.commit()
 
-    token = generate_jwt_token({"action": "subscribe", "website_id": website.id})
+    token = generate_jwt_token({"action": "unsubscribe", "website_id": website.id, "user_id": owner.id})
     resp = client.get(f"/api/users/unsubscribe/?token={token}")
     assert resp.status_code == 200
-    assert website.should_email is False
+    assert "no longer receive" in resp.get_data(as_text=True)
+    assert website.is_subscribed(owner) is False
+    assert website.should_email is True  # only this user, never the whole website
+    assert owner.email not in website.get_user_emails()
 
 
 def test_unsubscribe_rejects_other_tokens(client, make_user, make_website):
     from utils.jwt import generate_jwt_token
 
-    website = make_website(make_user())
+    owner = make_user()
+    website = make_website(owner)
     assert client.get("/api/users/unsubscribe/?token=garbage").status_code == 401
     other = generate_jwt_token({"report_id": 1, "scope": "report-script"})
     assert client.get(f"/api/users/unsubscribe/?token={other}").status_code == 401
     assert client.get("/api/users/unsubscribe/").status_code == 400
+    # links from before opt-outs were per user used to silence the whole website
+    legacy = generate_jwt_token({"action": "subscribe", "website_id": website.id})
+    resp = client.get(f"/api/users/unsubscribe/?token={legacy}")
+    assert resp.status_code == 400 and "out of date" in resp.get_json()["error"]
     assert website.should_email is True  # untouched by the rejected requests
+    assert website.is_subscribed(owner) is True
 
 
 def test_new_website_email_links_to_the_api_unsubscribe_endpoint(app, make_user, make_website):

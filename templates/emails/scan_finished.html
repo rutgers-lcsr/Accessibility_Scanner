@@ -39,4 +39,11 @@
     or visit <a href="https://accessibility.rutgers.edu/">Accessibility Rutgers</a> for university recommendations.
 </p>
 <p>If you have questions or need help, reply to this email or contact the Rutgers LCSR team.</p>
+{% if jwt_token %}
+<p>
+    If you'd like to stop receiving these emails, please visit <a
+        href="{{ client_url }}/api/users/unsubscribe/?token={{ jwt_token }}">unsubscribe</a>.
+    Site admins can switch email off for the whole website from its admin panel.
+</p>
+{% endif %}
 {% endblock content %}

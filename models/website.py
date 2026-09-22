@@ -7,6 +7,7 @@ from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
 from models.assoc import UserWebsiteAssoc
+from models.notifications import NotificationOptOut
 from models.report import AxeReportCounts, Report, ReportMinimized
 from models.rules import Rule
 from models.settings import Settings
@@ -319,14 +320,34 @@ class Website(db.Model):
             if commit:
                 db.session.commit()
                 
-    def get_user_emails(self) -> List[str]:
-        emails = set()
-        if self.admin and self.admin.email:
-            emails.add(self.admin.email)
+    def get_recipients(self) -> List[User]:
+        """The admin and users of this website who have not opted out of its emails."""
+        people = {}
+        if self.admin:
+            people[self.admin.id] = self.admin
         for user in self.users:
-            if user.email:
-                emails.add(user.email)
-        return list(emails)
+            people[user.id] = user
+        opted_out = {
+            row.user_id for row in
+            db.session.query(NotificationOptOut.user_id).filter_by(website_id=self.id).all()
+        }
+        return [user for user_id, user in people.items() if user_id not in opted_out]
+
+    def get_user_emails(self) -> List[str]:
+        return [user.email for user in self.get_recipients() if user.email]
+
+    def is_subscribed(self, user: User) -> bool:
+        return db.session.get(NotificationOptOut, (user.id, self.id)) is None
+
+    def set_subscribed(self, user: User, subscribed: bool, commit: bool = True) -> None:
+        """Opt one user out of (or back into) this website's emails. Idempotent."""
+        row = db.session.get(NotificationOptOut, (user.id, self.id))
+        if subscribed and row is not None:
+            db.session.delete(row)
+        elif not subscribed and row is None:
+            db.session.add(NotificationOptOut(user_id=user.id, website_id=self.id))
+        if commit:
+            db.session.commit()
 
     def get_tags(self) -> List[str]:
         defaultTags = Settings.get(key='default_tags')
