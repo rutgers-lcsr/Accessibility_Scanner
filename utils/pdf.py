@@ -1,4 +1,7 @@
 
+from xml.sax.saxutils import escape
+
+from services.history import CATEGORIES
 import re
 from typing import List
 from typing_extensions import Literal
@@ -235,14 +238,17 @@ def generate_pdf(report:Report) -> bytes:
     elements.append(Spacer(1, 12))
 
 
-    statement = Paragraph("This report provides an overview of the accessibility issues found on the specified URL. It includes counts of rule violations, inaccessible elements, incomplete rules, and passed rules. Rules are categories which the axe-core engine uses to evaluate the accessibility of web content. Once a rule is determined to be run by a matching function, it is executed and the results are reported. Each rule has an associated impact level (e.g. critical, serious, moderate, minor), and checks which determine if a rule passes. Checks include functions give back a boolean based what its testing. Checks are categorized into three types, All checks (all functions must pass), Any (at least one function must pass), and None (no functions must pass) and are part of the rule. Checks might not be exhaustive and Rules may or may not cover all edge cases.", styles['Normal'])
+    statement = Paragraph("This report provides an overview of the accessibility issues found on the specified URL. It includes counts of rule violations, incomplete rules, and passed rules. Rules are categories which the axe-core engine uses to evaluate the accessibility of web content. Once a rule is determined to be run by a matching function, it is executed and the results are reported. Each rule has an associated impact level (e.g. critical, serious, moderate, minor), and checks which determine if a rule passes. Checks include functions give back a boolean based what its testing. Checks are categorized into three types, All checks (all functions must pass), Any (at least one function must pass), and None (no functions must pass) and are part of the rule. Checks might not be exhaustive and Rules may or may not cover all edge cases.", styles['Normal'])
     elements.append(statement)
     
     elements.append(Spacer(1, 12))
 
     # Report Counts
     counts_data = [['Category', 'Total', 'Critical', 'Serious', 'Moderate', 'Minor']]
-    for category, counts in report.report_counts.items():
+    for category in CATEGORIES:
+        counts = report.report_counts.get(category)
+        if not counts:
+            continue
         counts_data.append([
             category.capitalize(),
             counts['total'],
@@ -378,29 +384,19 @@ def generate_pdf(report:Report) -> bytes:
     
     elements.append(Spacer(1, 14))
     
+    # Passing rules are stored without their nodes (see slim_axe_report): one line each.
     passes = report.report.get('passes', [])
     if passes and len(passes) > 0:
         elements.append(Paragraph("Passed Checks:", styles['Heading2']))
         for check in passes:
-            create_result_section(check, type="pass")
-            elements.append(create_nodes_table(check.get('nodes', []), type="pass"))
-            elements.append(Spacer(1, 6))
-            
+            count = check.get('node_count', len(check.get('nodes') or []))
+            elements.append(Paragraph(
+                f"{escape(str(check.get('id', '')))}: {escape(str(check.get('help', '')))} ({count} elements)",
+                styles['Normal'],
+            ))
+        elements.append(Spacer(1, 6))
     else:
         elements.append(Paragraph("No passed checks found.", styles['Heading2']))
-    
-    elements.append(Spacer(1, 14))
-    
-    inaccessible = report.report.get('inaccessible', [])
-    if inaccessible and len(inaccessible) > 0:
-        elements.append(Paragraph("Inaccessible Elements:", styles['Heading2']))
-        for check in inaccessible:
-            create_result_section(check, type="inaccessible")
-            elements.append(create_nodes_table(check.get('nodes', []), type="inaccessible"))
-            elements.append(Spacer(1, 6))
-            
-    else:
-        elements.append(Paragraph("No inaccessible elements found.", styles['Heading3']))
     
     elements.append(Spacer(1, 14))
 

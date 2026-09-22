@@ -66,6 +66,42 @@ class WebsiteAxeReport(TypedDict):
 AxeReportKeys = Literal["violations", "passes", "incomplete", "inapplicable"]
 
 
+class AxeResultSummary(TypedDict, total=False):
+    """A rule without its nodes: how passes and inapplicable results are stored."""
+    id: str
+    impact: Optional[Literal["minor", "moderate", "serious", "critical"]]
+    description: str
+    help: str
+    helpUrl: str
+    tags: List[str]
+    node_count: int
+
+
+_SUMMARISED_KEYS = ("passes", "inapplicable")
+_SUMMARY_FIELDS = ("id", "impact", "description", "help", "helpUrl", "tags")
+
+
+def _summarise(rule: dict) -> AxeResultSummary:
+    summary = {key: rule[key] for key in _SUMMARY_FIELDS if key in rule}
+    summary["node_count"] = rule.get("node_count", len(rule.get("nodes") or []))
+    return summary
+
+
+def slim_axe_report(report: AxeReport) -> AxeReport:
+    """Drop the node lists of passing and inapplicable rules, keeping a node count.
+
+    Those two lists are most of an axe result (a typical page carries the HTML of
+    150+ passing nodes) and nobody acts on them; violations and incomplete keep their
+    nodes. Idempotent, so it is safe to run over reports that are already slim.
+    """
+    slim = dict(report or {})
+    for key in _SUMMARISED_KEYS:
+        rules = slim.get(key)
+        if rules:
+            slim[key] = [_summarise(rule) for rule in rules]
+    return slim
+
+
 
 
 def get_axe_config(axe_config:str) -> str:

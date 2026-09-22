@@ -25,6 +25,11 @@ export type AxeResult = {
     nodes: AxeNode[];
 };
 
+// Passing and inapplicable rules are stored without their nodes, only a count.
+export type AxeResultSummary = Omit<AxeResult, 'nodes'> & {
+    node_count: number;
+};
+
 export type WebsiteAxeResultReport = {
     url: string;
     timestamp: string;
@@ -36,14 +41,14 @@ export type WebsiteAxeResult = AxeResult & {
 
 export type AxeReport = {
     violations: AxeResult[];
-    passes: AxeResult[];
-    inapplicable: AxeResult[];
+    passes: AxeResultSummary[];
+    inapplicable: AxeResultSummary[];
     incomplete: AxeResult[];
 };
 export type WebsiteAxeReport = {
     violations: WebsiteAxeResult[];
-    passes: WebsiteAxeResult[];
-    inapplicable: WebsiteAxeResult[];
+    passes: (AxeResultSummary & { reports: WebsiteAxeResultReport[] })[];
+    inapplicable: (AxeResultSummary & { reports: WebsiteAxeResultReport[] })[];
     incomplete: WebsiteAxeResult[];
 };
 

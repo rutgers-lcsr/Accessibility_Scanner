@@ -9,9 +9,9 @@ from models.user import User
 from . import db
 from utils.jwt import generate_jwt_token
 from scanner.browser.report import AccessibilityReport
-from scanner.accessibility.ace import AxeReport, AxeReportKeys, AxeResult
+from scanner.accessibility.ace import AxeReport, AxeReportKeys, AxeResult, slim_axe_report
 from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, deferred
 class AxeReportCounts(TypedDict, total=False):
     total: int
     critical: int
@@ -59,7 +59,9 @@ class Report(db.Model):
     videos: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     imgs: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     tabable: Mapped[bool] = db.Column(db.Boolean, nullable=False)
-    photo: Mapped[bytes] = db.Column(LargeBinary(2**32 -1), nullable=True)
+    # Deferred: list queries and to_dict never need the screenshot; it is loaded only
+    # by the photo endpoint, which selects the column on its own.
+    photo: Mapped[bytes] = deferred(db.Column(LargeBinary(2**32 -1), nullable=True))
     tags: Mapped[List[str]] = db.Column(db.JSON, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
@@ -135,7 +137,7 @@ class Report(db.Model):
         self.response_code = data.get('response_code', None)
         self.base_url = data.get('base_url', '')
         self.timestamp = datetime.fromisoformat(data['timestamp']).replace(tzinfo=timezone.utc)
-        self.report = data['report']
+        self.report = slim_axe_report(data['report'])
         self.report_counts = {
             'violations': {
                 'total': self._count_axe("violations", None),
@@ -143,13 +145,6 @@ class Report(db.Model):
                 'serious': self._count_axe("violations", "serious"),
                 'moderate': self._count_axe("violations", "moderate"),
                 'minor': self._count_axe("violations", "minor")
-            },
-            "inaccessible": {
-                'total': self._count_axe("inaccessible", None),
-                'critical': self._count_axe("inaccessible", "critical"),
-                'serious': self._count_axe("inaccessible", "serious"),
-                'moderate': self._count_axe("inaccessible", "moderate"),
-                'minor': self._count_axe("inaccessible", "minor")
             },
             "incomplete": {
                 'total': self._count_axe("incomplete", None),

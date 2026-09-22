@@ -140,7 +140,7 @@ def _fake_site(pages):
             "url": website,
             "base_url": "https://example.com",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "report": {"violations": [], "incomplete": [], "inaccessible": [], "passes": []},
+            "report": {"violations": [], "incomplete": [], "passes": []},
             "links": pages[website],
             "videos": [],
             "imgs": [],

@@ -26,7 +26,7 @@ def _full_report(url):
         "url": url,
         "base_url": "https://example.com",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "report": {"violations": [], "incomplete": [], "inaccessible": [], "passes": []},
+        "report": {"violations": [], "incomplete": [], "passes": []},
         "links": [],
         "videos": [],
         "imgs": [],

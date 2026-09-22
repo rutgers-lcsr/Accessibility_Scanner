@@ -7,6 +7,8 @@ output matches the in-app button.
 """
 from typing import TYPE_CHECKING, List
 
+from services.history import CATEGORIES
+
 if TYPE_CHECKING:
     from models.report import Report
     from models.website import Website
@@ -14,7 +16,6 @@ if TYPE_CHECKING:
 # Result categories rendered in the human-readable report, in priority order.
 _SECTIONS = [
     ("violations", "Violations"),
-    ("inaccessible", "Inaccessible Elements"),
     ("incomplete", "Incomplete Checks"),
 ]
 
@@ -37,7 +38,10 @@ def report_to_markdown(report: 'Report') -> str:
     lines.append("")
     lines.append("| Category | Total | Critical | Serious | Moderate | Minor |")
     lines.append("| --- | --- | --- | --- | --- | --- |")
-    for category, counts in report.report_counts.items():
+    for category in CATEGORIES:
+        counts = report.report_counts.get(category)
+        if not counts:
+            continue
         lines.append(
             f"| {category.capitalize()} | {counts['total']} | {counts['critical']} | "
             f"{counts['serious']} | {counts['moderate']} | {counts['minor']} |"

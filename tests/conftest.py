@@ -110,7 +110,7 @@ def add_report(app):
     from models import db
     from models.report import Report
 
-    def _make(site, url=None, when=None, violations=None):
+    def _make(site, url=None, when=None, violations=None, passes=None, photo=None):
         if when is None:
             when = datetime.now(timezone.utc)
         if violations is None:
@@ -137,14 +137,13 @@ def add_report(app):
             "report": {
                 "violations": violations,
                 "incomplete": [],
-                "inaccessible": [],
-                "passes": [],
+                "passes": passes or [],
             },
             "links": [],
             "videos": [],
             "imgs": [],
             "tabable": True,
-            "photo": None,
+            "photo": photo,
             "tags": ["wcag2a"],
         }
         report = Report(data, site.id)

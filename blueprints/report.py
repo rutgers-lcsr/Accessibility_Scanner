@@ -1,11 +1,9 @@
-from flask import Blueprint, Response
-from flask import request, jsonify
+from flask import Blueprint, Response, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 from sqlalchemy import func 
 from models.report import Report
 from models import db
-from PIL import Image
-import io
+from sqlalchemy.orm import defer
 
 from models.user import User
 from models.website import Site
@@ -27,7 +25,8 @@ def get_reports():
 
     order_by = Report.timestamp.desc() if desc else Report.timestamp.asc()
 
-    reports_q = db.session.query(Report).order_by(order_by, func.json_extract(Report.report_counts, '$.violations.total').desc())
+    # The listing serialises without the report JSON (and the photo is deferred).
+    reports_q = db.session.query(Report).options(defer(Report.report)).order_by(order_by, func.json_extract(Report.report_counts, '$.violations.total').desc())
 
 
     if search:
@@ -117,16 +116,16 @@ def get_report_photo(report_id):
     if not report.can_view(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
 
-    if not report.photo:
+    # The column is deferred: load just the bytes, not the report JSON again.
+    photo = db.session.query(Report.photo).filter(Report.id == report_id).scalar()
+    if not photo:
         return jsonify({'error': 'This report has no screenshot'}), 404
 
-    if not report.photo:
-        return jsonify({'error': 'This report has no screenshot'}), 404
-
-    image = Image.open(io.BytesIO(report.photo))
-
-    img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format='PNG')
-    img_byte_arr.seek(0)
-
-    return Response(img_byte_arr, mimetype='image/png')
+    # Playwright already produced a PNG; serve it as is. A report's screenshot never
+    # changes, so the browser may keep it (per user) and revalidate by ETag.
+    response = Response(photo, mimetype='image/png')
+    response.set_etag(f"report-{report.id}-{len(photo)}")
+    response.last_modified = report.timestamp
+    response.cache_control.private = True
+    response.cache_control.max_age = 86400
+    return response.make_conditional(request)

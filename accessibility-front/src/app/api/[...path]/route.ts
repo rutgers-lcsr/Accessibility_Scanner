@@ -35,6 +35,9 @@ const FORWARDED_REQUEST_HEADERS = [
     'user-agent',
     'x-api-key',
     'x-forwarded-for',
+    // conditional requests, so cached screenshots revalidate instead of re-downloading
+    'if-none-match',
+    'if-modified-since',
 ];
 
 // Only these backend headers reach the client. Set-Cookie must not, and the body is
@@ -43,6 +46,8 @@ const FORWARDED_RESPONSE_HEADERS = [
     'content-type',
     'content-disposition',
     'cache-control',
+    'etag',
+    'last-modified',
     'retry-after',
     'x-ratelimit-limit',
     'x-ratelimit-remaining',

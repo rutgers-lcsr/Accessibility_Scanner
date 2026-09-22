@@ -24,14 +24,13 @@ type Props = {
 
 const CATEGORY_LABELS: Record<HistoryCategory, string> = {
     violations: 'Violations',
-    inaccessible: 'Inaccessible',
     incomplete: 'Incomplete',
     passes: 'Passes',
 };
 
-// Severity-aligned palette (matches the red/orange/yellow used elsewhere), green for passes.
+// Severity-aligned palette (matches the red/yellow used elsewhere), green for passes.
 // Order matches HISTORY_CATEGORIES, which is the order categories first appear in the data.
-const CATEGORY_COLORS = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a'];
+const CATEGORY_COLORS = ['#dc2626', '#ca8a04', '#16a34a'];
 
 const IMPACTS = ['critical', 'serious', 'moderate', 'minor'] as const;
 const IMPACT_LABELS: Record<(typeof IMPACTS)[number], string> = {

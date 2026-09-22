@@ -6,7 +6,7 @@ aggregate point per day on which any page was scanned. Carrying the latest count
 forward keeps a day's total correct when only some pages were rescanned that day.
 """
 
-CATEGORIES = ('violations', 'inaccessible', 'incomplete', 'passes')
+CATEGORIES = ('violations', 'incomplete', 'passes')
 SUBKEYS = ('total', 'critical', 'serious', 'moderate', 'minor')
 
 
