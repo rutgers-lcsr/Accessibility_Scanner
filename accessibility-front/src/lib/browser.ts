@@ -26,6 +26,14 @@ function getInitalPageSize(): PageSize {
     return 5;
 }
 
+function savePageSize(size: PageSize): void {
+    try {
+        localStorage.setItem('websitePageSize', String(size));
+    } catch {
+        // storage unavailable (private mode, blocked): the choice lasts for this page only
+    }
+}
+
 const pageSizeOptions = ['5', '10', '20', '50', '100'];
 export type PageSize = 5 | 10 | 20 | 50 | 100;
 
@@ -65,4 +73,4 @@ function getCurrentBrowser(userAgent: string | undefined): Browser {
     return null;
 }
 
-export { getAxeLink, getCurrentBrowser, getInitalPageSize, pageSizeOptions };
+export { getAxeLink, getCurrentBrowser, getInitalPageSize, pageSizeOptions, savePageSize };

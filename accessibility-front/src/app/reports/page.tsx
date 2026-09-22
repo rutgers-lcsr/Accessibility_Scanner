@@ -5,12 +5,15 @@ import { Report as ReportType } from '@/lib/types/axe';
 import { useReports } from '@/providers/Reports';
 import { Flex, Input, Pagination, Table } from 'antd';
 import { format } from 'date-fns';
+import Link from 'next/link';
 const columns = [
     {
         title: 'Url',
         dataIndex: 'url',
         key: 'url',
-        render: (text: string, record: ReportType) => <a href={`/reports/${record.id}`}>{text}</a>,
+        render: (text: string, record: ReportType) => (
+            <Link href={`/reports/${record.id}`}>{text}</Link>
+        ),
     },
     {
         title: 'Timestamp',
@@ -48,6 +51,7 @@ export default function ReportPage() {
         setReportLimit,
         reportsTotal,
         ReportPage,
+        ReportSearch,
     } = useReports();
 
     return (
@@ -64,8 +68,9 @@ export default function ReportPage() {
                         <Input.Search
                             className="w-64"
                             placeholder="Search reports"
+                            key={ReportSearch}
+                            defaultValue={ReportSearch}
                             onSearch={(value) => {
-                                // console.log(value);
                                 setReportSearch(value);
                             }}
                             loading={isLoading}
@@ -98,7 +103,7 @@ export default function ReportPage() {
                     <Flex style={{ padding: '16px 0' }} justify="center">
                         <Pagination
                             showSizeChanger
-                            defaultCurrent={ReportPage}
+                            current={ReportPage}
                             total={reportsTotal}
                             pageSize={ReportLimit}
                             pageSizeOptions={pageSizeOptions}

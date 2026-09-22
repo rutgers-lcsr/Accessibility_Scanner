@@ -1,6 +1,7 @@
 'use client';
 import { APIError, fetcherApi } from '@/lib/api';
-import { getInitalPageSize, PageSize } from '@/lib/browser';
+import { getInitalPageSize, PageSize, savePageSize } from '@/lib/browser';
+import { pageParam, useUrlFilters } from '@/lib/urlFilters';
 import { Paged } from '@/lib/types/Paged';
 import { PublicUser } from '@/lib/types/user';
 import { Website } from '@/lib/types/website';
@@ -24,16 +25,21 @@ type WebsitesContextType = {
     isLoading: boolean;
     WebsitePage: number;
     WebsiteLimit: number;
+    WebsiteSearch: string;
+    WebsiteCategories: string[];
+    WebsiteOrderBy: WebsiteOrder;
     categories?: string[];
     requestWebsite: (url: string, options?: NewWebsiteOptions) => Promise<Website | null>;
     setWebsiteSearch: (query: string) => void;
     setWebsitePage: (page: number) => void;
     setWebsiteLimit: (limit: PageSize) => void;
     setWebsiteCategories: (categories: string[]) => void;
-    setWebsiteOrderBy: (orderBy: 'url' | 'violations' | 'last_scanned') => void;
+    setWebsiteOrderBy: (orderBy: WebsiteOrder) => void;
     openWebsite: (id: number) => void;
     exportCSV: () => void;
 };
+
+export type WebsiteOrder = 'url' | 'violations' | 'last_scanned';
 
 const WebsitesContext = createContext<WebsitesContextType | undefined>(undefined);
 
@@ -43,12 +49,29 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
 }) => {
     const router = useRouter();
 
-    // website query options
-    const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(getInitalPageSize);
-    const [searchUrl, setSearchUrl] = useState('');
-    const [searchCategories, setSearchCategories] = useState<string[]>([]);
-    const [orderBy, setOrderBy] = useState<'url' | 'violations' | 'last_scanned'>('url');
+    // Website query options. Search, categories, order and page live in the URL (see
+    // useUrlFilters) so they are still there after opening a website and coming back;
+    // the page size is a per-browser preference kept in localStorage.
+    const { params, setFilters } = useUrlFilters();
+    const page = pageParam(params.get('page'));
+    const searchUrl = params.get('search') ?? '';
+    const searchCategories = params.get('category')?.split(',').filter(Boolean) ?? [];
+    const orderParam = params.get('orderBy');
+    const orderBy: WebsiteOrder =
+        orderParam === 'violations' || orderParam === 'last_scanned' ? orderParam : 'url';
+    const [limit, setLimitState] = useState(getInitalPageSize);
+
+    const setPage = (next: number) => setFilters({ page: next > 1 ? String(next) : null });
+    // Changing what is listed starts again from the first page.
+    const setSearchUrl = (query: string) => setFilters({ search: query || null, page: null });
+    const setSearchCategories = (next: string[]) =>
+        setFilters({ category: next.join(',') || null, page: null });
+    const setOrderBy = (next: WebsiteOrder) =>
+        setFilters({ orderBy: next !== 'url' ? next : null, page: null });
+    const setLimit = (next: PageSize) => {
+        savePageSize(next);
+        setLimitState(next);
+    };
 
     const { handlerUserApiRequest } = useUser();
 
@@ -116,6 +139,9 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
                 categories: categories,
                 WebsitePage: page,
                 WebsiteLimit: limit,
+                WebsiteSearch: searchUrl,
+                WebsiteCategories: searchCategories,
+                WebsiteOrderBy: orderBy,
                 setWebsitePage: setPage,
                 setWebsiteLimit: setLimit,
                 setWebsiteSearch: setSearchUrl,

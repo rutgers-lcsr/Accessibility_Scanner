@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { formatDate } from 'date-fns';
+import Link from 'next/link';
 import CreateWebsite from './modals/createWebsite';
 type Props = {
     user: PublicUser | null;
@@ -34,6 +35,9 @@ function Websites({ user }: Props) {
         setWebsiteOrderBy,
         categories,
         WebsitePage,
+        WebsiteSearch,
+        WebsiteCategories,
+        WebsiteOrderBy,
         isLoading,
         setWebsiteSearch,
         exportCSV,
@@ -45,7 +49,7 @@ function Websites({ user }: Props) {
             dataIndex: 'url',
             key: 'url',
             render: (text: string, record: WebsiteType) => (
-                <a href={`/websites/${record.id}`}>{text}</a>
+                <Link href={`/websites/${record.id}`}>{text}</Link>
             ),
         },
         {
@@ -109,6 +113,7 @@ function Websites({ user }: Props) {
                         <Select
                             className="w-96"
                             placeholder="Filter by category"
+                            value={WebsiteCategories}
                             onChange={(value) => setWebsiteCategories(value)}
                             allowClear
                             mode="multiple"
@@ -132,7 +137,7 @@ function Websites({ user }: Props) {
                                         setWebsiteOrderBy(value);
                                     }
                                 }}
-                                defaultValue="url"
+                                value={WebsiteOrderBy}
                                 size="middle"
                             >
                                 <Select.Option value="url">URL</Select.Option>
@@ -144,6 +149,8 @@ function Websites({ user }: Props) {
                         <Input.Search
                             className="w-96"
                             placeholder="Search websites"
+                            key={WebsiteSearch}
+                            defaultValue={WebsiteSearch}
                             onSearch={(value) => setWebsiteSearch(value)}
                             loading={isLoading}
                             allowClear
@@ -192,7 +199,7 @@ function Websites({ user }: Props) {
                     <Flex style={{ padding: '16px 0' }} justify="center">
                         <Pagination
                             showSizeChanger
-                            defaultCurrent={WebsitePage}
+                            current={WebsitePage}
                             total={websitesTotal || 0}
                             onShowSizeChange={(current, pageSize) => {
                                 setWebsiteLimit(pageSize as PageSize);
