@@ -7,6 +7,7 @@ from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
 from models.assoc import UserWebsiteAssoc
+from models.finding import Finding  # noqa: F401  (registers the model for create_all)
 from models.notifications import NotificationOptOut
 from models.report import AxeReportCounts, Report, ReportMinimized
 from models.rules import Rule
@@ -49,6 +50,7 @@ class Site(db.Model):
     last_scanned: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     websites: Mapped[List['Website']] = db.relationship('Website', secondary=Site_Website_Assoc, back_populates='sites', lazy='dynamic')
     reports: Mapped[List['Report']] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
+    findings: Mapped[List['Finding']] = db.relationship('Finding', back_populates='site', lazy='dynamic', cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     # Id of the most recent scan task; never cleared, used to authorise status polling.
@@ -118,6 +120,13 @@ class Site(db.Model):
             if website.can_view(user):
                 return True
         return False
+
+    def can_edit(self, user: User) -> bool:
+        """Editing a page's findings needs edit rights on one of its websites."""
+        if not user:
+            return False
+        return any(website.can_edit(user) for website in self.websites)
+
     @hybrid_property
     def public(self) -> bool:
         for website in self.websites:

@@ -37,7 +37,7 @@ COPY templates/ ./templates/
 COPY migrations/ ./migrations/
 COPY utils/ ./utils/
 COPY static/ ./static/
-COPY app.py celery_app.py config.py init.sh ./
+COPY app.py celery_app.py commands.py config.py init.sh ./
 
 RUN chmod +x /app/init.sh
 

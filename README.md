@@ -111,6 +111,12 @@ Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)
 
 The application can be deployed using Docker. A sample `docker-compose.yml` file as well as a `.env.docker.example`. For more details visit the .env.docker.example file.
 
+## Maintenance commands
+
+Run inside the API container, for example `docker compose exec a11y-api flask findings backfill`.
+
+- `flask findings backfill [--batch 50] [--website <id>]`: creates findings (one row per failing element, tracked across scans) from the latest report of every page that has not been synced yet. Run it once after deploying the findings feature; it is safe to run again.
+
 ## Notes
 
 - Ensure that Backend API is not publicly accessible without proper authentication and authorization. Frontend should handle user authentication and restrict access to authorized users only.

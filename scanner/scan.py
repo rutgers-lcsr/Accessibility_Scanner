@@ -15,6 +15,7 @@ from models.report import Report
 from models.settings import Settings
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
+from services.findings import refresh_suppressed_counts, sync_report_findings
 from utils.urls import get_full_url, get_netloc, get_site_netloc, get_website_url, normalize_url
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -180,6 +181,22 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
             log_message(f"[Worker {name}] Processed {site}, websites left: {queue.qsize()} currently processing: {len(currently_processing)} sites_done: {len(sites_done)}", 'info')
 
 
+def _attach_findings(report: Report, site: Site) -> None:
+    """Bring the page's findings in line with a report that has just been committed.
+
+    Runs in its own transaction: a failure here (for instance two scans of the same
+    page racing on the unique fingerprint) is logged, leaves the report in place with
+    ``suppressed_counts`` NULL, and ``flask findings backfill`` repairs it later.
+    """
+    try:
+        sync_report_findings(site.id, report.id, report.timestamp, (report.report or {}).get('violations') or [])
+        refresh_suppressed_counts(site.id, report.id)
+        commit_with_retry()
+    except Exception as e:
+        log_message(f"Finding sync failed for {report.url}: {e}", 'error')
+        db.session.rollback()
+
+
 async def store_report_to_db(site_report: AccessibilityReport, website: Website, app):
     """Store a single report to the database immediately after scanning."""
     def _store_in_db():
@@ -209,6 +226,7 @@ async def store_report_to_db(site_report: AccessibilityReport, website: Website,
                 db.session.add(report)
                 db.session.add(site)
                 commit_with_retry()
+                _attach_findings(report, site)
                 return site.id
             except Exception as e:
                 log_message(f"Error storing report for {site_report['url']}: {str(e)}", 'error')
@@ -331,6 +349,7 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
                         db.session.add(report_obj)
                         db.session.add(site)
                         commit_with_retry()
+                        _attach_findings(report_obj, site)
                         report_result = report
                         
             log_message(f"Finished report for {site_url}", 'info')

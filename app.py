@@ -132,6 +132,9 @@ def create_app():
     app.register_blueprint(api_keys_bp, url_prefix='/api/users/me/api-keys')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
+    from commands import findings_cli
+    app.cli.add_command(findings_cli)
+
     with app.app_context():
         inspector = inspect(db.engine)
         # force schema default to db.engine.url.database

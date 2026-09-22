@@ -55,6 +55,8 @@ class Report(db.Model):
     timestamp: Mapped[datetime] = db.Column(db.DateTime, nullable=False)
     report: AxeReport = db.Column(db.JSON, nullable=False)
     report_counts: Mapped[dict[AxeReportKeys, AxeReportCounts]] = db.Column(db.JSON, nullable=False)
+    # Rules whose findings are all suppressed (services.findings); NULL until synced.
+    suppressed_counts: Mapped[dict | None] = db.Column(db.JSON, nullable=True)
     links: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     videos: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
     imgs: Mapped[List[str]] = db.Column(db.JSON, nullable=False)
