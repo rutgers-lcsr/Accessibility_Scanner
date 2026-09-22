@@ -11,6 +11,7 @@ const ALLOWED_PATHS = [
     '/api/auth/logout',
     '/api/dashboard',
     '/api/domains',
+    '/api/findings',
     '/api/reports',
     '/api/sites',
     '/api/users',

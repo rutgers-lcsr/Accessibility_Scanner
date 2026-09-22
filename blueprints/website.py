@@ -12,7 +12,9 @@ from sqlalchemy import case, func
 from flask_sqlalchemy import pagination
 
 from scanner.utils.service import check_url
-from services.history import daily_history
+from services.history import daily_history, effective_counts
+from models.finding import FINDING_STATUSES
+from services.findings import bulk_set_status, list_findings
 from utils.limiter import limiter
 from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
@@ -276,6 +278,122 @@ def website_notifications(website_id):
         'subscribed': website.is_subscribed(current_user),
         'website_wide': bool(website.should_email),
     }), 200
+
+
+FINDING_LISTING_STATUSES = ('current', 'open', 'suppressed', 'fixed', 'all')
+
+
+@website_bp.route('/<int:website_id>/findings/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_findings(website_id):
+    """
+    The website's findings grouped by rule and page.
+    ---
+    tags:
+        - Findings
+    parameters:
+        - in: path
+          name: website_id
+          type: integer
+          required: true
+        - in: query
+          name: status
+          type: string
+          enum: [current, open, suppressed, fixed, all]
+          default: current
+          description: current = present in each page's latest report.
+        - in: query
+          name: rule
+          type: string
+          description: Only this axe rule id.
+    responses:
+        200:
+            description: count and rules, each with per-status counts and pages.
+        403:
+            description: The caller may not view this website.
+        404:
+            description: Website not found.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not current_user and not website.public:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if current_user and not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    status = request.args.get('status', 'current')
+    if status not in FINDING_LISTING_STATUSES:
+        return jsonify({'error': f"status must be one of {', '.join(FINDING_LISTING_STATUSES)}"}), 400
+    site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
+    return jsonify(list_findings(site_ids, status, request.args.get('rule'))), 200
+
+
+@website_bp.route('/<int:website_id>/findings/bulk/', methods=['POST'])
+@jwt_required()
+def bulk_update_website_findings(website_id):
+    """
+    Apply one verdict to every current finding of a rule on this website (or one page).
+    ---
+    tags:
+        - Findings
+    parameters:
+        - in: path
+          name: website_id
+          type: integer
+          required: true
+        - in: body
+          name: body
+          required: true
+          schema:
+              type: object
+              properties:
+                  rule_id:
+                      type: string
+                  status:
+                      type: string
+                      enum: [open, fixed, false_positive, accepted]
+                  note:
+                      type: string
+                  site_id:
+                      type: integer
+                      description: Limit to one page of the website.
+    responses:
+        200:
+            description: updated = number of findings changed.
+        400:
+            description: Missing rule_id, unknown status, or a page not on this website.
+        403:
+            description: The caller may not edit this website.
+        404:
+            description: Website not found.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not website.can_edit(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    data = request.get_json(silent=True) or {}
+    rule_id = data.get('rule_id')
+    if not isinstance(rule_id, str) or not rule_id.strip():
+        return jsonify({'error': 'rule_id is required'}), 400
+    status = data.get('status')
+    if status not in FINDING_STATUSES:
+        return jsonify({'error': f"status must be one of {', '.join(FINDING_STATUSES)}"}), 400
+    note = data.get('note')
+    if note is not None and not isinstance(note, str):
+        return jsonify({'error': 'note must be text'}), 400
+
+    site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
+    if data.get('site_id') is not None:
+        if data['site_id'] not in site_ids:
+            return jsonify({'error': 'That page is not part of this website'}), 400
+        site_ids = [data['site_id']]
+
+    updated = bulk_set_status(site_ids, rule_id.strip(), status, note, current_user.id)
+    db.session.commit()
+    return jsonify({'updated': updated}), 200
 
 
 @website_bp.route('/<int:website_id>/', methods=['PATCH'])
@@ -787,7 +905,10 @@ def get_website_sites(website_id):
             (Report.site_id == Site.id) &
             (Report.timestamp == latest_report_subq.c.max_timestamp)
         )
-        .order_by(func.json_extract(Report.report_counts, '$.violations.total').desc())
+        .order_by((
+            func.json_extract(Report.report_counts, '$.violations.total')
+            - func.coalesce(func.json_extract(Report.suppressed_counts, '$.total'), 0)
+        ).desc())
     )
 
     sites = sites_query.paginate(page=page, per_page=limit)
@@ -839,13 +960,13 @@ def get_website_history(website_id):
     # Pull only (site_id, timestamp, report_counts) for every report of this
     # website's URLs, oldest -> newest. Avoid loading the heavy report/photo blobs.
     reports = (
-        db.session.query(Report.site_id, Report.timestamp, Report.report_counts)
+        db.session.query(Report.site_id, Report.timestamp, Report.report_counts, Report.suppressed_counts)
         .join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Report.site_id)
         .filter(Site_Website_Assoc.c.website_id == website_id)
         .order_by(Report.timestamp.asc())
         .all()
     )
-    items = daily_history(reports)
+    items = daily_history([(site_id, ts, effective_counts(counts, suppressed)) for site_id, ts, counts, suppressed in reports])
 
     return jsonify({'count': len(items), 'items': items}), 200
 

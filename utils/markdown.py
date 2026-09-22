@@ -39,7 +39,7 @@ def report_to_markdown(report: 'Report') -> str:
     lines.append("| Category | Total | Critical | Serious | Moderate | Minor |")
     lines.append("| --- | --- | --- | --- | --- | --- |")
     for category in CATEGORIES:
-        counts = report.report_counts.get(category)
+        counts = report.effective_counts.get(category)
         if not counts:
             continue
         lines.append(

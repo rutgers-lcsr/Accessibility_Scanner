@@ -246,7 +246,7 @@ def generate_pdf(report:Report) -> bytes:
     # Report Counts
     counts_data = [['Category', 'Total', 'Critical', 'Serious', 'Moderate', 'Minor']]
     for category in CATEGORIES:
-        counts = report.report_counts.get(category)
+        counts = report.effective_counts.get(category)
         if not counts:
             continue
         counts_data.append([

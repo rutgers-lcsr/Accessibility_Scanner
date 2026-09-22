@@ -10,6 +10,21 @@ CATEGORIES = ('violations', 'incomplete', 'passes')
 SUBKEYS = ('total', 'critical', 'serious', 'moderate', 'minor')
 
 
+def effective_counts(report_counts: dict | None, suppressed_counts: dict | None) -> dict | None:
+    """``report_counts`` with the suppressed rules (false positive / accepted findings,
+    see services.findings) taken out of the violations bucket. Old reports have no
+    snapshot and come back unchanged."""
+    if not report_counts or not suppressed_counts:
+        return report_counts
+    counts = {category: dict(values) for category, values in report_counts.items()}
+    violations = counts.get('violations')
+    if violations:
+        for key, taken in suppressed_counts.items():
+            if key in violations:
+                violations[key] = max(0, (violations[key] or 0) - (taken or 0))
+    return counts
+
+
 def empty_counts() -> dict:
     return {category: {subkey: 0 for subkey in SUBKEYS} for category in CATEGORIES}
 

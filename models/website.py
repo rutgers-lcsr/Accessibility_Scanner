@@ -10,6 +10,7 @@ from models.assoc import UserWebsiteAssoc
 from models.finding import Finding  # noqa: F401  (registers the model for create_all)
 from models.notifications import NotificationOptOut
 from models.report import AxeReportCounts, Report, ReportMinimized
+from services.history import effective_counts
 from models.rules import Rule
 from models.settings import Settings
 from models.user import User
@@ -66,14 +67,15 @@ class Site(db.Model):
 
     @hybrid_method
     def get_recent_report(self) -> ReportMinimized | None:
-        report = self.reports.order_by(Report.timestamp.desc()).with_entities(Report.id, Report.url, Report.report_counts, Report.timestamp).first()
+        report = self.reports.order_by(Report.timestamp.desc()).with_entities(Report.id, Report.url, Report.report_counts, Report.suppressed_counts, Report.timestamp).first()
         if report is None:
             # A page whose scans have all failed has no report yet.
             return None
         report = {
             'id': report.id,
             'url': report.url,
-            'report_counts': report.report_counts,
+            'report_counts': effective_counts(report.report_counts, report.suppressed_counts),
+            'suppressed_counts': report.suppressed_counts,
             'timestamp': report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else None
         }
         return report
@@ -162,7 +164,7 @@ class Site(db.Model):
     def to_dict(self) -> SiteDict:
 
 
-        reports = self.reports.order_by(Report.timestamp.desc()).limit(5).with_entities(Report.id, Report.url, Report.report_counts, Report.timestamp).all()
+        reports = self.reports.order_by(Report.timestamp.desc()).limit(5).with_entities(Report.id, Report.url, Report.report_counts, Report.suppressed_counts, Report.timestamp).all()
     
         return {
             'id': self.id,
@@ -173,7 +175,7 @@ class Site(db.Model):
             'websites': [website.id for website in self.websites],
             'reports': [{
                 'id': report.id,
-                'report_counts': report.report_counts,
+                'report_counts': effective_counts(report.report_counts, report.suppressed_counts),
                 'timestamp': report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else None,
                 'url': report.url
             } for report in reports],
@@ -476,15 +478,22 @@ class Website(db.Model):
             .subquery()
         )
         
+        # Suppressed rules (services.findings) come off each page's violation counts.
+        def effective(key):
+            return (
+                func.json_extract(latest_reports.c.report_counts, f'$.violations.{key}')
+                - func.coalesce(func.json_extract(latest_reports.c.suppressed_counts, f'$.{key}'), 0)
+            )
+
         # 3. Join: website -> site_website_assoc -> site -> latest_reports
         result = (
             db.session.query(
                 Website.id.label('website_id'),
-                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.total')), 0).label('violations_total'),
-                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.critical')), 0).label('violations_critical'),
-                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.serious')), 0).label('violations_serious'),
-                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.moderate')), 0).label('violations_moderate'),
-                func.coalesce(func.sum(func.json_extract(latest_reports.c.report_counts, '$.violations.minor')), 0).label('violations_minor'),
+                func.coalesce(func.sum(effective('total')), 0).label('violations_total'),
+                func.coalesce(func.sum(effective('critical')), 0).label('violations_critical'),
+                func.coalesce(func.sum(effective('serious')), 0).label('violations_serious'),
+                func.coalesce(func.sum(effective('moderate')), 0).label('violations_moderate'),
+                func.coalesce(func.sum(effective('minor')), 0).label('violations_minor'),
             )
             .join(Site_Website_Assoc, Site_Website_Assoc.c.website_id == Website.id)
             .join(Site, Site.id == Site_Website_Assoc.c.site_id)

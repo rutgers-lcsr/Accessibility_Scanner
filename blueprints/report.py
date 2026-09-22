@@ -9,6 +9,7 @@ from models.user import User
 from models.website import Site
 from utils.style_generator import report_to_js
 from utils.jwt import decode_jwt_token
+from services.findings import latest_report_ids
 
 report_bp = Blueprint('report', __name__)
 
@@ -55,7 +56,16 @@ def get_report_by_id(report_id):
     if not report.can_view(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
 
-    return jsonify(report.to_dict()), 200
+    data = report.to_dict()
+    # Findings belong to the page's latest report; fingerprints may have been rebound
+    # since older reports, so those carry none.
+    is_latest = latest_report_ids([report.site_id]).get(report.site_id) == report.id
+    data['findings'] = (
+        [f.to_dict() for f in report.site.findings.filter_by(last_report_id=report.id).all()]
+        if is_latest else None
+    )
+    data['can_edit'] = bool(current_user) and report.site.can_edit(current_user)
+    return jsonify(data), 200
 
 @report_bp.route('/<int:report_id>/pdf/', methods=['GET'])
 @jwt_required(optional=True)

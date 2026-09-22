@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 
 from models import db
-from models.finding import Finding, SUPPRESSED_STATUSES
+from models.finding import FINDING_STATUSES, Finding, SUPPRESSED_STATUSES
 from models.report import Report
 from models.website import Site_Website_Assoc
 
@@ -197,6 +197,113 @@ def refresh_suppressed_counts(site_id: int, report_id: int) -> dict:
         {'suppressed_counts': counts}, synchronize_session=False
     )
     return counts
+
+
+def suppressed_fingerprints(site_ids) -> set:
+    """``{(site_id, fingerprint)}`` of suppressed findings on the given pages."""
+    if not site_ids:
+        return set()
+    rows = (
+        db.session.query(Finding.site_id, Finding.fingerprint)
+        .filter(Finding.site_id.in_(list(site_ids)), Finding.status.in_(SUPPRESSED_STATUSES))
+        .all()
+    )
+    return {(site_id, fp) for site_id, fp in rows}
+
+
+def latest_report_ids(site_ids) -> dict:
+    """``{site_id: report_id}`` of each page's newest report."""
+    if not site_ids:
+        return {}
+    latest_ts = (
+        db.session.query(Report.site_id, func.max(Report.timestamp).label('ts'))
+        .filter(Report.site_id.in_(list(site_ids)))
+        .group_by(Report.site_id)
+        .subquery()
+    )
+    rows = (
+        db.session.query(Report.id, Report.site_id)
+        .join(latest_ts, (latest_ts.c.site_id == Report.site_id) & (latest_ts.c.ts == Report.timestamp))
+        .all()
+    )
+    latest = {}
+    for report_id, site_id in rows:
+        latest[site_id] = max(report_id, latest.get(site_id, 0))
+    return latest
+
+
+# --- triage ------------------------------------------------------------------------------
+
+
+def set_finding_status(finding: Finding, status: str, note: str | None, user_id: int | None) -> None:
+    """Record a person's verdict on a finding and refresh its report's snapshot. No commit."""
+    if status not in FINDING_STATUSES:
+        raise ValueError(f"status must be one of {', '.join(FINDING_STATUSES)}")
+    finding.status = status
+    finding.status_by = user_id
+    finding.status_at = _utcnow()
+    if note is not None:
+        finding.note = note.strip()[:2000] or None
+    if finding.last_report_id is not None:
+        db.session.flush()
+        refresh_suppressed_counts(finding.site_id, finding.last_report_id)
+
+
+def bulk_set_status(site_ids, rule_id: str, status: str, note: str | None, user_id: int | None) -> int:
+    """Apply a verdict to every current finding of one rule on the given pages."""
+    latest = latest_report_ids(site_ids)
+    if not latest:
+        return 0
+    findings = (
+        db.session.query(Finding)
+        .filter(Finding.rule_id == rule_id, Finding.site_id.in_(list(latest)))
+        .all()
+    )
+    updated = 0
+    for finding in findings:
+        if finding.last_report_id == latest.get(finding.site_id):
+            set_finding_status(finding, status, note, user_id)
+            updated += 1
+    return updated
+
+
+def list_findings(site_ids, status: str = 'current', rule_id: str | None = None) -> dict:
+    """Findings grouped by rule, then page. ``status``: current (in the page's latest
+    report), open, suppressed, fixed or all."""
+    if not site_ids:
+        return {'count': 0, 'rules': []}
+    latest = latest_report_ids(site_ids)
+    query = db.session.query(Finding).filter(Finding.site_id.in_(list(site_ids)))
+    if rule_id:
+        query = query.filter(Finding.rule_id == rule_id)
+    if status == 'open':
+        query = query.filter(Finding.status == 'open')
+    elif status == 'suppressed':
+        query = query.filter(Finding.status.in_(SUPPRESSED_STATUSES))
+    elif status == 'fixed':
+        query = query.filter(Finding.status == 'fixed')
+    findings = query.order_by(Finding.rule_id, Finding.site_id, Finding.id).all()
+    if status == 'current':
+        findings = [f for f in findings if f.last_report_id == latest.get(f.site_id)]
+
+    rules = {}
+    for finding in findings:
+        rule = rules.setdefault(finding.rule_id, {
+            'rule_id': finding.rule_id, 'impact': finding.impact, 'help': finding.help,
+            'help_url': finding.help_url,
+            'counts': {key: 0 for key in FINDING_STATUSES},
+            'pages': {},
+        })
+        rule['counts'][finding.status] += 1
+        page = rule['pages'].setdefault(finding.site_id, {
+            'site_id': finding.site_id, 'url': finding.site.url,
+            'report_id': latest.get(finding.site_id), 'findings': [],
+        })
+        page['findings'].append(finding.to_dict())
+    for rule in rules.values():
+        rule['pages'] = list(rule['pages'].values())
+    ordered = sorted(rules.values(), key=lambda r: (IMPACT_KEYS.index(r['impact']) if r['impact'] in IMPACT_KEYS else len(IMPACT_KEYS), r['rule_id']))
+    return {'count': len(findings), 'rules': ordered}
 
 
 # --- backfill --------------------------------------------------------------------------

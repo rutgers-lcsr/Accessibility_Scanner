@@ -13,7 +13,7 @@ from flask_jwt_extended import current_user, jwt_required
 from models import db
 from models.report import Report
 from models.website import Site_Website_Assoc, Website
-from services.history import daily_history
+from services.history import daily_history, effective_counts
 from services.overview import build_overview, iso
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -82,14 +82,15 @@ def get_dashboard():
     history = []
     if website_ids:
         rows = (
-            db.session.query(Report.site_id, Report.timestamp, Report.report_counts)
+            db.session.query(Report.site_id, Report.timestamp, Report.report_counts, Report.suppressed_counts)
             .join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Report.site_id)
             .filter(Site_Website_Assoc.c.website_id.in_(website_ids))
             .order_by(Report.timestamp.asc())
             .all()
         )
         since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
-        history = [point for point in daily_history(rows) if point['date'] >= since]
+        points = daily_history([(site_id, ts, effective_counts(counts, suppressed)) for site_id, ts, counts, suppressed in rows])
+        history = [point for point in points if point['date'] >= since]
 
     return jsonify({
         'generated_at': iso(datetime.now(timezone.utc)),

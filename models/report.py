@@ -129,6 +129,12 @@ class Report(db.Model):
 
 
     @property
+    def effective_counts(self) -> dict:
+        """report_counts minus the rules whose findings are all suppressed."""
+        from services.history import effective_counts
+        return effective_counts(self.report_counts, self.suppressed_counts)
+
+    @property
     def num_of_links(self):
         return len(self.links or [])
 
@@ -181,7 +187,8 @@ class Report(db.Model):
             'site_id': self.site_id,
             'base_url': self.base_url,
             'timestamp': self.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            'report_counts': self.report_counts,
+            'report_counts': self.effective_counts,
+            'suppressed_counts': self.suppressed_counts,
             'links': self.links,
             'videos': self.videos,
             'imgs': self.imgs,
@@ -200,7 +207,8 @@ class Report(db.Model):
             'site_id': self.site_id,
             'timestamp': self.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
             'report': self.report,
-            'report_counts': self.report_counts,
+            'report_counts': self.effective_counts,
+            'suppressed_counts': self.suppressed_counts,
             'links': self.links,
             'videos': self.videos,
             'imgs': self.imgs,

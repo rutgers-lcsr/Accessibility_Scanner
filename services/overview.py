@@ -13,7 +13,7 @@ from sqlalchemy import func
 from models import db
 from models.report import Report
 from models.website import Site_Website_Assoc, Website
-from services.history import sum_counts
+from services.history import effective_counts, sum_counts
 
 IMPACT_ORDER = {'critical': 0, 'serious': 1, 'moderate': 2, 'minor': 3}
 _CHUNK = 500  # ids per IN (...) when loading report JSON
@@ -41,7 +41,7 @@ def latest_reports(website_ids, before: datetime | None = None) -> dict:
         latest_ts = latest_ts.filter(Report.timestamp <= before)
     latest_ts = latest_ts.group_by(Report.site_id).subquery()
     rows = (
-        db.session.query(Report.id, Report.site_id, Report.url, Report.timestamp, Report.report_counts)
+        db.session.query(Report.id, Report.site_id, Report.url, Report.timestamp, Report.report_counts, Report.suppressed_counts)
         .join(latest_ts, (latest_ts.c.site_id == Report.site_id) & (latest_ts.c.ts == Report.timestamp))
         .all()
     )
@@ -72,18 +72,29 @@ def top_rules(report_ids, limit) -> list:
     """The most widespread violations across the given reports.
 
     Ranked most severe first, then by pages affected, then by occurrences (nodes).
-    This is the only aggregation that reads the full report JSON.
+    Elements whose finding is suppressed (services.findings) are left out. This is the
+    only aggregation that reads the full report JSON.
     """
+    from services.findings import suppressed_fingerprints, fingerprint, normalise_selector
+
     stats = {}
     ids = list(report_ids)
     for start in range(0, len(ids), _CHUNK):
         chunk = ids[start:start + _CHUNK]
-        query = db.session.query(Report.id, Report.report).filter(Report.id.in_(chunk))
-        for _, report in query.all():
+        query = db.session.query(Report.id, Report.site_id, Report.report).filter(Report.id.in_(chunk))
+        rows = query.all()
+        suppressed = suppressed_fingerprints({row.site_id for row in rows})
+        for _, site_id, report in rows:
             for rule in (report or {}).get('violations') or []:
                 rule_id = rule.get('id')
                 if not rule_id:
                     continue
+                nodes = [
+                    node for node in (rule.get('nodes') or [])
+                    if (site_id, fingerprint(rule_id, normalise_selector(node.get('target')))) not in suppressed
+                ]
+                if rule.get('nodes') and not nodes:
+                    continue  # every element on this page is suppressed
                 entry = stats.setdefault(rule_id, {
                     'id': rule_id,
                     'impact': rule.get('impact'),
@@ -94,7 +105,7 @@ def top_rules(report_ids, limit) -> list:
                     'occurrences': 0,
                 })
                 entry['pages'] += 1
-                entry['occurrences'] += len(rule.get('nodes') or [])
+                entry['occurrences'] += len(nodes)
     ranked = sorted(
         stats.values(),
         key=lambda r: (IMPACT_ORDER.get(r['impact'], len(IMPACT_ORDER)), -r['pages'], -r['occurrences']),
@@ -104,7 +115,7 @@ def top_rules(report_ids, limit) -> list:
 
 def website_row(website: Website, site_ids: set, latest_by_site: dict) -> dict:
     counts = sum_counts({
-        site_id: latest_by_site[site_id].report_counts
+        site_id: effective_counts(latest_by_site[site_id].report_counts, latest_by_site[site_id].suppressed_counts)
         for site_id in site_ids if site_id in latest_by_site
     })
     return {
@@ -139,7 +150,10 @@ def build_overview(websites, top: int = 10) -> dict:
     # A page may belong to several websites; it is counted once in the totals and
     # once per website in the rows.
     all_site_ids = set().union(*site_ids_of.values()) if site_ids_of else set()
-    totals = sum_counts({site_id: row.report_counts for site_id, row in latest_by_site.items()})
+    totals = sum_counts({
+        site_id: effective_counts(row.report_counts, row.suppressed_counts)
+        for site_id, row in latest_by_site.items()
+    })
     last_scan = max((row.timestamp for row in latest_by_site.values()), default=None)
 
     rows = [website_row(website, site_ids_of[website.id], latest_by_site) for website in websites]
