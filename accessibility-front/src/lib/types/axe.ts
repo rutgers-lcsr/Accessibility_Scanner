@@ -1,3 +1,5 @@
+import type { Finding } from './finding';
+
 export type AxeCheck = {
     id: string; // Unique identifier for the check (e.g., 'color-contrast')
     impact?: 'minor' | 'moderate' | 'serious' | 'critical'; // Severity of the issue
@@ -87,6 +89,10 @@ export type Report = {
     script_token: string;
     created_at: string;
     updated_at: string;
+    // findings of this report when it is the page's latest, else null
+    findings: Finding[] | null;
+    can_edit: boolean;
+    suppressed_counts: AxeReportCounts | null;
 };
 
 export type CheckTemplate = {

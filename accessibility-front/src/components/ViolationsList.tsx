@@ -1,12 +1,15 @@
 'use client';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import GenerateAIPromptButton from '@/components/GenerateAIPromptButton';
+import { findingKey, findingSelector } from '@/components/ViolationNode';
+import { isSuppressed } from '@/lib/findings';
 import { IMPACTS, impactRank } from '@/lib/impact';
 import { AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { Impact } from '@/lib/types/dashboard';
+import { Finding, FindingRuleGroup, FindingStatus } from '@/lib/types/finding';
 import { useUrlFilters } from '@/lib/urlFilters';
-import { Button, Flex, Input, Select, Space } from 'antd';
-import { useEffect, useRef } from 'react';
+import { Button, Checkbox, Flex, Input, Select, Space } from 'antd';
+import { useEffect, useRef, useState } from 'react';
 
 type Violation = AxeResult | WebsiteAxeResult;
 type SortKey = 'impact' | 'pages' | 'elements';
@@ -18,6 +21,12 @@ type Props = {
     // Page URLs to filter by (website aggregate); also enables the "pages" sort.
     pages?: string[];
     previewEnabled?: boolean;
+    // Findings of the page's latest report (report page); null when the report is older.
+    findings?: Finding[] | null;
+    // Current findings per rule across the website (website page).
+    ruleFindings?: Record<string, FindingRuleGroup>;
+    canEdit?: boolean;
+    onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
 };
 
 function isWebsite(v: Violation): v is WebsiteAxeResult {
@@ -32,11 +41,21 @@ function elementCount(v: Violation): number {
 
 /**
  * A filterable, sortable list of violations. The filters live in the query string
- * (impact, rule, page, sort, desc), so an email or a website card can link straight to
- * one rule, and a #violation-<rule> hash scrolls to that card (clearing filters that
- * would hide it).
+ * (impact, rule, page, sort, desc, suppressed), so an email or a website card can link
+ * straight to one rule, and a #violation-<rule> hash scrolls to that card (clearing
+ * filters that would hide it). Rules whose current findings are all false positive or
+ * accepted are hidden unless "Show suppressed" is on.
  */
-function ViolationsList({ violations, url, pages, previewEnabled = false }: Props) {
+function ViolationsList({
+    violations,
+    url,
+    pages,
+    previewEnabled = false,
+    findings,
+    ruleFindings,
+    canEdit = false,
+    onBulkStatus,
+}: Props) {
     const { params, setFilters } = useUrlFilters();
     const impacts = (params.get('impact') ?? '').split(',').filter(Boolean) as Impact[];
     const ruleQuery = params.get('rule') ?? '';
@@ -49,12 +68,46 @@ function ViolationsList({ violations, url, pages, previewEnabled = false }: Prop
               ? 'pages'
               : 'impact';
     const desc = params.get('desc') !== '0';
+    const showSuppressed = params.get('suppressed') === '1';
     const filtering = impacts.length > 0 || !!ruleQuery || !!pageFilter;
+
+    // Verdicts made on this page update the findings we were handed.
+    const [findingState, setFindingState] = useState<Finding[] | null | undefined>(findings);
+    useEffect(() => setFindingState(findings), [findings]);
+    const findingsBySelector = new Map<string, Finding>();
+    for (const finding of findingState ?? []) {
+        if (finding.selector)
+            findingsBySelector.set(findingKey(finding.rule_id, finding.selector), finding);
+    }
+    const onFindingChanged = (updated: Finding) =>
+        setFindingState((current) =>
+            (current ?? []).map((f) => (f.id === updated.id ? updated : f))
+        );
+
+    // A rule is suppressed when every element tracked for it carries a suppressing verdict.
+    const ruleSuppressed = (v: Violation): boolean => {
+        if (ruleFindings) {
+            const group = ruleFindings[v.id];
+            return (
+                !!group &&
+                group.counts.open === 0 &&
+                group.counts.fixed === 0 &&
+                group.counts.false_positive + group.counts.accepted > 0
+            );
+        }
+        if (!findingState || isWebsite(v) || !v.nodes?.length) return false;
+        const tracked = v.nodes
+            .map((n) => findingsBySelector.get(findingKey(v.id, findingSelector(n))))
+            .filter(Boolean) as Finding[];
+        return tracked.length > 0 && tracked.every((f) => isSuppressed(f.status));
+    };
+    const suppressedCount = violations.filter(ruleSuppressed).length;
 
     const query = ruleQuery.toLowerCase();
     const shown = violations
         .filter(
             (v) =>
+                (showSuppressed || !ruleSuppressed(v)) &&
                 (impacts.length === 0 || (v.impact !== undefined && impacts.includes(v.impact))) &&
                 (!query ||
                     [v.id, v.help, v.description].some((t) => t?.toLowerCase().includes(query))) &&
@@ -78,7 +131,8 @@ function ViolationsList({ violations, url, pages, previewEnabled = false }: Prop
         if (scrolled.current || !window.location.hash.startsWith('#violation-')) return;
         const id = decodeURIComponent(window.location.hash.slice('#violation-'.length));
         if (!shown.some((v) => v.id === id)) {
-            if (filtering) setFilters({ impact: null, rule: null, page: null });
+            if (filtering || !showSuppressed)
+                setFilters({ impact: null, rule: null, page: null, suppressed: '1' });
             return;
         }
         scrolled.current = true;
@@ -144,6 +198,14 @@ function ViolationsList({ violations, url, pages, previewEnabled = false }: Prop
                         {desc ? 'Desc' : 'Asc'}
                     </Button>
                 </Space>
+                {suppressedCount > 0 && (
+                    <Checkbox
+                        checked={showSuppressed}
+                        onChange={(e) => setFilters({ suppressed: e.target.checked ? '1' : null })}
+                    >
+                        Show suppressed ({suppressedCount})
+                    </Checkbox>
+                )}
                 <span className="text-sm text-gray-600">
                     Showing {shown.length} of {violations.length}
                 </span>
@@ -166,6 +228,11 @@ function ViolationsList({ violations, url, pages, previewEnabled = false }: Prop
                         key={v.id}
                         accessibilityResult={v}
                         previewEnabled={previewEnabled}
+                        findingsBySelector={findingState ? findingsBySelector : undefined}
+                        ruleFindings={ruleFindings?.[v.id]}
+                        canEdit={canEdit}
+                        onFindingChanged={onFindingChanged}
+                        onBulkStatus={onBulkStatus}
                     />
                 ))
             )}

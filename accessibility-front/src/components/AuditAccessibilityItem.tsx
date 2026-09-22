@@ -1,14 +1,23 @@
 'use client';
+import { STATUS_COLORS, STATUS_LABELS } from '@/lib/findings';
 import { ImpactTag } from '@/lib/impact';
 import { AxeNode, AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
-import { Button, Card, Collapse, Tag, Tooltip } from 'antd';
+import { Finding, FindingRuleGroup, FindingStatus } from '@/lib/types/finding';
+import { Button, Card, Collapse, Dropdown, Tag, Tooltip } from 'antd';
 import { useState } from 'react';
-import ViolationNode from './ViolationNode';
+import ViolationNode, { findingKey, findingSelector } from './ViolationNode';
 
 type Props = {
     accessibilityResult: WebsiteAxeResult | AxeResult;
     // Offer "Show in preview" on each element (the report page, where the preview iframe is).
     previewEnabled?: boolean;
+    // Findings of this page's latest report, keyed by findingKey (report page).
+    findingsBySelector?: Map<string, Finding>;
+    // Current findings of this rule across the website (website page).
+    ruleFindings?: FindingRuleGroup;
+    canEdit?: boolean;
+    onFindingChanged?: (finding: Finding) => void;
+    onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
 };
 
 const NODE_PAGE = 10;
@@ -19,15 +28,23 @@ function isWebsiteResult(result: WebsiteAxeResult | AxeResult): result is Websit
 
 // A rule's failing elements, ten at a time so a rule with hundreds stays cheap to open.
 function NodeList({
+    ruleId,
     nodes,
     label,
     open,
     previewEnabled,
+    findingsBySelector,
+    canEdit,
+    onFindingChanged,
 }: {
+    ruleId: string;
     nodes: AxeNode[];
     label: string;
     open: boolean;
     previewEnabled?: boolean;
+    findingsBySelector?: Map<string, Finding>;
+    canEdit?: boolean;
+    onFindingChanged?: (finding: Finding) => void;
 }) {
     const [shown, setShown] = useState(NODE_PAGE);
     return (
@@ -52,6 +69,11 @@ function NodeList({
                                         key={idx}
                                         node={node}
                                         previewEnabled={previewEnabled}
+                                        finding={findingsBySelector?.get(
+                                            findingKey(ruleId, findingSelector(node))
+                                        )}
+                                        canEdit={canEdit}
+                                        onFindingChanged={onFindingChanged}
                                     />
                                 ))}
                             </ul>
@@ -80,7 +102,66 @@ function NodeList({
     );
 }
 
-function AuditAccessibilityItem({ accessibilityResult, previewEnabled = false }: Props) {
+// Status counts of a rule's current findings across the website, plus a bulk verdict menu.
+function RuleFindingsSummary({
+    ruleId,
+    group,
+    canEdit,
+    onBulkStatus,
+}: {
+    ruleId: string;
+    group: FindingRuleGroup;
+    canEdit?: boolean;
+    onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
+}) {
+    const [busy, setBusy] = useState(false);
+    const suppressed = group.counts.false_positive + group.counts.accepted;
+    return (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+            {(Object.keys(STATUS_LABELS) as FindingStatus[])
+                .filter((status) => group.counts[status] > 0)
+                .map((status) => (
+                    <Tag key={status} color={STATUS_COLORS[status]}>
+                        {STATUS_LABELS[status]}: {group.counts[status]}
+                    </Tag>
+                ))}
+            {group.counts.open === 0 && suppressed > 0 && (
+                <Tooltip title="Every current element of this rule is marked false positive or accepted, so it no longer counts.">
+                    <Tag color="gold">Suppressed</Tag>
+                </Tooltip>
+            )}
+            {canEdit && onBulkStatus && (
+                <Dropdown
+                    menu={{
+                        items: (Object.keys(STATUS_LABELS) as FindingStatus[]).map((status) => ({
+                            key: status,
+                            label: STATUS_LABELS[status],
+                        })),
+                        onClick: async ({ key }) => {
+                            setBusy(true);
+                            await onBulkStatus(ruleId, key as FindingStatus);
+                            setBusy(false);
+                        },
+                    }}
+                >
+                    <Button size="small" loading={busy}>
+                        Mark all on this website as…
+                    </Button>
+                </Dropdown>
+            )}
+        </div>
+    );
+}
+
+function AuditAccessibilityItem({
+    accessibilityResult,
+    previewEnabled = false,
+    findingsBySelector,
+    ruleFindings,
+    canEdit = false,
+    onFindingChanged,
+    onBulkStatus,
+}: Props) {
     if (!accessibilityResult) return <div>No accessibility result provided.</div>;
 
     const ruleId = accessibilityResult.id;
@@ -173,6 +254,14 @@ function AuditAccessibilityItem({ accessibilityResult, previewEnabled = false }:
                 extra={<ImpactTag impact={accessibilityResult.impact} />}
             >
                 {header}
+                {ruleFindings && (
+                    <RuleFindingsSummary
+                        ruleId={ruleId}
+                        group={ruleFindings}
+                        canEdit={canEdit}
+                        onBulkStatus={onBulkStatus}
+                    />
+                )}
                 {!!accessibilityResult.reports?.length && (
                     <div className="mt-4">
                         <Collapse items={reportItems}></Collapse>
@@ -181,6 +270,7 @@ function AuditAccessibilityItem({ accessibilityResult, previewEnabled = false }:
                 {!!accessibilityResult.nodes?.length && (
                     <div className="mt-2">
                         <NodeList
+                            ruleId={ruleId}
                             nodes={accessibilityResult.nodes}
                             label="Example elements (from the first affected page)"
                             open={false}
@@ -203,10 +293,14 @@ function AuditAccessibilityItem({ accessibilityResult, previewEnabled = false }:
             {!!accessibilityResult.nodes?.length && (
                 <div className="mt-2">
                     <NodeList
+                        ruleId={ruleId}
                         nodes={accessibilityResult.nodes}
                         label="Elements"
                         open
                         previewEnabled={previewEnabled}
+                        findingsBySelector={findingsBySelector}
+                        canEdit={canEdit}
+                        onFindingChanged={onFindingChanged}
                     />
                 </div>
             )}

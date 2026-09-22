@@ -1,5 +1,7 @@
 'use client';
+import FindingStatusControl from '@/components/FindingStatusControl';
 import { AxeNode } from '@/lib/types/axe';
+import { Finding } from '@/lib/types/finding';
 import { Button } from 'antd';
 
 // Fired on window when the user asks to see an element in the page preview; PageIframe listens.
@@ -10,13 +12,34 @@ export function nodeSelector(node: AxeNode): string {
     return (node.target ?? []).join(', ');
 }
 
+/** The selector findings are keyed by (services.findings.normalise_selector). */
+export function findingSelector(node: AxeNode): string {
+    return (node.target ?? []).flat().join(' >>> ');
+}
+
+/** Lookup key for a finding: one element can fail several rules. */
+export function findingKey(ruleId: string, selector: string | null): string {
+    return `${ruleId}\u0000${selector ?? ''}`;
+}
+
 type Props = {
     node: AxeNode;
     previewEnabled?: boolean;
+    // The finding tracked for this element, when the report is the page's latest.
+    finding?: Finding;
+    canEdit?: boolean;
+    onFindingChanged?: (finding: Finding) => void;
 };
 
-// One failing element: selector, its HTML (as text, never rendered) and axe's fix summary.
-function ViolationNode({ node, previewEnabled = false }: Props) {
+// One failing element: selector, its HTML (as text, never rendered), axe's fix summary,
+// and the verdict on it when findings are tracked.
+function ViolationNode({
+    node,
+    previewEnabled = false,
+    finding,
+    canEdit = false,
+    onFindingChanged,
+}: Props) {
     const selector = nodeSelector(node);
     const focusInPreview = () =>
         window.dispatchEvent(new CustomEvent(PREVIEW_FOCUS_EVENT, { detail: { selector } }));
@@ -38,6 +61,15 @@ function ViolationNode({ node, previewEnabled = false }: Props) {
             )}
             {node.failureSummary && (
                 <div className="mt-2 whitespace-pre-wrap text-gray-600">{node.failureSummary}</div>
+            )}
+            {finding && (
+                <div className="mt-2">
+                    <FindingStatusControl
+                        finding={finding}
+                        canEdit={canEdit}
+                        onChanged={onFindingChanged}
+                    />
+                </div>
             )}
         </li>
     );

@@ -269,6 +269,8 @@ document.body.appendChild(accessScriptElement);`}
                                     violations={report.report.violations}
                                     url={report.url}
                                     previewEnabled
+                                    findings={report.findings}
+                                    canEdit={report.can_edit}
                                 />
                             </div>
                         </Card>

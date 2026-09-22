@@ -14,6 +14,7 @@ import PageLoading from '../../../components/PageLoading';
 import AdminItems from './AdminItems';
 import NotificationToggle from './NotificationToggle';
 import WebsiteAdminItems from './WebsiteAdminItems';
+import WebsiteChanges from './WebsiteChanges';
 import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteReport from './WebsiteReport';
 import WebsiteSiteTable from './WebsiteSiteTable';
@@ -70,12 +71,25 @@ const Website = ({ websiteId, user }: Props) => {
         {
             key: 'violations',
             label: `Violations (${violations.total})`,
-            children: <WebsiteReport report={websiteReport.report} />,
+            children: (
+                <WebsiteReport
+                    websiteId={websiteId}
+                    report={websiteReport.report}
+                    user={user}
+                    canEdit={!!user && (user.is_admin || websiteReport.admin === user.user)}
+                    onCountsChanged={() => mutateWebsiteReport()}
+                />
+            ),
         },
         {
             key: 'history',
             label: 'History',
             children: <WebsiteHistoryChart websiteId={websiteId} user={user} />,
+        },
+        {
+            key: 'changes',
+            label: 'What changed',
+            children: <WebsiteChanges websiteId={websiteId} user={user} />,
         },
     ];
 
