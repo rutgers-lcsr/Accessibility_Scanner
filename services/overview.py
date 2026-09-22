@@ -13,6 +13,7 @@ from sqlalchemy import func
 from models import db
 from models.report import Report
 from models.website import Site, Site_Website_Assoc, Website
+from services.documents import document_counts, empty_document_counts
 from services.history import effective_counts, sum_counts
 
 IMPACT_ORDER = {'critical': 0, 'serious': 1, 'moderate': 2, 'minor': 3}
@@ -113,7 +114,7 @@ def top_rules(report_ids, limit) -> list:
     return ranked[:limit]
 
 
-def website_row(website: Website, site_ids: set, latest_by_site: dict) -> dict:
+def website_row(website: Website, site_ids: set, latest_by_site: dict, documents: dict | None = None) -> dict:
     counts = sum_counts({
         site_id: effective_counts(latest_by_site[site_id].report_counts, latest_by_site[site_id].suppressed_counts)
         for site_id in site_ids if site_id in latest_by_site
@@ -129,6 +130,8 @@ def website_row(website: Website, site_ids: set, latest_by_site: dict) -> dict:
         'violations': counts['violations'],
         'passes': counts['passes']['total'],
         'incomplete': counts['incomplete']['total'],
+        'documents': (documents or {}).get('total', 0),
+        'untagged_pdfs': (documents or {}).get('untagged_pdf', 0),
     }
 
 
@@ -156,7 +159,8 @@ def build_overview(websites, top: int = 10) -> dict:
     })
     last_scan = max((row.timestamp for row in latest_by_site.values()), default=None)
 
-    rows = [website_row(website, site_ids_of[website.id], latest_by_site) for website in websites]
+    documents = document_counts(website_ids)
+    rows = [website_row(website, site_ids_of[website.id], latest_by_site, documents.get(website.id)) for website in websites]
     rows.sort(key=lambda row: (-row['violations']['total'], row['url']))
 
     return {
@@ -169,6 +173,8 @@ def build_overview(websites, top: int = 10) -> dict:
             'passes': totals['passes']['total'],
             'incomplete': totals['incomplete']['total'],
             'scan_status': dict(scan_status_counts(websites)),
+            'documents': sum(row['documents'] for row in rows),
+            'untagged_pdfs': sum(row['untagged_pdfs'] for row in rows),
         },
         'websites': rows,
         'top_rules': top_rules([row.id for row in latest_by_site.values()], top),

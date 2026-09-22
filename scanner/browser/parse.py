@@ -3,7 +3,34 @@ from typing import List
 from scanner.accessibility.ace import get_accessibility_report
 from playwright.async_api import Page
 
+from urllib.parse import urlparse
+
 from utils.urls import get_full_url, get_netloc, get_website_url
+
+# Files the crawler inventories instead of auditing as pages (see get_link_js's filter).
+DOCUMENT_EXTENSIONS = ('pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx')
+
+
+def document_type(url: str) -> str | None:
+    """The document type of a URL by its path extension, or None."""
+    try:
+        path = urlparse(url).path
+    except ValueError:
+        return None
+    extension = path.rsplit('.', 1)[-1].lower() if '.' in path.rsplit('/', 1)[-1] else ''
+    return extension if extension in DOCUMENT_EXTENSIONS else None
+
+
+def get_documents_js():
+    """JavaScript collecting links to documents on the page (any host, fragment dropped,
+    query string kept: a ?download=1 PDF is a different resource)."""
+    pattern = '|'.join(DOCUMENT_EXTENSIONS)
+    return f"""() => Array.from(document.querySelectorAll('a[href]'))
+        .map(a => a.href.split('#')[0])
+        .filter(h => /^https?:/i.test(h))
+        .filter(h => {{ try {{ return /\\.({pattern})$/i.test(new URL(h).pathname); }} catch (e) {{ return false; }} }})
+        .filter((value, index, self) => self.indexOf(value) === index)
+    """
 
 
 def get_link_js(website):
@@ -60,6 +87,11 @@ async def get_links(page:  Page) -> List[str]:
     current_page = get_website_url(page.url)
     links = await page.evaluate(get_link_js(current_page))
     return links
+
+async def get_documents(page: Page) -> List[str]:
+    links = await page.evaluate(get_documents_js())
+    return [link for link in links if document_type(link)]
+
 
 async def get_videos(page: Page) -> List[str]:
     videos = await page.evaluate(get_videos_js())

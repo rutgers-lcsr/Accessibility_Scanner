@@ -13,6 +13,7 @@ from flask_sqlalchemy import pagination
 
 from scanner.utils.service import check_url
 from services.history import daily_history, effective_counts
+from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
 from models.finding import FINDING_STATUSES
 from services.findings import bulk_set_status, changes_for_sites, list_findings
 from utils.limiter import limiter
@@ -327,6 +328,67 @@ def get_website_findings(website_id):
         return jsonify({'error': f"status must be one of {', '.join(FINDING_LISTING_STATUSES)}"}), 400
     site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
     return jsonify(list_findings(site_ids, status, request.args.get('rule'))), 200
+
+
+@website_bp.route('/<int:website_id>/documents/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_documents(website_id):
+    """
+    Documents (PDF, Word, PowerPoint, Excel) linked from the website's pages.
+    ---
+    tags:
+        - Documents
+    parameters:
+        - in: path
+          name: website_id
+          type: integer
+          required: true
+        - in: query
+          name: page
+          type: integer
+        - in: query
+          name: limit
+          type: integer
+          default: 20
+        - in: query
+          name: status
+          type: string
+          enum: [pending, tagged, untagged, unreachable, too_large, unreadable, skipped, not_checked]
+        - in: query
+          name: type
+          type: string
+          enum: [pdf, doc, docx, ppt, pptx, xls, xlsx]
+    responses:
+        200:
+            description: count and items, untagged and unchecked PDFs first.
+        403:
+            description: The caller may not view this website.
+        404:
+            description: Website not found.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not current_user and not website.public:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if current_user and not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    page = request.args.get('page', default=1, type=int)
+    limit = min(max(request.args.get('limit', default=20, type=int), 1), 100)
+    status = request.args.get('status')
+    doc_type = request.args.get('type')
+    if status and status not in DOCUMENT_STATUSES:
+        return jsonify({'error': f"status must be one of {', '.join(DOCUMENT_STATUSES)}"}), 400
+
+    query = db.session.query(Document).filter(Document.website_id == website_id)
+    if status:
+        query = query.filter(Document.status == status)
+    if doc_type:
+        query = query.filter(Document.doc_type == doc_type)
+    priority = case({name: index for index, name in enumerate(DOCUMENT_STATUS_ORDER)}, value=Document.status, else_=len(DOCUMENT_STATUS_ORDER))
+    documents = query.order_by(priority, Document.url).paginate(page=page, per_page=limit)
+    return jsonify({'count': documents.total, 'items': [doc.to_dict() for doc in documents.items]}), 200
 
 
 @website_bp.route('/<int:website_id>/changes/', methods=['GET'])

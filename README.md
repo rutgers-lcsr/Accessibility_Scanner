@@ -119,6 +119,10 @@ Run inside the API container, for example `docker compose exec a11y-api flask fi
 - `flask maintenance retention [--dry-run] [--batch 200]`: applies the report retention policy from Settings (keep `retention_keep_days` in full, one report per month up to `retention_max_days`, older ones deleted; screenshots dropped from the monthly survivors; a page's latest report is never touched). Beat runs it nightly once `retention_enabled` is true; run the dry run first and read the per-page plan.
 - `flask maintenance slim-reports [--dry-run] [--batch 200]`: one-off rewrite of reports stored before slimming, dropping the node lists of passing and inapplicable rules (most of each report's size). Safe to run again.
 
+## Documents (PDF, Word, PowerPoint, Excel)
+
+A scan records every document a website's pages link to and, for PDFs on the website's own host, downloads up to `document_checks_per_scan` of them (each under `document_max_size_mb`) and checks whether the PDF is tagged, has a title and a language. Untagged PDFs have no reading structure for screen readers. The website page has a Documents tab; the dashboard shows documents found and untagged PDFs per website. Downloads honour `robots.txt` and the crawl delay, and are re-done every `document_recheck_days`. Documents on other hosts are listed but not fetched.
+
 ## Weekly digest
 
 Every week, site admins get an email summarising all websites: totals, the websites whose violations moved most, websites audited for the first time, failing or unreachable websites, websites never scanned, and the most common rules. The day and hour come from `DIGEST_DAY_OF_WEEK` and `DIGEST_HOUR_UTC` (UTC) on the beat container; the digest can be switched off in Settings.

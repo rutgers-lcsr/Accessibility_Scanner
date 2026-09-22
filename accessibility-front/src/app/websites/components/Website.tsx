@@ -15,6 +15,7 @@ import AdminItems from './AdminItems';
 import NotificationToggle from './NotificationToggle';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
+import WebsiteDocumentsTable from './WebsiteDocumentsTable';
 import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteReport from './WebsiteReport';
 import WebsiteSiteTable from './WebsiteSiteTable';
@@ -90,6 +91,24 @@ const Website = ({ websiteId, user }: Props) => {
             key: 'changes',
             label: 'What changed',
             children: <WebsiteChanges websiteId={websiteId} user={user} />,
+        },
+        {
+            key: 'documents',
+            label: `Documents (${websiteReport.documents?.total ?? 0})`,
+            children: (
+                <>
+                    {(websiteReport.documents?.untagged_pdf ?? 0) > 0 && (
+                        <Alert
+                            className="mt-2 mb-4"
+                            type="warning"
+                            showIcon
+                            message={`${websiteReport.documents.untagged_pdf} untagged PDF${websiteReport.documents.untagged_pdf === 1 ? '' : 's'}`}
+                            description="Untagged PDFs have no reading structure, so screen readers cannot navigate them. Re-export them with tagging enabled or replace them with web pages."
+                        />
+                    )}
+                    <WebsiteDocumentsTable websiteId={websiteId} user={user} />
+                </>
+            ),
         },
     ];
 

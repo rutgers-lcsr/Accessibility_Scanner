@@ -18,6 +18,9 @@ type Settings = {
     retention_enabled: string;
     retention_keep_days: string;
     retention_max_days: string;
+    document_max_size_mb: string;
+    document_checks_per_scan: string;
+    document_recheck_days: string;
 };
 
 type SettingsContextType = {

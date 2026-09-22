@@ -116,6 +116,21 @@ function Dashboard() {
             render: (_, row) => `${row.pages_audited} / ${row.pages}`,
             sorter: numberSorter((r) => r.pages),
         },
+        {
+            title: 'Docs',
+            key: 'documents',
+            align: 'right',
+            render: (_, row) => row.documents,
+            sorter: numberSorter((r) => r.documents),
+        },
+        {
+            title: 'Untagged PDFs',
+            key: 'untagged_pdfs',
+            align: 'right',
+            render: (_, row) =>
+                row.untagged_pdfs > 0 ? <strong>{row.untagged_pdfs}</strong> : row.untagged_pdfs,
+            sorter: numberSorter((r) => r.untagged_pdfs),
+        },
         ...IMPACTS.map<TableColumnType<DashboardWebsite>>((impact) => ({
             title: impact.label,
             key: impact.key,
@@ -295,6 +310,18 @@ function Dashboard() {
                                                 : totals.last_scan
                                                   ? `Last scan ${formatDate(new Date(totals.last_scan), 'MMM d, yyyy HH:mm')}`
                                                   : 'No scans yet'}
+                                        </div>
+                                    </Card>
+                                </Col>
+                                <Col xs={12} md={6}>
+                                    <Card>
+                                        <Statistic
+                                            title="Documents found"
+                                            value={totals.documents}
+                                        />
+                                        <div className="mt-1 text-xs text-gray-500">
+                                            {totals.untagged_pdfs} untagged PDF
+                                            {totals.untagged_pdfs === 1 ? '' : 's'}
                                         </div>
                                     </Card>
                                 </Col>

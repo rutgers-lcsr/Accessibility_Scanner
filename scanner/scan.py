@@ -6,6 +6,7 @@ import time
 from flask import current_app, has_app_context
 from playwright.async_api import async_playwright
 from mail.emails import ScanFinishedEmail, ScanRegressionEmail
+from scanner.browser.parse import document_type
 from scanner.browser.report import ACCESSIBILITY_USER_AGENT, AccessibilityReport, AccessibilitySummary, generate_report
 from scanner.log import log_message
 from app import create_app
@@ -111,9 +112,10 @@ def commit_with_retry(max_retries=3, retry_delay=1):
     return False
 
 
-async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None, limits: dict = None, depths: dict = None, robots: robotparser.RobotFileParser = None) -> AccessibilityReport:
+async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None, limits: dict = None, depths: dict = None, robots: robotparser.RobotFileParser = None, documents: dict = None) -> AccessibilityReport:
     """Crawl worker. ``limits`` (see crawl_limits) bounds the crawl, ``depths`` maps each
-    queued URL to its link depth from the start page, ``robots`` filters disallowed URLs."""
+    queued URL to its link depth from the start page, ``robots`` filters disallowed URLs,
+    ``documents`` collects ``{url: {'type', 'pages'}}`` for the document inventory."""
     while True:
         site = await queue.get()
         if site is None:  # sentinel to shut down
@@ -145,6 +147,13 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
                 if website_obj and app:
                     await store_report_to_db(res, website_obj, app)
                 
+                # Documents are inventoried, never queued as pages.
+                if documents is not None:
+                    for doc_url in res.get('documents') or []:
+                        doc_type = document_type(doc_url)
+                        if doc_type:
+                            documents.setdefault(doc_url, {'type': doc_type, 'pages': set()})['pages'].add(site)
+
                 # add links to queue if not already processing
                 depth = depths.get(site, 0) if depths is not None else 0
                 for site_link in res.get('links', []):
@@ -399,6 +408,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
     results: List[AccessibilitySummary] = []
     sites_done: set[str] = set()
     currently_processing: set[str] = set()
+    documents: dict = {}
     app = get_app()
 
     with app.app_context():
@@ -484,6 +494,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                         limits=limits,
                         depths=depths,
                         robots=robots,
+                        documents=documents,
                     ))
                     for i in range(num_workers)
                 ]
@@ -559,6 +570,16 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                 website.current_task_id = None
                 db.session.add(website)
                 commit_with_retry()
+
+                # Document inventory: what the crawl linked to, then the basic PDF checks.
+                # Neither may fail the scan.
+                try:
+                    from services.documents import check_website_documents, sync_documents  # local import
+                    sync_documents(website.id, documents)
+                    check_website_documents(website.id, robots=robots, crawl_delay=limits['crawl_delay'])
+                except Exception as e:
+                    log_message(f"Document inventory failed for {target_website}: {e}", 'error')
+                    db.session.rollback()
                 
                 # Queue any websites that need rescanning as their own tasks. (These used
                 # to be scheduled on this event loop, which the task closes right after.)

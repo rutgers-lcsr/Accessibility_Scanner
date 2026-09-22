@@ -15,6 +15,8 @@ export type DashboardWebsite = {
     violations: AxeReportCounts;
     passes: number;
     incomplete: number;
+    documents: number;
+    untagged_pdfs: number;
 };
 
 export type DashboardCategory = {
@@ -47,6 +49,8 @@ export type Dashboard = {
         passes: number;
         incomplete: number;
         scan_status: Record<string, number>;
+        documents: number;
+        untagged_pdfs: number;
     };
     websites: DashboardWebsite[];
     categories: DashboardCategory[];

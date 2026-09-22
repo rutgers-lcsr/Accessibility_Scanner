@@ -277,6 +277,32 @@ function Settings() {
                         </div>
                         <div className="my-4" />
                         <EditableInput
+                            label="PDF checks per scan"
+                            type="number"
+                            value={settings?.document_checks_per_scan || ''}
+                            onChange={(value) => handleSave('document_checks_per_scan', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            How many of a website&apos;s own PDFs a scan downloads and checks for
+                            tagging, title and language (0 switches the checks off; links are still
+                            listed).
+                        </div>
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Largest PDF to check (MB)"
+                            type="number"
+                            value={settings?.document_max_size_mb || ''}
+                            onChange={(value) => handleSave('document_max_size_mb', value)}
+                        />
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Days between PDF re-checks"
+                            type="number"
+                            value={settings?.document_recheck_days || ''}
+                            onChange={(value) => handleSave('document_recheck_days', value)}
+                        />
+                        <div className="my-4" />
+                        <EditableInput
                             id="default_email_domain"
                             label="Default Email Domain"
                             type="text"

@@ -61,6 +61,9 @@ VALIDATORS = {
     "retention_enabled": _boolean,
     "retention_keep_days": _int_at_least(1),
     "retention_max_days": _int_at_least(1),
+    "document_max_size_mb": _int_at_least(1),
+    "document_checks_per_scan": _int_at_least(0),
+    "document_recheck_days": _int_at_least(1),
 }
 
 

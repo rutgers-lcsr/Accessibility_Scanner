@@ -1,4 +1,5 @@
 import { AxeReportCounts, AxeReportKeys, ReportMinimized, WebsiteAxeReport } from './axe';
+import { DocumentCounts } from './document';
 
 export type Website = {
     id: number;
@@ -14,6 +15,8 @@ export type Website = {
     last_scan_error: string | null;
     // when the admin and users were last emailed about this website
     last_notified: string | null;
+    // documents (PDF, Word, ...) linked from the website's pages
+    documents: DocumentCounts;
     tags: string[];
     default_tags: string[];
     categories: string[];

@@ -21,6 +21,9 @@ AppSetting = Literal[
     "retention_enabled",
     "retention_keep_days",
     "retention_max_days",
+    "document_max_size_mb",
+    "document_checks_per_scan",
+    "document_recheck_days",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -42,6 +45,10 @@ DEFAULTS: dict[AppSetting, str] = {
     "retention_enabled": "false",
     "retention_keep_days": "90",
     "retention_max_days": "365",
+    # Document inventory: PDFs on the website's own host are downloaded and checked.
+    "document_max_size_mb": "20",
+    "document_checks_per_scan": "50",
+    "document_recheck_days": "30",
 }
 
 class Settings(db.Model):

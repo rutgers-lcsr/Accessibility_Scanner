@@ -7,6 +7,7 @@ from models import db
 from sqlalchemy.ext.hybrid import hybrid_method,hybrid_property
 from sqlalchemy.orm import Mapped
 from models.assoc import UserWebsiteAssoc
+from models.document import Document, DocumentSiteAssoc  # noqa: F401  (registers the models for create_all)
 from models.finding import Finding  # noqa: F401  (registers the model for create_all)
 from models.notifications import NotificationOptOut
 from models.report import AxeReportCounts, Report, ReportMinimized
@@ -70,6 +71,7 @@ class Site(db.Model):
     websites: Mapped[List['Website']] = db.relationship('Website', secondary=Site_Website_Assoc, back_populates='sites', lazy='dynamic')
     reports: Mapped[List['Report']] = db.relationship('Report', back_populates='site', lazy='dynamic' , cascade="all, delete-orphan")
     findings: Mapped[List['Finding']] = db.relationship('Finding', back_populates='site', lazy='dynamic', cascade="all, delete-orphan")
+    documents: Mapped[List['Document']] = db.relationship('Document', secondary=DocumentSiteAssoc, back_populates='sites', lazy='dynamic')
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
     scanning: Mapped[bool] = db.Column(db.Boolean, default=False)
     # Id of the most recent scan task; never cleared, used to authorise status polling.
@@ -256,6 +258,7 @@ class Website(db.Model):
     url: Mapped[str] = db.Column(db.String(500), nullable=True, unique=True, index=True)
     domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=False)
     sites: Mapped[List['Site']] = db.relationship('Site', secondary=Site_Website_Assoc, back_populates='websites', lazy='dynamic')
+    documents: Mapped[List['Document']] = db.relationship('Document', back_populates='website', lazy='dynamic', cascade="all, delete-orphan")
     last_scanned: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     # Rate limiting the automatic scanning, in days
     rate_limit: Mapped[int] = db.Column(db.Integer, default=30)
@@ -397,6 +400,11 @@ class Website(db.Model):
         return ace_config_for_tags(self.get_tags())
 
         
+
+    def get_document_counts(self) -> dict:
+        """Documents linked from this website: total, PDFs, untagged PDFs, unchecked."""
+        from services.documents import document_counts, empty_document_counts  # local import: services import models
+        return document_counts([self.id]).get(self.id, empty_document_counts())
 
     def get_extra_start_urls(self) -> List[str]:
         """Pages a full scan starts from besides the website URL itself."""
@@ -577,6 +585,7 @@ class Website(db.Model):
             'description': self.description,
             'categories': [cat.strip() for cat in self.categories.split(",")] if self.categories else [],
             'extra_start_urls': self.get_extra_start_urls(),
+            'documents': self.get_document_counts(),
             'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
             'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
