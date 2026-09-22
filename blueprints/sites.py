@@ -4,7 +4,7 @@ from flask_jwt_extended import current_user, jwt_required
 from models.report import Report
 from models.website import Site, Website
 from models import db
-from services.findings import list_findings
+from services.findings import changes_for_sites, list_findings
 from services.history import effective_counts
 
 sites_bp = Blueprint('sites', __name__)
@@ -70,6 +70,37 @@ def get_site_history(site_id):
     } for r in reports]
 
     return jsonify({'count': len(items), 'items': items}), 200
+
+
+@sites_bp.route('/<int:site_id>/changes/', methods=['GET'])
+@jwt_required(optional=True)
+def get_site_changes(site_id):
+    """
+    What changed between the previous and the latest scan of one page.
+    ---
+    tags:
+        - Findings
+    parameters:
+        - in: path
+          name: site_id
+          type: integer
+          required: true
+    responses:
+        200:
+            description: Same shape as the website changes, for one page.
+        403:
+            description: The caller may not view this page.
+        404:
+            description: Site not found.
+    """
+    site = db.session.get(Site, site_id)
+    if not site:
+        return jsonify({'error': 'Site not found'}), 404
+    if current_user and not site.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+    if not current_user and site.public == False:
+        return jsonify({'error': 'Unauthorized'}), 403
+    return jsonify(changes_for_sites([site.id])), 200
 
 
 @sites_bp.route('/<int:site_id>/findings/', methods=['GET'])

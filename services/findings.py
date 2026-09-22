@@ -19,6 +19,7 @@ from models import db
 from models.finding import FINDING_STATUSES, Finding, SUPPRESSED_STATUSES
 from models.report import Report
 from models.website import Site_Website_Assoc
+from services.history import effective_counts, sum_counts
 
 IMPACT_KEYS = ('critical', 'serious', 'moderate', 'minor')
 
@@ -304,6 +305,139 @@ def list_findings(site_ids, status: str = 'current', rule_id: str | None = None)
         rule['pages'] = list(rule['pages'].values())
     ordered = sorted(rules.values(), key=lambda r: (IMPACT_KEYS.index(r['impact']) if r['impact'] in IMPACT_KEYS else len(IMPACT_KEYS), r['rule_id']))
     return {'count': len(findings), 'rules': ordered}
+
+
+# --- what changed ------------------------------------------------------------------------
+
+
+def _iso(value: datetime | None) -> str | None:
+    return value.strftime("%Y-%m-%dT%H:%M:%SZ") if value else None
+
+
+def latest_and_previous_reports(site_ids) -> tuple[dict, dict]:
+    """``({site_id: latest_row}, {site_id: previous_row})`` with light columns only."""
+    if not site_ids:
+        return {}, {}
+    columns = (Report.id, Report.site_id, Report.url, Report.timestamp, Report.report_counts, Report.suppressed_counts)
+    latest_ts = (
+        db.session.query(Report.site_id, func.max(Report.timestamp).label('ts'))
+        .filter(Report.site_id.in_(list(site_ids)))
+        .group_by(Report.site_id)
+        .subquery()
+    )
+    previous_ts = (
+        db.session.query(Report.site_id, func.max(Report.timestamp).label('ts'))
+        .join(latest_ts, latest_ts.c.site_id == Report.site_id)
+        .filter(Report.timestamp < latest_ts.c.ts)
+        .group_by(Report.site_id)
+        .subquery()
+    )
+
+    def newest_per_site(subquery):
+        rows = (
+            db.session.query(*columns)
+            .join(subquery, (subquery.c.site_id == Report.site_id) & (subquery.c.ts == Report.timestamp))
+            .all()
+        )
+        by_site = {}
+        for row in rows:
+            if row.site_id not in by_site or row.id > by_site[row.site_id].id:
+                by_site[row.site_id] = row
+        return by_site
+
+    return newest_per_site(latest_ts), newest_per_site(previous_ts)
+
+
+def _group_by_rule(findings, page_report_id):
+    """Findings → rules, most severe and most widespread first, with their pages."""
+    rules = {}
+    for finding, reopened in findings:
+        rule = rules.setdefault(finding.rule_id, {
+            'rule_id': finding.rule_id, 'impact': finding.impact, 'help': finding.help,
+            'help_url': finding.help_url, 'count': 0, 'pages': {},
+        })
+        rule['count'] += 1
+        page = rule['pages'].setdefault(finding.site_id, {
+            'site_id': finding.site_id, 'url': finding.site.url,
+            'report_id': page_report_id(finding.site_id), 'count': 0, 'findings': [],
+        })
+        page['count'] += 1
+        page['findings'].append({'id': finding.id, 'selector': finding.selector, 'reopened': reopened})
+    ordered = []
+    for rule in rules.values():
+        rule['pages'] = sorted(rule['pages'].values(), key=lambda p: (-p['count'], p['url']))
+        ordered.append(rule)
+    ordered.sort(key=lambda r: (IMPACT_KEYS.index(r['impact']) if r['impact'] in IMPACT_KEYS else len(IMPACT_KEYS), -r['count'], r['rule_id']))
+    return ordered
+
+
+def changes_for_sites(site_ids) -> dict:
+    """New, fixed and still-open findings between the previous and the latest scan of
+    the given pages, plus effective violation totals then and now over the pages that
+    have both. ``since`` is None when no page has a previous report."""
+    latest, previous = latest_and_previous_reports(site_ids)
+    empty_counts = {'total': 0, **{key: 0 for key in IMPACT_KEYS}}
+    result = {
+        'since': _iso(max((row.timestamp for row in previous.values()), default=None)),
+        'until': _iso(max((row.timestamp for row in latest.values()), default=None)),
+        'previous': dict(empty_counts), 'current': dict(empty_counts),
+        'new': [], 'fixed': [], 'still_open': [],
+        'new_count': 0, 'reopened_count': 0, 'fixed_count': 0, 'open_count': 0, 'suppressed_count': 0,
+    }
+    if not latest:
+        result['regression'] = False
+        return result
+
+    both = [site_id for site_id in latest if site_id in previous]
+    result['previous'] = sum_counts({s: effective_counts(previous[s].report_counts, previous[s].suppressed_counts) for s in both})['violations']
+    result['current'] = sum_counts({s: effective_counts(latest[s].report_counts, latest[s].suppressed_counts) for s in both})['violations']
+
+    report_ids = {row.id for row in latest.values()} | {row.id for row in previous.values()}
+    findings = (
+        db.session.query(Finding)
+        .filter(Finding.site_id.in_(list(latest)), Finding.last_report_id.in_(list(report_ids)))
+        .all()
+    )
+    new, fixed, still_open = [], [], []
+    for finding in findings:
+        latest_row = latest.get(finding.site_id)
+        previous_row = previous.get(finding.site_id)
+        if latest_row and finding.last_report_id == latest_row.id:
+            if finding.status in SUPPRESSED_STATUSES:
+                result['suppressed_count'] += 1
+            elif finding.status == 'open':
+                result['open_count'] += 1
+                reopened = (
+                    finding.status_by is None and finding.status_at is not None
+                    and finding.status_at >= _naive(latest_row.timestamp)
+                )
+                if finding.first_seen == finding.last_seen:
+                    new.append((finding, False))
+                elif reopened:
+                    new.append((finding, True))
+                    result['reopened_count'] += 1
+                else:
+                    still_open.append((finding, False))
+        elif previous_row and finding.last_report_id == previous_row.id and finding.status == 'fixed':
+            fixed.append((finding, False))
+
+    result['new_count'] = len(new)
+    result['fixed_count'] = len(fixed)
+    result['new'] = _group_by_rule(new, lambda site_id: latest[site_id].id)
+    result['still_open'] = _group_by_rule(still_open, lambda site_id: latest[site_id].id)
+    result['fixed'] = _group_by_rule(fixed, lambda site_id: previous[site_id].id)
+    result['regression'] = is_regression(result)
+    return result
+
+
+def is_regression(changes: dict) -> bool:
+    """Worse than the previous scan: a new or reopened critical/serious finding, or more
+    open violations over the pages present in both scans. Never on a first scan."""
+    if not changes.get('since'):
+        return False
+    if any(rule['impact'] in ('critical', 'serious') for rule in changes.get('new', [])):
+        return True
+    return (changes.get('current') or {}).get('total', 0) > (changes.get('previous') or {}).get('total', 0)
 
 
 # --- backfill --------------------------------------------------------------------------

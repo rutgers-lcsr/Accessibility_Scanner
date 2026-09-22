@@ -39,6 +39,15 @@
     or visit <a href="https://accessibility.rutgers.edu/">Accessibility Rutgers</a> for university recommendations.
 </p>
 <p>If you have questions or need help, reply to this email or contact the Rutgers LCSR team.</p>
+{% if changes and changes.since %}
+<h3>Since the previous scan</h3>
+<p>
+    Open violations on the pages scanned both times: {{ changes.previous.total }} → {{ changes.current.total }}.
+    {{ changes.new_count }} new{% if changes.reopened_count %} ({{ changes.reopened_count }} reopened){% endif %},
+    {{ changes.fixed_count }} fixed.
+    <a href="{{ client_url }}/websites/{{ website.id }}?tab=changes">See what changed</a>.
+</p>
+{% endif %}
 {% if jwt_token %}
 <p>
     If you'd like to stop receiving these emails, please visit <a

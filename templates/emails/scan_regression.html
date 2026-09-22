@@ -1,0 +1,51 @@
+{% extends "emails/base_template.html" %}
+{% block content %}
+<h2>Accessibility regression on {{ website.url }}</h2>
+<p>
+    The latest scan found more problems than the previous one.
+    {% if changes.since %}Previous scan: {{ changes.since | datetimeformat }}. {% endif %}
+    Open violations went from <strong>{{ changes.previous.total }}</strong> to
+    <strong>{{ changes.current.total }}</strong> on the pages scanned both times;
+    <strong>{{ changes.new_count }}</strong> new
+    {% if changes.reopened_count %}({{ changes.reopened_count }} reopened){% endif %},
+    <strong>{{ changes.fixed_count }}</strong> fixed.
+</p>
+{% if changes.new %}
+<h3>New violations</h3>
+<table cellpadding="6" cellspacing="0" border="0" style="border-collapse: collapse; width: 100%;">
+    <tr style="background: #f2f2f2;">
+        <th align="left">Impact</th>
+        <th align="left">Rule</th>
+        <th align="left">Elements</th>
+        <th align="left">Pages</th>
+    </tr>
+    {% for rule in changes.new[:10] %}
+    <tr style="border-bottom: 1px solid #e5e5e5;">
+        <td>{{ (rule.impact or 'unknown') | capitalize }}</td>
+        <td>
+            {% if rule.help_url %}<a href="{{ rule.help_url }}">{{ rule.help or rule.rule_id }}</a>{% else %}{{ rule.help or rule.rule_id }}{% endif %}
+            <br><small>{{ rule.rule_id }}</small>
+        </td>
+        <td>{{ rule.count }}</td>
+        <td>
+            {% for page in rule.pages[:5] %}
+            <a href="{{ client_url }}/reports/{{ page.report_id }}?rule={{ rule.rule_id }}#violation-{{ rule.rule_id }}">{{ page.url }}</a> ({{ page.count }})<br>
+            {% endfor %}
+            {% if rule.pages | length > 5 %}<small>and {{ rule.pages | length - 5 }} more</small>{% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% if changes.new | length > 10 %}<p><small>And {{ changes.new | length - 10 }} more rules.</small></p>{% endif %}
+{% endif %}
+<p>
+    <a class="btn" href="{{ client_url }}/websites/{{ website.id }}?tab=changes">See what changed</a>
+</p>
+{% if jwt_token %}
+<p>
+    If you'd like to stop receiving these emails, please visit <a
+        href="{{ client_url }}/api/users/unsubscribe/?token={{ jwt_token }}">unsubscribe</a>.
+    Site admins can switch email off for the whole website from its admin panel.
+</p>
+{% endif %}
+{% endblock content %}

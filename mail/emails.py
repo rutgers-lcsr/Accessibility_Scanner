@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from scanner.log import log_message
 from utils.jwt import generate_jwt_token
+from utils.urls import get_netloc
 class AccessEmails():
     def __init__(self):
         self.client_url = CLIENT_URL
@@ -141,9 +142,14 @@ class NewWebsiteEmail(AccessEmails):
             _mark_notified(self.website)
 
 class ScanFinishedEmail(AccessEmails):
-    def __init__(self, website: Website):
+    def __init__(self, website: Website, changes: dict | None = None):
         self.website = website
         self.report_counts = website.get_report_counts()
+        if changes is None:
+            from services.findings import changes_for_sites  # local import: services import models
+            from models.website import Site
+            changes = changes_for_sites([row.id for row in website.sites.with_entities(Site.id).all()])
+        self.changes = changes
         super().__init__()
 
     def _worth_sending(self) -> bool:
@@ -165,7 +171,7 @@ class ScanFinishedEmail(AccessEmails):
         msg = Message("Accessibility Scan Finished", recipients=[address])
         msg.html = render_template(
             "emails/scan_finished.html", year=self.year, website=self.website.to_dict(),
-            client_url=self.client_url, scan=self.report_counts,
+            client_url=self.client_url, scan=self.report_counts, changes=self.changes,
             timestamp=datetime.now().isoformat(), jwt_token=jwt_token,
         )
         return msg
@@ -188,3 +194,38 @@ class ScanFinishedEmail(AccessEmails):
 
         if self.send_each([self._message(address, token) for address, token in targets]):
             _mark_notified(self.website)
+
+
+class ScanRegressionEmail(AccessEmails):
+    """Sent instead of the scan-finished email when a scan is worse than the previous one
+    (services.findings.is_regression). No severity thresholds: a regression is news."""
+
+    def __init__(self, website: Website, changes: dict):
+        self.website = website
+        self.changes = changes
+        super().__init__()
+
+    def send(self, force: bool = False) -> bool:
+        if not force and not self.website.should_email:
+            return False
+        recipients = [user for user in self.website.get_recipients() if user.email]
+        if not recipients:
+            log_message(f"Website {self.website.id} has no associated user emails to send regression notification.", 'warning')
+            return False
+
+        new_total = self.changes.get('new_count', 0)
+        subject = f"Accessibility regression on {get_netloc(self.website.url)}: {new_total} new violation{'s' if new_total != 1 else ''}"
+        messages = []
+        for user in recipients:
+            msg = Message(subject, recipients=[user.email])
+            msg.html = render_template(
+                "emails/scan_regression.html", year=self.year, website=self.website,
+                client_url=self.client_url, changes=self.changes,
+                jwt_token=_unsubscribe_token(self.website, user),
+            )
+            messages.append(msg)
+
+        sent = self.send_each(messages) > 0
+        if sent:
+            _mark_notified(self.website)
+        return sent
