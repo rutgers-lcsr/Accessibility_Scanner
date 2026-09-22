@@ -1,17 +1,12 @@
 import Console from '@/components/Console';
 import { Report as ReportType } from '@/lib/types/axe';
-import {
-    AlertOutlined,
-    ExclamationCircleOutlined,
-    InfoCircleOutlined,
-    WarningOutlined,
-} from '@/lib/icons';
+import { ExclamationCircleOutlined } from '@/lib/icons';
 
 import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
-import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
-import GenerateAIPromptButton from '@/components/GenerateAIPromptButton';
+import ImpactTiles from '@/components/ImpactTiles';
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
+import ViolationsList from '@/components/ViolationsList';
 import { User } from '@/lib/types/user';
 import { Alert, Card, Flex, Image, Space, Tooltip } from 'antd';
 import { Content } from 'antd/es/layout/layout';
@@ -100,64 +95,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 </div>
                             </Flex>
 
-                            <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
-                                <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
-                                    <Tooltip
-                                        title="Major barriers that prevent
-                                        access for many users. Immediate attention required."
-                                    >
-                                        <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
-                                        <h3 className="mb-2 text-lg font-medium text-red-700">
-                                            Critical
-                                        </h3>
-                                        <h4 className="text-3xl font-bold text-red-600">
-                                            {violations.critical}
-                                        </h4>
-                                    </Tooltip>
-                                </div>
-                                <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
-                                    <Tooltip
-                                        title="Significant issues that can make
-                                        content difficult to use. Should be fixed promptly."
-                                    >
-                                        <AlertOutlined className="mb-2 text-3xl text-red-700" />
-                                        <h3 className="mb-2 text-lg font-medium text-red-700">
-                                            Serious
-                                        </h3>
-                                        <h4 className="text-3xl font-bold text-red-600">
-                                            {violations.serious}
-                                        </h4>
-                                    </Tooltip>
-                                </div>
-                                <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
-                                    <Tooltip
-                                        title="Problems that may inconvenience
-                                        some users but do not block access."
-                                    >
-                                        <WarningOutlined className="mb-2 text-3xl text-orange-700" />
-                                        <h3 className="mb-2 text-lg font-medium text-orange-700">
-                                            Moderate
-                                        </h3>
-                                        <h4 className="text-3xl font-bold text-orange-600">
-                                            {violations.moderate}
-                                        </h4>
-                                    </Tooltip>
-                                </div>
-                                <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
-                                    <Tooltip
-                                        title="Low-impact issues that may
-                                        affect usability in specific cases."
-                                    >
-                                        <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
-                                        <h3 className="mb-2 text-lg font-medium text-yellow-700">
-                                            Minor
-                                        </h3>
-                                        <h4 className="text-3xl font-bold text-yellow-600">
-                                            {violations.minor}
-                                        </h4>
-                                    </Tooltip>
-                                </div>
-                            </div>
+                            <ImpactTiles counts={violations} />
                             {report.videos.length > 0 && (
                                 <div className="mt-4 text-center text-sm text-gray-600">
                                     <ExclamationCircleOutlined className="mr-1 inline" />
@@ -317,30 +255,21 @@ document.body.appendChild(accessScriptElement);`}
 
                     {report.report.violations.length > 0 && (
                         <Card>
-                            <Flex justify="space-between" align="center">
-                                <div>
-                                    <h2
-                                        className="mb-4 text-2xl font-semibold"
-                                        id="detailed-accessibility-issues"
-                                    >
-                                        Accessibility Issues
-                                    </h2>
-                                    <p className="mb-2">
-                                        The following accessibility issues were found on the page:
-                                    </p>
-                                </div>
-                                <GenerateAIPromptButton
+                            <h2
+                                className="mb-4 text-2xl font-semibold"
+                                id="detailed-accessibility-issues"
+                            >
+                                Accessibility Issues
+                            </h2>
+                            <p className="mb-2">
+                                The following accessibility issues were found on the page:
+                            </p>
+                            <div className="mt-4">
+                                <ViolationsList
                                     violations={report.report.violations}
                                     url={report.url}
+                                    previewEnabled
                                 />
-                            </Flex>
-                            <div className="mt-4">
-                                {report.report.violations.map((violation, index) => (
-                                    <AuditAccessibilityItem
-                                        key={index}
-                                        accessibilityResult={violation}
-                                    />
-                                ))}
                             </div>
                         </Card>
                     )}

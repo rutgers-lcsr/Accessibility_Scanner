@@ -186,3 +186,27 @@ def test_latest_by_website_no_reports(
         f"/api/v1/websites/{website.id}/reports/latest", headers=_key_header(token)
     )
     assert resp.status_code == 404
+
+
+# --- aggregated website report ------------------------------------------------------
+
+
+def test_website_report_orders_by_severity_and_counts_nodes_per_page(app, make_user, make_website, add_site, add_report):
+    """One rule found on two pages lists both pages with their own node counts, and
+    rules come most severe first (the old sort compared impact strings)."""
+    website = make_website(make_user())
+    home = add_site(website, page="/")
+    about = add_site(website, page="/about")
+
+    def rule(rule_id, impact, nodes):
+        return {"id": rule_id, "impact": impact, "help": rule_id, "helpUrl": "https://x", "tags": [],
+                "nodes": [{"target": [f"#{i}"], "html": "<p>"} for i in range(nodes)]}
+
+    add_report(home, violations=[rule("region", "minor", 2), rule("color-contrast", "serious", 3)])
+    add_report(about, violations=[rule("color-contrast", "serious", 1), rule("image-alt", "critical", 1)])
+
+    report = website.get_report()
+
+    assert [v["id"] for v in report["violations"]] == ["image-alt", "color-contrast", "region"]
+    contrast = report["violations"][1]
+    assert {r["url"]: r["node_count"] for r in contrast["reports"]} == {home.url: 3, about.url: 1}

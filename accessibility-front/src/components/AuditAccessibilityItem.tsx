@@ -1,22 +1,121 @@
 'use client';
-import { AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
-import { Card, Collapse, Tag, Tooltip } from 'antd';
+import { ImpactTag } from '@/lib/impact';
+import { AxeNode, AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
+import { Button, Card, Collapse, Tag, Tooltip } from 'antd';
+import { useState } from 'react';
+import ViolationNode from './ViolationNode';
+
 type Props = {
     accessibilityResult: WebsiteAxeResult | AxeResult;
+    // Offer "Show in preview" on each element (the report page, where the preview iframe is).
+    previewEnabled?: boolean;
 };
 
-function AuditAccessibilityItem({ accessibilityResult }: Props) {
+const NODE_PAGE = 10;
+
+function isWebsiteResult(result: WebsiteAxeResult | AxeResult): result is WebsiteAxeResult {
+    return (result as WebsiteAxeResult).reports !== undefined;
+}
+
+// A rule's failing elements, ten at a time so a rule with hundreds stays cheap to open.
+function NodeList({
+    nodes,
+    label,
+    open,
+    previewEnabled,
+}: {
+    nodes: AxeNode[];
+    label: string;
+    open: boolean;
+    previewEnabled?: boolean;
+}) {
+    const [shown, setShown] = useState(NODE_PAGE);
+    return (
+        <Collapse
+            defaultActiveKey={open ? ['nodes'] : []}
+            items={[
+                {
+                    key: 'nodes',
+                    label: (
+                        <span className="font-medium">
+                            {label}
+                            <Tag color="blue" style={{ marginLeft: 8 }}>
+                                {nodes.length}
+                            </Tag>
+                        </span>
+                    ),
+                    children: (
+                        <>
+                            <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
+                                {nodes.slice(0, shown).map((node, idx) => (
+                                    <ViolationNode
+                                        key={idx}
+                                        node={node}
+                                        previewEnabled={previewEnabled}
+                                    />
+                                ))}
+                            </ul>
+                            {shown < nodes.length && (
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="small"
+                                        onClick={() => setShown(shown + NODE_PAGE)}
+                                    >
+                                        Show {Math.min(NODE_PAGE, nodes.length - shown)} more
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        type="link"
+                                        onClick={() => setShown(nodes.length)}
+                                    >
+                                        Show all {nodes.length}
+                                    </Button>
+                                </div>
+                            )}
+                        </>
+                    ),
+                },
+            ]}
+        />
+    );
+}
+
+function AuditAccessibilityItem({ accessibilityResult, previewEnabled = false }: Props) {
     if (!accessibilityResult) return <div>No accessibility result provided.</div>;
 
-    const isWebsiteResult = (result: WebsiteAxeResult | AxeResult): result is WebsiteAxeResult => {
-        return (result as WebsiteAxeResult).reports !== undefined;
-    };
+    const ruleId = accessibilityResult.id;
+    const header = (
+        <>
+            <div className="mb-2 text-gray-700">{accessibilityResult.description}</div>
+            <div className="text-sm text-gray-500">
+                <strong>Help:</strong> {accessibilityResult.help}
+            </div>
+        </>
+    );
+    const footer = (
+        <>
+            <div className="mt-2 flex flex-wrap justify-end gap-2">
+                {accessibilityResult.tags &&
+                    accessibilityResult.tags.map((tag, index) => (
+                        <Tag key={index} color="default">
+                            {tag}
+                        </Tag>
+                    ))}
+            </div>
+            <div className="mt-2 flex justify-end-safe">
+                <a href={accessibilityResult.helpUrl} target="_blank" rel="noopener noreferrer">
+                    Learn more
+                </a>
+            </div>
+        </>
+    );
 
     if (isWebsiteResult(accessibilityResult)) {
         const reportItems: Parameters<typeof Collapse>[0]['items'] = [
             {
+                key: 'pages',
                 label: (
-                    <Tooltip title="List of URLs where this issue was found (Click to expand)">
+                    <Tooltip title="Pages where this issue was found (click to expand)">
                         <span className="font-medium">
                             Affected URLs
                             <Tag color="blue" style={{ marginLeft: 8 }}>
@@ -25,7 +124,6 @@ function AuditAccessibilityItem({ accessibilityResult }: Props) {
                         </span>
                     </Tooltip>
                 ),
-
                 children: (
                     <ul style={{ paddingLeft: 0, margin: 0 }}>
                         {accessibilityResult.reports.map((report, idx) => (
@@ -41,8 +139,14 @@ function AuditAccessibilityItem({ accessibilityResult }: Props) {
                                 <Tag color="geekblue" style={{ marginRight: 8 }}>
                                     {new Date(report.timestamp).toLocaleString()}
                                 </Tag>
+                                {report.node_count !== undefined && (
+                                    <Tag style={{ marginRight: 8 }}>
+                                        {report.node_count}{' '}
+                                        {report.node_count === 1 ? 'element' : 'elements'}
+                                    </Tag>
+                                )}
                                 <a
-                                    href={`/reports/${report.report_id}`}
+                                    href={`/reports/${report.report_id}?rule=${encodeURIComponent(ruleId)}#violation-${encodeURIComponent(ruleId)}`}
                                     className="text-blue-600 hover:underline"
                                     style={{
                                         flex: 1,
@@ -63,81 +167,50 @@ function AuditAccessibilityItem({ accessibilityResult }: Props) {
 
         return (
             <Card
+                id={`violation-${ruleId}`}
                 style={{ marginBottom: '16px' }}
-                title={<span className="text-lg font-semibold">{accessibilityResult.id}</span>}
-                extra={
-                    <Tag color={accessibilityResult.impact === 'critical' ? 'red' : 'blue'}>
-                        {accessibilityResult.impact}
-                    </Tag>
-                }
+                title={<span className="text-lg font-semibold">{ruleId}</span>}
+                extra={<ImpactTag impact={accessibilityResult.impact} />}
             >
-                <div className="mb-2 text-gray-700">{accessibilityResult.description}</div>
-                <div className="text-sm text-gray-500">
-                    <strong>Help:</strong> {accessibilityResult.help}
-                </div>
-
+                {header}
                 {!!accessibilityResult.reports?.length && (
                     <div className="mt-4">
                         <Collapse items={reportItems}></Collapse>
                     </div>
                 )}
-                <div className="mt-2 flex flex-wrap justify-end gap-2">
-                    {accessibilityResult.tags &&
-                        accessibilityResult.tags.map((tag, index) => (
-                            <Tag key={index} color="default">
-                                {tag}
-                            </Tag>
-                        ))}
-                </div>
-                <div className="mt-2 flex justify-end-safe">
-                    <a href={accessibilityResult.helpUrl} target="_blank" rel="noopener noreferrer">
-                        Learn more
-                    </a>
-                </div>
+                {!!accessibilityResult.nodes?.length && (
+                    <div className="mt-2">
+                        <NodeList
+                            nodes={accessibilityResult.nodes}
+                            label="Example elements (from the first affected page)"
+                            open={false}
+                        />
+                    </div>
+                )}
+                {footer}
             </Card>
         );
     }
 
     return (
         <Card
+            id={`violation-${ruleId}`}
             style={{ marginBottom: '16px' }}
-            title={<span className="text-lg font-semibold">{accessibilityResult.id}</span>}
-            extra={
-                <Tag color={accessibilityResult.impact === 'critical' ? 'red' : 'blue'}>
-                    {accessibilityResult.impact}
-                </Tag>
-            }
+            title={<span className="text-lg font-semibold">{ruleId}</span>}
+            extra={<ImpactTag impact={accessibilityResult.impact} />}
         >
-            <div className="mb-2 text-gray-700">{accessibilityResult.description}</div>
-            <div className="text-sm text-gray-500">
-                <strong>Help:</strong> {accessibilityResult.help}
-            </div>
-
-            {accessibilityResult.nodes && (
+            {header}
+            {!!accessibilityResult.nodes?.length && (
                 <div className="mt-2">
-                    <strong>Nodes:</strong>
-                    <ul className="list-inside list-disc">
-                        {accessibilityResult.nodes.map((node, idx) => (
-                            <li key={idx} className="text-xs text-gray-600">
-                                {node.target.join(', ')}
-                            </li>
-                        ))}
-                    </ul>
+                    <NodeList
+                        nodes={accessibilityResult.nodes}
+                        label="Elements"
+                        open
+                        previewEnabled={previewEnabled}
+                    />
                 </div>
             )}
-            <div className="mt-2 flex flex-wrap justify-end gap-2">
-                {accessibilityResult.tags &&
-                    accessibilityResult.tags.map((tag, index) => (
-                        <Tag key={index} color="default">
-                            {tag}
-                        </Tag>
-                    ))}
-            </div>
-            <div className="mt-2 flex justify-end-safe">
-                <a href={accessibilityResult.helpUrl} target="_blank" rel="noopener noreferrer">
-                    Learn more
-                </a>
-            </div>
+            {footer}
         </Card>
     );
 }

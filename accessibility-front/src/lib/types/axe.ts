@@ -34,6 +34,7 @@ export type WebsiteAxeResultReport = {
     url: string;
     timestamp: string;
     report_id: number;
+    node_count?: number; // failing elements on that page
 };
 export type WebsiteAxeResult = AxeResult & {
     reports: WebsiteAxeResultReport[];

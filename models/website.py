@@ -482,7 +482,8 @@ class Website(db.Model):
                         site_report = {
                             'url': site.url,
                             'timestamp': current_report.report.get('timestamp'),
-                            'report_id': current_report.id
+                            'report_id': current_report.id,
+                            'node_count': rule.get('node_count', len(rule.get('nodes') or [])),
                         }
                         if existing_rule:
                             existing_rule['reports'].append(site_report)
@@ -491,13 +492,10 @@ class Website(db.Model):
                             new_rule['reports'] = [site_report]
                             report[key].append(new_rule)
 
-        # sort by report cirticality
+        # Most severe first (the old string sort put "minor" before "serious").
+        from services.overview import IMPACT_ORDER  # local import: services import models
         for key in report:
-            report[key].sort(key=lambda x: ('critical' if x.get('impact') == 'critical' else
-                                            'serious' if x.get('impact') == 'serious' else
-                                            'moderate' if x.get('impact') == 'moderate' else
-                                            'minor' if x.get('impact') == 'minor' else
-                                            'none'))
+            report[key].sort(key=lambda x: IMPACT_ORDER.get(x.get('impact'), len(IMPACT_ORDER)))
 
         return report
 

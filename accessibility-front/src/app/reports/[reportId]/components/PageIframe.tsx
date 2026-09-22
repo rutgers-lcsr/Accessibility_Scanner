@@ -1,5 +1,7 @@
 'use client';
 
+import { PREVIEW_FOCUS_EVENT } from '@/components/ViolationNode';
+import { useAlerts } from '@/providers/Alerts';
 import { FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import { ReactNode, useEffect, useRef, useState } from 'react';
@@ -13,6 +15,36 @@ function PageIframe({ url, children }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const { addAlert } = useAlerts();
+
+    // "Show in preview" on a violation: scroll the framed page to the element and open
+    // its tooltip. The frame is same-origin (/proxy), and the injected report script has
+    // already tagged the element and defined .animation-highlight.
+    useEffect(() => {
+        const onFocus = (event: Event) => {
+            const selector = (event as CustomEvent<{ selector?: string }>).detail?.selector;
+            if (!selector) return;
+            containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            let target: Element | null = null;
+            try {
+                target = iframeRef.current?.contentDocument?.querySelector(selector) ?? null;
+            } catch {
+                target = null; // cross-origin frame or a selector the browser rejects
+            }
+            if (!target) {
+                addAlert(
+                    'Element not found in the preview; use the screenshot or the injection script',
+                    'warning'
+                );
+                return;
+            }
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('animation-highlight');
+            target.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        };
+        window.addEventListener(PREVIEW_FOCUS_EVENT, onFocus);
+        return () => window.removeEventListener(PREVIEW_FOCUS_EVENT, onFocus);
+    }, [addAlert]);
 
     useEffect(() => {
         const onFullscreenChange = () =>

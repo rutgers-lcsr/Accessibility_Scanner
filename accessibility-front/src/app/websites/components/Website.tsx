@@ -1,17 +1,13 @@
 'use client';
 import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
+import ImpactTiles from '@/components/ImpactTiles';
 import PageHeading from '@/components/PageHeading';
 import { fetcherApi } from '@/lib/api';
 import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
+import { useUrlFilters } from '@/lib/urlFilters';
 import { useUser } from '@/providers/User';
-import {
-    AlertOutlined,
-    ExclamationCircleOutlined,
-    InfoCircleOutlined,
-    WarningOutlined,
-} from '@ant-design/icons';
-import { Alert, Layout, Tabs, TabsProps, Tooltip } from 'antd';
+import { Alert, Layout, Tabs, TabsProps } from 'antd';
 import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -29,6 +25,9 @@ type Props = {
 
 const Website = ({ websiteId, user }: Props) => {
     const { handlerUserApiRequest } = useUser();
+    // The open tab lives in the URL (?tab=) so links from emails and cards land on it.
+    const { params, setFilters } = useUrlFilters();
+    const activeTab = params.get('tab') ?? 'urls';
 
     const {
         data: websiteReport,
@@ -53,7 +52,7 @@ const Website = ({ websiteId, user }: Props) => {
 
     const WebsiteReportItems: TabsProps['items'] = [
         {
-            key: '1',
+            key: 'urls',
             label: `Urls (${websiteReport.sites.length})`,
             children: (
                 <>
@@ -68,12 +67,12 @@ const Website = ({ websiteId, user }: Props) => {
             ),
         },
         {
-            key: '2',
+            key: 'violations',
             label: `Violations (${violations.total})`,
             children: <WebsiteReport report={websiteReport.report} />,
         },
         {
-            key: '3',
+            key: 'history',
             label: 'History',
             children: <WebsiteHistoryChart websiteId={websiteId} user={user} />,
         },
@@ -128,58 +127,7 @@ const Website = ({ websiteId, user }: Props) => {
                     >
                         Accessibility Report
                     </h2>
-                    <div className="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
-                        <div className="flex flex-col items-center rounded-lg bg-red-50 p-4 shadow-sm">
-                            <Tooltip
-                                title="Major barriers that prevent
-                                        access for many users. Immediate attention required."
-                            >
-                                <ExclamationCircleOutlined className="mb-2 text-3xl text-red-700" />
-                                <h3 className="mb-2 text-lg font-medium text-red-700">Critical</h3>
-                                <h4 className="text-3xl font-bold text-red-600">
-                                    {violations.critical}
-                                </h4>
-                            </Tooltip>
-                        </div>
-                        <div className="flex flex-col items-center rounded-lg bg-red-100 p-4 shadow-sm">
-                            <Tooltip
-                                title="Significant issues that can make
-                                        content difficult to use. Should be fixed promptly."
-                            >
-                                <AlertOutlined className="mb-2 text-3xl text-red-700" />
-                                <h3 className="mb-2 text-lg font-medium text-red-700">Serious</h3>
-                                <h4 className="text-3xl font-bold text-red-600">
-                                    {violations.serious}
-                                </h4>
-                            </Tooltip>
-                        </div>
-                        <div className="flex flex-col items-center rounded-lg bg-orange-50 p-4 shadow-sm">
-                            <Tooltip
-                                title="Problems that may inconvenience
-                                        some users but do not block access."
-                            >
-                                <WarningOutlined className="mb-2 text-3xl text-orange-700" />
-                                <h3 className="mb-2 text-lg font-medium text-orange-700">
-                                    Moderate
-                                </h3>
-                                <h4 className="text-3xl font-bold text-orange-600">
-                                    {violations.moderate}
-                                </h4>
-                            </Tooltip>
-                        </div>
-                        <div className="flex flex-col items-center rounded-lg bg-yellow-50 p-4 shadow-sm">
-                            <Tooltip
-                                title="Low-impact issues that may
-                                        affect usability in specific cases."
-                            >
-                                <InfoCircleOutlined className="mb-2 text-3xl text-yellow-700" />
-                                <h3 className="mb-2 text-lg font-medium text-yellow-700">Minor</h3>
-                                <h4 className="text-3xl font-bold text-yellow-600">
-                                    {violations.minor}
-                                </h4>
-                            </Tooltip>
-                        </div>
-                    </div>
+                    <ImpactTiles counts={violations} />
                     {violations.total > 15 && (
                         // Give some advice if there are too many violations
                         <div className="mt-6 rounded-md p-4">
@@ -194,7 +142,11 @@ const Website = ({ websiteId, user }: Props) => {
                 </section>
 
                 <section aria-labelledby="website-report">
-                    <Tabs defaultActiveKey="1" items={WebsiteReportItems} />
+                    <Tabs
+                        activeKey={activeTab}
+                        onChange={(key) => setFilters({ tab: key === 'urls' ? null : key })}
+                        items={WebsiteReportItems}
+                    />
                 </section>
             </Content>
         </>

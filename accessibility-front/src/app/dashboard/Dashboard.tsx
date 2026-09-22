@@ -9,16 +9,13 @@ import {
     DashboardCategory,
     DashboardRule,
     DashboardWebsite,
-    Impact,
     ScanStatus,
 } from '@/lib/types/dashboard';
+import { IMPACTS, ImpactTag } from '@/lib/impact';
 import { useUser } from '@/providers/User';
 import {
-    AlertOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
-    ExclamationCircleOutlined,
-    InfoCircleOutlined,
     MinusCircleOutlined,
     WarningOutlined,
 } from '@ant-design/icons';
@@ -36,27 +33,9 @@ const DAY_OPTIONS = [
     { value: 365, label: 'Last year' },
 ];
 
-// Severity presentation shared with the report pages: icon + label + colour, never colour alone.
-const IMPACTS: { key: Impact; label: string; tag: string; icon: ReactNode; text: string; bg: string }[] = [
-    { key: 'critical', label: 'Critical', tag: 'red', icon: <ExclamationCircleOutlined />, text: 'text-red-700', bg: 'bg-red-50' },
-    { key: 'serious', label: 'Serious', tag: 'volcano', icon: <AlertOutlined />, text: 'text-red-700', bg: 'bg-red-100' },
-    { key: 'moderate', label: 'Moderate', tag: 'orange', icon: <WarningOutlined />, text: 'text-orange-700', bg: 'bg-orange-50' },
-    { key: 'minor', label: 'Minor', tag: 'gold', icon: <InfoCircleOutlined />, text: 'text-yellow-700', bg: 'bg-yellow-50' },
-];
-
 function passRate(passes: number, violations: number): number | null {
     const total = passes + violations;
     return total === 0 ? null : Math.round((passes / total) * 100);
-}
-
-function ImpactTag({ impact }: { impact: Impact | null }) {
-    const meta = IMPACTS.find((i) => i.key === impact);
-    if (!meta) return <Tag>Unknown</Tag>;
-    return (
-        <Tag color={meta.tag} icon={meta.icon}>
-            {meta.label}
-        </Tag>
-    );
 }
 
 function StatusTag({ status, lastScanned }: { status: ScanStatus; lastScanned: string | null }) {
@@ -92,8 +71,9 @@ function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
     );
 }
 
-const numberSorter = (pick: (row: DashboardWebsite) => number) => (a: DashboardWebsite, b: DashboardWebsite) =>
-    pick(a) - pick(b);
+const numberSorter =
+    (pick: (row: DashboardWebsite) => number) => (a: DashboardWebsite, b: DashboardWebsite) =>
+        pick(a) - pick(b);
 
 function Dashboard() {
     const { handlerUserApiRequest } = useUser();
@@ -124,7 +104,11 @@ function Dashboard() {
             dataIndex: 'categories',
             key: 'categories',
             render: (categories: string[]) =>
-                categories.length ? categories.map((c) => <Tag key={c}>{c}</Tag>) : <span className="text-gray-400">—</span>,
+                categories.length ? (
+                    categories.map((c) => <Tag key={c}>{c}</Tag>)
+                ) : (
+                    <span className="text-gray-400">—</span>
+                ),
         },
         {
             title: 'Pages',
@@ -161,13 +145,16 @@ function Dashboard() {
             title: 'Last scanned',
             dataIndex: 'last_scanned',
             key: 'last_scanned',
-            render: (date: string | null) => (date ? formatDate(new Date(date), 'MMM d, yyyy') : 'Never'),
+            render: (date: string | null) =>
+                date ? formatDate(new Date(date), 'MMM d, yyyy') : 'Never',
             sorter: (a, b) => (a.last_scanned ?? '').localeCompare(b.last_scanned ?? ''),
         },
         {
             title: 'Last scan',
             key: 'status',
-            render: (_, row) => <StatusTag status={row.last_scan_status} lastScanned={row.last_scanned} />,
+            render: (_, row) => (
+                <StatusTag status={row.last_scan_status} lastScanned={row.last_scanned} />
+            ),
         },
     ];
 
@@ -182,7 +169,7 @@ function Dashboard() {
                             {rule.help ?? rule.id}
                         </a>
                     ) : (
-                        rule.help ?? rule.id
+                        (rule.help ?? rule.id)
                     )}
                     <div className="text-xs text-gray-500">{rule.id}</div>
                 </>
@@ -253,7 +240,8 @@ function Dashboard() {
                         description={
                             <>
                                 Nothing is visible to you yet. Add or request a website on the{' '}
-                                <Link href="/websites">Websites</Link> page to start tracking it here.
+                                <Link href="/websites">Websites</Link> page to start tracking it
+                                here.
                             </>
                         }
                     />
@@ -290,8 +278,16 @@ function Dashboard() {
                                         <Statistic
                                             title="Scans needing attention"
                                             value={attention}
-                                            prefix={attention > 0 ? <WarningOutlined /> : <CheckCircleOutlined />}
-                                            valueStyle={{ color: attention > 0 ? '#c2410c' : '#15803d' }}
+                                            prefix={
+                                                attention > 0 ? (
+                                                    <WarningOutlined />
+                                                ) : (
+                                                    <CheckCircleOutlined />
+                                                )
+                                            }
+                                            valueStyle={{
+                                                color: attention > 0 ? '#c2410c' : '#15803d',
+                                            }}
                                         />
                                         <div className="mt-1 text-xs text-gray-500">
                                             {attention > 0
@@ -307,31 +303,49 @@ function Dashboard() {
 
                         <section aria-labelledby="dash-violations">
                             <SectionTitle id="dash-violations">
-                                Open violations <span className="text-base font-normal text-gray-500">(latest scan of every page)</span>
+                                Open violations{' '}
+                                <span className="text-base font-normal text-gray-500">
+                                    (latest scan of every page)
+                                </span>
                             </SectionTitle>
                             <Row gutter={[16, 16]}>
                                 {IMPACTS.map((impact) => (
                                     <Col xs={12} md={6} key={impact.key}>
-                                        <div className={`flex flex-col items-center rounded-lg ${impact.bg} p-4 shadow-sm`}>
-                                            <span className={`mb-2 text-3xl ${impact.text}`}>{impact.icon}</span>
-                                            <h3 className={`mb-2 text-lg font-medium ${impact.text}`}>{impact.label}</h3>
-                                            <p className="text-3xl font-bold text-gray-900">{totals.violations[impact.key]}</p>
+                                        <div
+                                            className={`flex flex-col items-center rounded-lg ${impact.bg} p-4 shadow-sm`}
+                                        >
+                                            <span className={`mb-2 text-3xl ${impact.text}`}>
+                                                {impact.icon}
+                                            </span>
+                                            <h3
+                                                className={`mb-2 text-lg font-medium ${impact.text}`}
+                                            >
+                                                {impact.label}
+                                            </h3>
+                                            <p className="text-3xl font-bold text-gray-900">
+                                                {totals.violations[impact.key]}
+                                            </p>
                                         </div>
                                     </Col>
                                 ))}
                             </Row>
                             <p className="mt-3 text-sm text-gray-600">
-                                {totals.violations.total} violations across {totals.pages_audited} audited pages
+                                {totals.violations.total} violations across {totals.pages_audited}{' '}
+                                audited pages
                                 {totals.pages_audited > 0 &&
                                     ` (${(totals.violations.total / totals.pages_audited).toFixed(1)} per page)`}
-                                {totals.incomplete > 0 && `, plus ${totals.incomplete} checks that need manual review`}.
+                                {totals.incomplete > 0 &&
+                                    `, plus ${totals.incomplete} checks that need manual review`}
+                                .
                             </p>
                         </section>
 
                         <section aria-labelledby="dash-trend">
                             <SectionTitle id="dash-trend">
                                 Open violations over time{' '}
-                                <span className="text-base font-normal text-gray-500">(by severity)</span>
+                                <span className="text-base font-normal text-gray-500">
+                                    (by severity)
+                                </span>
                             </SectionTitle>
                             <Card>
                                 <HistoryChart data={data.history} x="date" series="violations" />
@@ -339,7 +353,9 @@ function Dashboard() {
                         </section>
 
                         <section aria-labelledby="dash-websites">
-                            <SectionTitle id="dash-websites">Websites ranked by open violations</SectionTitle>
+                            <SectionTitle id="dash-websites">
+                                Websites ranked by open violations
+                            </SectionTitle>
                             <Table<DashboardWebsite>
                                 rowKey="id"
                                 columns={websiteColumns}
