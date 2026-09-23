@@ -4,21 +4,16 @@ import HistoryChart from '@/app/websites/components/HistoryChart';
 import PageError from '@/components/PageError';
 import PageHeading from '@/components/PageHeading';
 import PageLoading from '@/components/PageLoading';
+import ScanStatusTag from '@/components/ScanStatusTag';
 import {
     Dashboard as DashboardType,
     DashboardCategory,
     DashboardRule,
     DashboardWebsite,
-    ScanStatus,
 } from '@/lib/types/dashboard';
 import { IMPACTS, ImpactTag } from '@/lib/impact';
 import { useUser } from '@/providers/User';
-import {
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    MinusCircleOutlined,
-    WarningOutlined,
-} from '@ant-design/icons';
+import { CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import { Alert, Card, Col, Row, Select, Statistic, Table, TableColumnType, Tag } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { formatDate } from 'date-fns';
@@ -36,31 +31,6 @@ const DAY_OPTIONS = [
 function passRate(passes: number, violations: number): number | null {
     const total = passes + violations;
     return total === 0 ? null : Math.round((passes / total) * 100);
-}
-
-function StatusTag({ status, lastScanned }: { status: ScanStatus; lastScanned: string | null }) {
-    if (status === 'completed') {
-        return (
-            <Tag color="green" icon={<CheckCircleOutlined />}>
-                OK
-            </Tag>
-        );
-    }
-    if (status === 'failed') {
-        return (
-            <Tag color="red" icon={<CloseCircleOutlined />}>
-                Failed
-            </Tag>
-        );
-    }
-    if (status === 'unreachable') {
-        return (
-            <Tag color="orange" icon={<WarningOutlined />}>
-                Unreachable
-            </Tag>
-        );
-    }
-    return <Tag icon={<MinusCircleOutlined />}>{lastScanned ? 'Unknown' : 'Never scanned'}</Tag>;
 }
 
 function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
@@ -168,7 +138,7 @@ function Dashboard() {
             title: 'Last scan',
             key: 'status',
             render: (_, row) => (
-                <StatusTag status={row.last_scan_status} lastScanned={row.last_scanned} />
+                <ScanStatusTag status={row.last_scan_status} lastScanned={row.last_scanned} />
             ),
         },
     ];

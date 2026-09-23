@@ -16,6 +16,7 @@ import {
     QuestionCircleOutlined,
     SettingOutlined,
     SolutionOutlined,
+    TeamOutlined,
     ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Menu } from 'antd';
@@ -45,6 +46,7 @@ export default function TabNav({ user }: Props) {
         { key: '9', path: '/dashboard' },
         { key: '10', path: '/scan' },
         { key: '2', path: '/websites' },
+        { key: '11', path: '/owners' },
         { key: '3', path: '/reports' },
         { key: '4', path: '/rules' },
         { key: '5', path: user && user.is_admin ? '/domains' : '/login' },
@@ -70,6 +72,7 @@ export default function TabNav({ user }: Props) {
                   { label: 'Domains', key: '5', icon: <CloudOutlined /> },
                   { label: 'Rules', key: '4', icon: <FormOutlined /> },
                   { label: 'Websites', key: '2', icon: <CloudServerOutlined /> },
+                  { label: 'Owners', key: '11', icon: <TeamOutlined /> },
                   { label: 'Quick scan', key: '10', icon: <ThunderboltOutlined /> },
                   { label: 'Reports', key: '3', icon: <SolutionOutlined /> },
                   {

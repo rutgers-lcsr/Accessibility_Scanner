@@ -14,6 +14,7 @@ const appPaths = [
     '/domains',
     '/reports',
     '/websites',
+    '/owners',
     '/login',
 ];
 

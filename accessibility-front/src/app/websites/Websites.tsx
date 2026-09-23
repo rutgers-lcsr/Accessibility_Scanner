@@ -15,6 +15,7 @@ import {
     TableColumnType,
     Tag,
     Tooltip,
+    Typography,
 } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { formatDate } from 'date-fns';
@@ -43,6 +44,34 @@ function Websites({ user }: Props) {
         exportCSV,
     } = useWebsites();
 
+    // Who is responsible and what the site is for; site admins only, like the CSV export.
+    const adminColumns: TableColumnType<WebsiteType>[] = [
+        {
+            title: 'Owner',
+            dataIndex: 'admin',
+            key: 'admin',
+            render: (admin: string | null) =>
+                admin || <span className="text-gray-400">Unassigned</span>,
+        },
+        {
+            title: 'Description',
+            dataIndex: 'description',
+            key: 'description',
+            width: 280,
+            render: (description: string | null) =>
+                description ? (
+                    <Typography.Paragraph
+                        style={{ marginBottom: 0 }}
+                        ellipsis={{ rows: 2, expandable: 'collapsible' }}
+                    >
+                        {description}
+                    </Typography.Paragraph>
+                ) : (
+                    <span className="text-gray-400">—</span>
+                ),
+        },
+    ];
+
     const columns: TableColumnType<WebsiteType>[] = [
         {
             title: 'URL',
@@ -52,6 +81,7 @@ function Websites({ user }: Props) {
                 <Link href={`/websites/${record.id}`}>{text}</Link>
             ),
         },
+        ...(user?.is_admin ? adminColumns : []),
         {
             title: 'Last Scanned',
             dataIndex: 'last_scanned',
@@ -148,14 +178,18 @@ function Websites({ user }: Props) {
 
                         <Input.Search
                             className="w-96"
-                            placeholder="Search websites"
+                            placeholder={
+                                user?.is_admin ? 'Search by URL or owner' : 'Search websites'
+                            }
                             key={WebsiteSearch}
                             defaultValue={WebsiteSearch}
                             onSearch={(value) => setWebsiteSearch(value)}
                             loading={isLoading}
                             allowClear
                             size="large"
-                            aria-label="Search websites"
+                            aria-label={
+                                user?.is_admin ? 'Search by URL or owner' : 'Search websites'
+                            }
                         />
                         {user?.is_admin && (
                             <Tooltip title="Export Current Page as CSV">
