@@ -10,10 +10,11 @@ import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 import ScanProgressModal from '@/components/ScanProgressModal';
 import { useAlerts } from '@/providers/Alerts';
-import { Button, Descriptions, Select, Space } from 'antd';
+import { Button, Select } from 'antd';
 import { useState } from 'react';
 import { useScan } from '@/hooks/useScan';
 import ExtraStartUrls from './ExtraStartUrls';
+import { Field, Legend } from './PanelFields';
 
 type Props = {
     website: Website;
@@ -69,80 +70,66 @@ function WebsiteAdminItems({ website, mutate }: Props) {
 
     return (
         <div className="mb-4 rounded-md bg-gray-50 p-4 shadow">
-            <Space className="w-full" size={'large'} direction="vertical">
-                <Descriptions
-                    size="small"
-                    column={3}
-                    layout="horizontal"
-                    title="Website Info"
-                    bordered
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-medium text-gray-800">Website Settings</h2>
+                <Button
+                    type="primary"
+                    loading={loadingScan}
+                    onClick={() => startScan()}
+                    disabled={loadingScan}
                 >
-                    <Descriptions.Item label="Rate Limit">
-                        {website.rate_limit}
-                        <div className="mt-1 text-xs text-gray-500">
-                            Days between automatic scans of this website.
+                    {loadingScan ? 'Scanning...' : 'Scan Website'}
+                </Button>
+            </div>
+
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-x-8 gap-y-5">
+                <fieldset className="min-w-0">
+                    <Legend>Scanning</Legend>
+                    <div className="space-y-3">
+                        <div className="text-sm text-gray-700">
+                            <span className="font-medium">Auto-scan:</span>{' '}
+                            {website.active ? `every ${website.rate_limit} days` : 'off'}
+                            <span className="ml-2 text-xs text-gray-500">Set by a site admin.</span>
                         </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Last Scanned">
-                        {website.last_scanned
-                            ? new Date(website.last_scanned).toLocaleString()
-                            : 'Never'}
-                        <div className="mt-1 text-xs text-gray-500">
-                            The last time this website was scanned for accessibility issues.
+                        <Field id="extra-start-urls" label="Additional start pages">
+                            <ExtraStartUrls website={website} mutate={mutate} />
+                        </Field>
+                    </div>
+                </fieldset>
+
+                <fieldset className="min-w-0">
+                    <Legend>Access</Legend>
+                    <div className="space-y-3">
+                        <div className="text-sm text-gray-700">
+                            <span className="font-medium">Admin:</span> {website.admin}
                         </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Public">
-                        {website.public ? 'Yes' : 'No'}
-                        <div className="mt-1 text-xs text-gray-500">
-                            Public websites can be viewed by anyone. Private websites can only be
-                            viewed by the admins and selected users.
-                        </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Active">
-                        {website.active ? 'Yes' : 'No'}
-                        <div className="mt-1 text-xs text-gray-500">
-                            Inactive websites will not be automatically scanned.
-                        </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Admin">
-                        {website.admin}
-                        <br />
-                        <span className="text-xs text-gray-500"> (You)</span>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Users">
-                        <Select
-                            mode="tags"
-                            style={{ minWidth: 300 }}
+                        <Field
                             id="users"
-                            aria-label="Users"
-                            placeholder="Users who can view this website"
-                            value={website.users.length > 0 ? website.users : undefined}
-                            disabled={loading}
-                            onChange={(value) => {
-                                // filter out any empty values
-                                handleUsersChange(value.filter((v) => v.trim() !== ''));
-                            }}
-                        />
-                        <div className="mt-1 text-xs text-gray-500">
-                            Start typing to add users who can view this website. Users and Admin
-                            will be notified when a scan finishes. Leave empty to remove all users.
-                        </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Additional Start Pages">
-                        <ExtraStartUrls website={website} mutate={mutate} />
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Actions">
-                        <Button
-                            type="primary"
-                            loading={loadingScan}
-                            onClick={() => startScan()}
-                            disabled={loadingScan}
+                            label="Additional users"
+                            help="They can view this website and receive its scan emails. Leave empty to remove all users."
                         >
-                            {loadingScan ? 'Scanning...' : 'Scan Website'}
-                        </Button>
-                    </Descriptions.Item>
-                </Descriptions>
-            </Space>
+                            <Select
+                                mode="tags"
+                                style={{ width: '100%' }}
+                                id="users"
+                                placeholder="Add usernames"
+                                value={website.users.length > 0 ? website.users : undefined}
+                                disabled={loading}
+                                onChange={(value) => {
+                                    // filter out any empty values
+                                    handleUsersChange(value.filter((v) => v.trim() !== ''));
+                                }}
+                            />
+                        </Field>
+                        <div className="text-sm text-gray-700">
+                            <span className="font-medium">Public reports:</span>{' '}
+                            {website.public
+                                ? 'yes, anyone can view them without signing in.'
+                                : 'no, only the admin and the users above.'}
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
             {scanTaskId && scanStatusEndpoint && (
                 <ScanProgressModal
                     taskId={scanTaskId}
