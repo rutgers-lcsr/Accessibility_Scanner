@@ -68,10 +68,28 @@ def test_send_report_email_now_updates_last_notified(client, make_user, make_web
 
     resp = client.post(f"/api/websites/email/{website.id}/", json={}, headers=jwt_header(admin))
     assert resp.status_code == 200
+    assert resp.get_json()["sent"] == 1
 
     resp = client.get(f"/api/websites/{website.id}/", headers=jwt_header(admin))
     assert resp.status_code == 200
     assert resp.get_json()["last_notified"] is not None
+
+
+def test_forced_scan_email_reports_how_many_went_out(app, make_user, make_website):
+    owner = make_user("alice")
+    member = make_user("bob")
+    website = make_website(owner)
+    website.users.append(member)
+    website.should_email = False
+    website.set_subscribed(member, False)
+
+    assert ScanFinishedEmail(website).send(force=True) == 1
+    assert website.last_notified is not None
+
+    website.set_subscribed(owner, False)
+    website.last_notified = None
+    assert ScanFinishedEmail(website).send(force=True) == 0
+    assert website.last_notified is None
 
 
 # --- per-user opt-out ---------------------------------------------------------------

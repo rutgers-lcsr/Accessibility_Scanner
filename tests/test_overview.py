@@ -70,3 +70,13 @@ def test_build_overview_totals_rows_and_top_rules(app, make_user, make_website, 
     assert top[1]["pages"] == 2 and top[1]["occurrences"] == 4
     assert sites_of([website.id])[website.id] == {home.id, about.id}
     assert IMPACT_ORDER["critical"] < IMPACT_ORDER["minor"]
+
+
+def test_build_overview_without_top_rules(app, make_user, make_website, add_site, add_report):
+    website = make_website(make_user())
+    add_report(add_site(website), violations=[_rule("image-alt", "critical")])
+
+    overview = build_overview([website], top=0)
+
+    assert overview["top_rules"] == []
+    assert overview["websites"][0]["violations"]["critical"] == 1

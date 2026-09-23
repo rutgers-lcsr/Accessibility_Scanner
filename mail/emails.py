@@ -181,20 +181,21 @@ class ScanFinishedEmail(AccessEmails):
         return (f"Accessibility scan finished: {host}: {violations['total']} violations "
                 f"({violations['critical']} critical)")
 
-    def _message(self, address: str, jwt_token: str | None) -> Message:
+    def _message(self, address: str, jwt_token: str | None, website: dict) -> Message:
         msg = Message(self._subject(), recipients=[address])
         msg.html = render_template(
-            "emails/scan_finished.html", year=self.year, website=self.website.to_dict(),
+            "emails/scan_finished.html", year=self.year, website=website,
             client_url=self.client_url, scan=self.report_counts, summary=self.summary,
             changes=self.changes, timestamp=datetime.now().isoformat(), jwt_token=jwt_token,
         )
         return msg
 
-    def send(self, email=None, force=False):
+    def send(self, email=None, force=False) -> int:
+        """Email the website's people; returns how many messages went out."""
         if not force and not self.website.should_email:
-            return
+            return 0
         if not force and not self._worth_sending():
-            return
+            return 0
 
         # One message per recipient, each with a personal unsubscribe link. An address
         # given by hand (the admin's "send to" box) has no account to opt out, so no link.
@@ -204,10 +205,13 @@ class ScanFinishedEmail(AccessEmails):
             targets.append((email, None))
         if not targets:
             log_message(f"Website {self.website.id} has no associated user emails to send scan finished notification.", 'warning')
-            return
+            return 0
 
-        if self.send_each([self._message(address, token) for address, token in targets]):
+        website = self.website.to_dict()  # once, not per recipient: it walks every page
+        sent = self.send_each([self._message(address, token, website) for address, token in targets])
+        if sent:
             _mark_notified(self.website)
+        return sent
 
 
 class ScanRegressionEmail(AccessEmails):

@@ -1,4 +1,3 @@
-import json
 from flask import Blueprint, current_app, jsonify, request, Response
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
@@ -8,7 +7,7 @@ from models.settings import Settings
 from models.user import Profile, User
 from models.website import Domain, Site, Site_Website_Assoc, Website 
 from models import db
-from sqlalchemy import case, func
+from sqlalchemy import case, func, or_
 from flask_sqlalchemy import pagination
 
 from scanner.utils.service import check_url
@@ -16,6 +15,7 @@ from services.history import daily_history, effective_counts
 from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
 from models.finding import FINDING_STATUSES
 from services.findings import bulk_set_status, changes_for_sites, list_findings
+from utils.export import csv_response
 from utils.limiter import limiter
 from utils.urls import get_netloc, is_valid_url
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
@@ -227,8 +227,8 @@ def email_website_report(website_id):
     if not website:
         return jsonify({'error': 'Website not found'}), 404
     try:
-        ScanFinishedEmail(website).send(email=email, force=True)
-        return jsonify({'message': 'Email sent successfully'}), 200
+        sent = ScanFinishedEmail(website).send(email=email, force=True)
+        return jsonify({'message': 'Email sent successfully' if sent else 'No one to email', 'sent': sent}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -844,7 +844,10 @@ def get_websites():
         )
     
     if search:
-        w_query = w_query.filter(Website.url.icontains(f"%{search}%"))
+        # By URL or by the admin user's name; the outer join keeps websites without an admin.
+        w_query = w_query.outerjoin(Website.admin).filter(
+            or_(Website.url.icontains(search), User.username.icontains(search))
+        )
 
     w_query = w_query.filter(Website.visible_to(current_user))
 
@@ -855,45 +858,14 @@ def get_websites():
 
         w: pagination.Pagination[Website] = w_query.options(joinedload(Website.admin),joinedload(Website.users) ).paginate(page=page, per_page=limit)
 
-        items: list[dict] = []
-        for website in w.items:
-            items.append(website.to_dict())
-            
-        if not items or len(items) == 0:
+        items: list[dict] = [website.to_dict() for website in w.items]
+        if not items:
             return jsonify({'error': 'No websites found to export'}), 400
 
-        def generate():
-            # Generate CSV header
-            if keys:
-                yield ",".join(keys) + "\n"
-            else:
-                
-                columns = items[0].keys()
-
-                keys_to_remove = ['created_at', 'updated_at', 'description', 'report', 'should_email']
-                # remove report key because its too complex for a csv
-
-                columns = [c for c in columns if c not in keys_to_remove]
-                
-                yield ','.join(columns) + "\n"
-            for website in items:
-
-                if keys:
-                    website = {k: website[k] for k in keys if k in website}
-                    yield ",".join(str(website[k]) if k in website and website[k] is not None else "" for k in keys) + "\n"
-                else:
-
-                    def serialize_value(val):
-                        if isinstance(val, (list, dict)):
-                            # Escape double quotes by doubling them for CSV
-                            json_str = json.dumps(val, ensure_ascii=False).replace('"', '""')
-                            return f'"{json_str}"'
-                        return str(val) if val is not None else ""
-                    values = [serialize_value(website[k]) if k in website else "" for k in columns]
-
-                    yield ",".join(values) + "\n"
-
-        return Response(generate(), mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=websites.csv"})
+        # remove report key because its too complex for a csv
+        keys_to_remove = ['created_at', 'updated_at', 'report', 'should_email']
+        columns = keys or [c for c in items[0].keys() if c not in keys_to_remove]
+        return csv_response(columns, ([website.get(k) for k in columns] for website in items), 'websites.csv')
 
 
     w: pagination.Pagination[Website] = w_query.paginate(page=page, per_page=limit)

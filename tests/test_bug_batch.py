@@ -1,12 +1,15 @@
 """Regression tests for the backend bug batch: unsubscribe, mail in TESTING, website
 creation errors, rule import, report listing order and photo, visibility filters,
 website/domain deletion, and settings validation."""
+import csv
+import io
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 import blueprints.website as website_bp
 import models.website as website_models
+from models import db
 
 
 @pytest.fixture(autouse=True)
@@ -393,3 +396,31 @@ def test_websites_csv_export_lists_websites(client, make_user, make_website, jwt
     body = resp.get_data(as_text=True)
     assert "https://export.example.com" in body
     assert body.splitlines()[0].startswith("id,url")
+
+
+def test_websites_csv_includes_and_quotes_the_description(client, make_user, make_website, jwt_header):
+    admin = make_user("root", is_admin=True)
+    website = make_website(admin, base="https://export.example.com")
+    website.description = 'Lab, "main" site\nsecond line'
+    db.session.commit()
+
+    resp = client.get("/api/websites/?format=csv", headers=jwt_header(admin))
+
+    rows = list(csv.reader(io.StringIO(resp.get_data(as_text=True))))
+    row = dict(zip(rows[0], rows[1]))
+    assert row["description"] == 'Lab, "main" site\nsecond line'
+    assert row["admin"] == "root"
+
+
+def test_websites_search_matches_the_admin_user(client, make_user, make_website, jwt_header):
+    admin = make_user("root", is_admin=True)
+    make_website(make_user("alice"), base="https://alpha.example.com")
+    make_website(make_user("bob"), base="https://beta.example.com")
+
+    def urls(search):
+        resp = client.get(f"/api/websites/?search={search}", headers=jwt_header(admin))
+        assert resp.status_code == 200
+        return [w["url"] for w in resp.get_json()["items"]]
+
+    assert urls("bob") == ["https://beta.example.com"]
+    assert urls("alpha") == ["https://alpha.example.com"]

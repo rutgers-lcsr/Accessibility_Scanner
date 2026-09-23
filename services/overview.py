@@ -9,11 +9,13 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload, selectinload
 
 from models import db
 from models.report import Report
 from models.website import Site, Site_Website_Assoc, Website
 from services.documents import document_counts, empty_document_counts
+from services.findings import triage_activity
 from services.history import effective_counts, sum_counts
 
 IMPACT_ORDER = {'critical': 0, 'serious': 1, 'moderate': 2, 'minor': 3}
@@ -52,6 +54,38 @@ def latest_reports(website_ids, before: datetime | None = None) -> dict:
         if row.site_id not in by_site or row.id > by_site[row.site_id].id:
             by_site[row.site_id] = row
     return by_site
+
+
+def reports_at_last_email(website_ids) -> dict:
+    """``{website_id: {site_id: row}}``: the report every page had when the website's
+    people were last emailed (Website.last_notified), the per-website form of
+    ``latest_reports(..., before=...)``. Websites never emailed are absent."""
+    if not website_ids:
+        return {}
+    then_ts = (
+        db.session.query(
+            Site_Website_Assoc.c.website_id.label('website_id'),
+            Report.site_id.label('site_id'),
+            func.max(Report.timestamp).label('ts'),
+        )
+        .join(Site_Website_Assoc, Site_Website_Assoc.c.site_id == Report.site_id)
+        .join(Website, Website.id == Site_Website_Assoc.c.website_id)
+        .filter(Site_Website_Assoc.c.website_id.in_(website_ids), Report.timestamp <= Website.last_notified)
+        .group_by(Site_Website_Assoc.c.website_id, Report.site_id)
+        .subquery()
+    )
+    rows = (
+        db.session.query(then_ts.c.website_id, Report.id, Report.site_id, Report.timestamp, Report.report_counts, Report.suppressed_counts)
+        .join(then_ts, (then_ts.c.site_id == Report.site_id) & (then_ts.c.ts == Report.timestamp))
+        .all()
+    )
+    by_website = defaultdict(dict)
+    for row in rows:
+        # Two reports can share a page's max timestamp; keep the newest id.
+        kept = by_website[row.website_id].get(row.site_id)
+        if kept is None or row.id > kept.id:
+            by_website[row.website_id][row.site_id] = row
+    return by_website
 
 
 def sites_of(website_ids) -> dict:
@@ -177,7 +211,7 @@ def build_overview(websites, top: int = 10) -> dict:
             'untagged_pdfs': sum(row['untagged_pdfs'] for row in rows),
         },
         'websites': rows,
-        'top_rules': top_rules([row.id for row in latest_by_site.values()], top),
+        'top_rules': top_rules([row.id for row in latest_by_site.values()], top) if top else [],
         'latest_by_site': latest_by_site,
         'sites_of': site_ids_of,
     }
@@ -282,4 +316,111 @@ def build_digest(days: int = 7) -> dict:
             {'id': w.id, 'url': w.url, 'admin': w.admin.username if w.admin else None}
             for w in websites if w.created_at and w.created_at >= cutoff
         ],
+    }
+
+
+VIOLATION_KEYS = ('total', 'critical', 'serious', 'moderate', 'minor')
+
+
+def _violations_total(rows) -> int | None:
+    """Effective open violations over ``{site_id: report row}``; None without rows."""
+    if not rows:
+        return None
+    return sum_counts({
+        site_id: effective_counts(row.report_counts, row.suppressed_counts)
+        for site_id, row in rows.items()
+    })['violations']['total']
+
+
+def _add_change(total: dict | None, change: dict | None) -> dict | None:
+    """Sum a website's before/after pair into its owner's, over websites that have one."""
+    if change is None:
+        return total
+    if total is None:
+        return {'previous': change['previous'], 'current': change['current']}
+    total['previous'] += change['previous']
+    total['current'] += change['current']
+    return total
+
+
+def build_owners(days: int = 90) -> dict:
+    """Every website grouped by its admin user, worst first, for the admin Owners page:
+    effective counts now, the change since the website's people were last emailed and
+    since ``days`` ago, and how many findings a person has triaged. Websites without an
+    admin form one "unassigned" owner (username None)."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    cutoff = now - timedelta(days=days)
+    websites = (
+        db.session.query(Website)
+        .options(joinedload(Website.admin), selectinload(Website.users))
+        .order_by(Website.url)
+        .all()
+    )
+    website_ids = [website.id for website in websites]
+    overview = build_overview(websites, top=0)
+    row_of = {row['id']: row for row in overview['websites']}
+    sites_of_website = overview['sites_of']
+    activity = triage_activity(website_ids)
+    at_email = reports_at_last_email(website_ids)
+    at_period = latest_reports(website_ids, before=cutoff)
+
+    owners = {}
+    for website in websites:
+        row = row_of[website.id]
+        site_ids = sites_of_website.get(website.id, set())
+        current = row['violations']['total']
+        previous_email = _violations_total(at_email.get(website.id, {}))
+        previous_period = _violations_total({site_id: at_period[site_id] for site_id in site_ids if site_id in at_period})
+        triage = activity.get(website.id, {'triaged': 0, 'last_triage': None})
+        row.update({
+            'description': website.description,
+            'users': [user.username for user in website.users],
+            'active': bool(website.active),
+            'should_email': bool(website.should_email),
+            'last_notified': iso(website.last_notified),
+            'activity': {'triaged': triage['triaged'], 'last_triage': iso(triage['last_triage'])},
+            'since_last_email': None if previous_email is None else
+                {'when': iso(website.last_notified), 'previous': previous_email, 'current': current},
+            'since_period': None if previous_period is None else {'previous': previous_period, 'current': current},
+        })
+
+        owner = owners.get(website.admin_id)
+        if owner is None:
+            admin = website.admin
+            owner = owners[website.admin_id] = {
+                'id': admin.id if admin else None,
+                'username': admin.username if admin else None,
+                'email': admin.email if admin else None,
+                'websites_count': 0,
+                'pages': 0,
+                'pages_audited': 0,
+                'violations': {key: 0 for key in VIOLATION_KEYS},
+                'last_scanned': None,
+                'last_notified': None,
+                'activity': {'triaged': 0, 'last_triage': None},
+                'since_last_email': None,
+                'since_period': None,
+                'websites': [],
+            }
+        owner['websites'].append(row)
+        owner['websites_count'] += 1
+        owner['pages'] += row['pages']
+        owner['pages_audited'] += row['pages_audited']
+        for key in VIOLATION_KEYS:
+            owner['violations'][key] += row['violations'][key]
+        # ISO strings of one format order like the moments they name.
+        owner['last_scanned'] = max(filter(None, (owner['last_scanned'], row['last_scanned'])), default=None)
+        owner['last_notified'] = max(filter(None, (owner['last_notified'], row['last_notified'])), default=None)
+        owner['activity']['triaged'] += row['activity']['triaged']
+        owner['activity']['last_triage'] = max(
+            filter(None, (owner['activity']['last_triage'], row['activity']['last_triage'])), default=None)
+        owner['since_last_email'] = _add_change(owner['since_last_email'], row['since_last_email'])
+        owner['since_period'] = _add_change(owner['since_period'], row['since_period'])
+
+    for owner in owners.values():
+        owner['websites'].sort(key=lambda row: (-row['violations']['total'], row['url']))
+    return {
+        'generated_at': iso(now),
+        'period': {'days': days, 'since': iso(cutoff)},
+        'owners': sorted(owners.values(), key=lambda owner: (-owner['violations']['total'], owner['username'] or '')),
     }

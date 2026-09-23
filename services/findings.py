@@ -236,6 +236,30 @@ def latest_report_ids(site_ids) -> dict:
 # --- triage ------------------------------------------------------------------------------
 
 
+TRIAGED_STATUSES = ('fixed',) + SUPPRESSED_STATUSES
+
+
+def triage_activity(website_ids) -> dict:
+    """``{website_id: {'triaged': n, 'last_triage': datetime | None}}``: the findings a
+    person (``status_by`` set; the scanner leaves it NULL) marked fixed, false positive
+    or accepted on the website's pages, and when the latest verdict was given."""
+    if not website_ids:
+        return {}
+    rows = (
+        db.session.query(Site_Website_Assoc.c.website_id, func.count(Finding.id), func.max(Finding.status_at))
+        .select_from(Site_Website_Assoc)
+        .join(Finding, Finding.site_id == Site_Website_Assoc.c.site_id)
+        .filter(
+            Site_Website_Assoc.c.website_id.in_(list(website_ids)),
+            Finding.status_by.isnot(None),
+            Finding.status.in_(TRIAGED_STATUSES),
+        )
+        .group_by(Site_Website_Assoc.c.website_id)
+        .all()
+    )
+    return {website_id: {'triaged': count, 'last_triage': last} for website_id, count, last in rows}
+
+
 def set_finding_status(finding: Finding, status: str, note: str | None, user_id: int | None) -> None:
     """Record a person's verdict on a finding and refresh its report's snapshot. No commit."""
     if status not in FINDING_STATUSES:
