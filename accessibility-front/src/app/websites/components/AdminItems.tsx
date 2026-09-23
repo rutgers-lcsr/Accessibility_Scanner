@@ -4,11 +4,10 @@ import { useUser } from '@/providers/User';
 import ScanProgressModal from '@/components/ScanProgressModal';
 import { useAlerts } from '@/providers/Alerts';
 import { useWebsites } from '@/providers/Websites';
-import { Button, Divider, Flex, Input, InputNumber, Modal, Select, Space, Tooltip } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { Button, Input, InputNumber, Modal, Select, Switch } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import useSWR from 'swr';
 import { useScan } from '@/hooks/useScan';
 import ExtraStartUrls from './ExtraStartUrls';
@@ -17,6 +16,42 @@ type Props = {
     website: Website;
     mutate: (website?: Website) => Promise<void>;
 };
+
+// A labelled control with an optional one-line note under it.
+function Field({
+    id,
+    label,
+    help,
+    children,
+}: {
+    id: string;
+    label: string;
+    help?: ReactNode;
+    children: ReactNode;
+}) {
+    return (
+        <div>
+            <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">
+                {label}
+            </label>
+            {children}
+            {help && <div className="mt-1 text-xs text-gray-500">{help}</div>}
+        </div>
+    );
+}
+
+// antd's reset.css sizes <legend> at 1.5em and that unlayered rule beats Tailwind's
+// utilities, so the two properties it sets are given inline.
+function Legend({ children }: { children: ReactNode }) {
+    return (
+        <legend
+            className="font-semibold tracking-wide text-gray-600 uppercase"
+            style={{ fontSize: '0.75rem', marginBottom: 8 }}
+        >
+            {children}
+        </legend>
+    );
+}
 
 function AdminItems({ website, mutate }: Props) {
     const router = useRouter();
@@ -275,49 +310,37 @@ function AdminItems({ website, mutate }: Props) {
 
     return (
         <div className="mb-4 rounded-md bg-gray-50 p-4 shadow">
-            <Space className="w-full" size="large" direction="vertical">
-                <div className="text-lg font-medium text-gray-800">Admin Actions</div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-medium text-gray-800">Admin Actions</h2>
+                <Button
+                    type="primary"
+                    loading={loadingScan}
+                    onClick={() => startScan()}
+                    disabled={loadingScan}
+                >
+                    {loadingScan ? 'Scanning...' : 'Scan Website'}
+                </Button>
+            </div>
 
-                {/* Scan and Activation Section */}
-                <Divider titlePlacement="left">
-                    <span>Scan & Activation</span>
-                </Divider>
-                <div>
-                    <div className="text-sm font-medium text-gray-700 mb-3">Scanning</div>
-                    <Flex gap="12px" align="center" wrap="wrap">
-                        <Tooltip title="Manually trigger a scan for this website. You will be notified when the scan is complete.">
-                            <Button
-                                type="primary"
-                                loading={loadingScan}
-                                onClick={() => startScan()}
-                                disabled={loadingScan}
-                            >
-                                {loadingScan ? 'Scanning...' : 'Scan Website'}
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={
-                                website.active
-                                    ? 'Disable automatic scanning for this website.'
-                                    : 'Enable automatic scanning for this website.'
-                            }
-                        >
-                            <Button
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-x-8 gap-y-5">
+                <fieldset className="min-w-0">
+                    <Legend>Scanning</Legend>
+                    <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                            <Switch
+                                id="auto-scan"
+                                checked={website.active}
                                 loading={loadingActivate}
-                                type={website.active ? 'primary' : 'default'}
-                                onClick={handleActivate}
-                            >
-                                {website.active ? 'Auto-Scan: ON' : 'Auto-Scan: OFF'}
-                            </Button>
-                        </Tooltip>
-                        <Tooltip title="Set how often this website can be scanned (in days). Only applies to automatic scans.">
+                                onChange={handleActivate}
+                            />
+                            <label htmlFor="auto-scan">Auto-scan every</label>
                             <InputNumber
-                                disabled={!website.active || loadingRateLimit}
-                                addonBefore="Rate Limit (days)"
-                                aria-label="Rate Limit in Days"
+                                id="rate-limit"
+                                aria-label="Days between automatic scans"
+                                style={{ width: 72 }}
                                 min={1}
-                                defaultValue={website.rate_limit}
                                 value={website.rate_limit}
+                                disabled={!website.active || loadingRateLimit}
                                 onChange={async (value) => {
                                     if (value !== null) {
                                         handleRateLimitChange(value.toString());
@@ -327,278 +350,178 @@ function AdminItems({ website, mutate }: Props) {
                                     handleRateLimitChange((e.target as HTMLInputElement).value);
                                 }}
                             />
-                        </Tooltip>
-                    </Flex>
-                </div>
-
-                {/* Website Tags and Categories Section */}
-                <Divider titlePlacement="left">
-                    <span>Tags & Categories</span>
-                </Divider>
-                <div>
-                    <div className="text-sm font-medium text-gray-700 mb-3">Tags & Categories</div>
-                    <Flex gap="16px" align="start" wrap="wrap">
-                        <div style={{ minWidth: 320, flex: 1 }}>
-                            <label
-                                htmlFor="tags"
-                                className="block text-sm font-medium text-gray-700 mb-2"
-                            >
-                                Active Tags
-                            </label>
-                            <Tooltip title="Tags applied to this website, used in addition to the default tags for which rule sets to apply. Default tags are automatically applied to all websites and cannot be removed here.">
-                                <Select
-                                    mode="tags"
-                                    style={{ width: '100%' }}
-                                    id="tags"
-                                    aria-label="Tags"
-                                    placeholder="Add or select tags"
-                                    value={Array.from(
-                                        new Set([...website.tags, ...website.default_tags])
-                                    )}
-                                    options={Array.from(
-                                        new Set([
-                                            ...website.tags,
-                                            ...website.default_tags,
-                                            ...(allTags || []),
-                                        ])
-                                    ).map((tag) => ({ label: tag, value: tag }))}
-                                    disabled={loadingEmail}
-                                    onChange={handleTagsChange}
-                                />
-                            </Tooltip>
-                            <div className="text-xs text-gray-500 mt-1">
-                                <span className="font-semibold">Default:</span>{' '}
-                                {website.default_tags.join(', ')}
-                            </div>
+                            <span>days</span>
                         </div>
-                        <div style={{ minWidth: 320, flex: 1 }}>
-                            <label
-                                htmlFor="categories"
-                                className="block text-sm font-medium text-gray-700 mb-2"
-                            >
-                                Categories
-                            </label>
-                            <Tooltip title="Categories are used to classify websites. For use in filtering and organization.">
-                                <Select
-                                    mode="tags"
-                                    style={{ width: '100%' }}
-                                    id="categories"
-                                    aria-label="Categories"
-                                    placeholder="Add or select categories"
-                                    value={
-                                        website.categories.length > 0
-                                            ? website.categories
-                                            : undefined
-                                    }
-                                    options={Array.from(
-                                        new Set([
-                                            ...(categories || []),
-                                            ...(website.categories || []),
-                                        ])
-                                    ).map((category) => ({
-                                        label: category,
-                                        value: category,
-                                    }))}
-                                    disabled={loadingEmail}
-                                    onChange={handleCategoriesChange}
-                                ></Select>
-                            </Tooltip>
-                        </div>
-                        <div style={{ minWidth: 320, flex: 1 }}>
-                            <label
-                                htmlFor="description"
-                                className="block text-sm font-medium text-gray-700 mb-2"
-                            >
-                                Description
-                            </label>
-                            <Tooltip title="A brief description of the website's purpose or content.">
-                                <TextArea
-                                    style={{ width: '100%' }}
-                                    id="description"
-                                    aria-label="Description"
-                                    placeholder="Website Description"
-                                    defaultValue={website.description}
-                                    disabled={loadingEmail}
-                                    onPressEnter={async (e) => {
-                                        handleDescriptionChange(
-                                            (e.target as HTMLInputElement).value
-                                        );
-                                    }}
-                                />
-                            </Tooltip>
-                        </div>
-                        <div style={{ minWidth: 320, flex: 1 }}>
-                            <label
-                                htmlFor="extra-start-urls"
-                                className="block text-sm font-medium text-gray-700 mb-2"
-                            >
-                                Additional Start Pages
-                            </label>
+                        <Field id="extra-start-urls" label="Additional start pages">
                             <ExtraStartUrls website={website} mutate={mutate} />
-                        </div>
-                    </Flex>
-
-                    <div className="text-xs text-gray-500 mt-1">
-                        <span className="font-semibold">Default:</span>{' '}
-                        {website.default_tags.join(', ')}
+                        </Field>
                     </div>
-                </div>
+                </fieldset>
 
-                {/* Admin & Users Section */}
-                <Divider titlePlacement="left">
-                    <span>Admin & Users</span>
-                </Divider>
-                <div>
-                    <div className="text-sm font-medium text-gray-700 mb-3">User Management</div>
-                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <Flex gap="12px" align="center" wrap="wrap">
-                            <label
-                                htmlFor="admin"
-                                className="text-sm font-medium text-gray-700"
-                                style={{ minWidth: 100 }}
-                            >
-                                Admin User:
-                            </label>
-                            <Tooltip title="The user who is an Website Admin for this website.">
-                                <Input
-                                    style={{ minWidth: 280, maxWidth: 400 }}
-                                    id="admin"
-                                    aria-label="Admin User"
-                                    placeholder="Admin User Email"
-                                    type="text"
-                                    defaultValue={website.admin}
-                                    disabled={loadingEmail}
-                                    onPressEnter={async (e) => {
-                                        handleAdminChange((e.target as HTMLInputElement).value);
-                                    }}
-                                />
-                            </Tooltip>
-                        </Flex>
-                        <Flex gap="12px" align="center" wrap="wrap">
-                            <label
-                                htmlFor="users"
-                                className="text-sm font-medium text-gray-700"
-                                style={{ minWidth: 100 }}
-                            >
-                                Additional Users:
-                            </label>
-                            <Tooltip title="Users who are allowed to view this website. Users and Admin will be notified when a scan finishes. Only if email notifications are enabled.">
-                                <Select
-                                    mode="tags"
-                                    style={{ minWidth: 280, maxWidth: 600 }}
-                                    id="users"
-                                    aria-label="Users"
-                                    placeholder="Users who can view this website"
-                                    value={website.users.length > 0 ? website.users : undefined}
-                                    disabled={loadingEmail}
-                                    onChange={(value) => {
-                                        handleUsersChange(value.filter((v) => v.trim() !== ''));
-                                    }}
-                                />
-                            </Tooltip>
-                        </Flex>
-                    </Space>
-                </div>
-
-                {/* Email & Public Section */}
-                <Divider titlePlacement="left">
-                    <span>Email & Public Access</span>
-                </Divider>
-                <div>
-                    <div className="text-sm font-medium text-gray-700 mb-3">
-                        Email Notifications
-                    </div>
-                    <Flex gap="12px" align="center" wrap="wrap">
-                        <Tooltip
-                            title={
-                                website.should_email
-                                    ? 'Disable automatic email notifications for this website.'
-                                    : 'Enable automatic email notifications for this website.'
+                <fieldset className="min-w-0">
+                    <Legend>Tags & details</Legend>
+                    <div className="space-y-3">
+                        <Field
+                            id="tags"
+                            label="Active tags"
+                            help={
+                                <>
+                                    <span className="font-semibold">Always applied:</span>{' '}
+                                    {website.default_tags.join(', ')}
+                                </>
                             }
                         >
-                            <Button
-                                type={website.should_email ? 'primary' : 'default'}
+                            <Select
+                                mode="tags"
+                                style={{ width: '100%' }}
+                                id="tags"
+                                placeholder="Add or select tags"
+                                value={Array.from(
+                                    new Set([...website.tags, ...website.default_tags])
+                                )}
+                                options={Array.from(
+                                    new Set([
+                                        ...website.tags,
+                                        ...website.default_tags,
+                                        ...(allTags || []),
+                                    ])
+                                ).map((tag) => ({ label: tag, value: tag }))}
+                                disabled={loadingEmail}
+                                onChange={handleTagsChange}
+                            />
+                        </Field>
+                        <Field id="categories" label="Categories">
+                            <Select
+                                mode="tags"
+                                style={{ width: '100%' }}
+                                id="categories"
+                                placeholder="Add or select categories"
+                                value={
+                                    website.categories.length > 0 ? website.categories : undefined
+                                }
+                                options={Array.from(
+                                    new Set([...(categories || []), ...(website.categories || [])])
+                                ).map((category) => ({
+                                    label: category,
+                                    value: category,
+                                }))}
+                                disabled={loadingEmail}
+                                onChange={handleCategoriesChange}
+                            />
+                        </Field>
+                        <Field id="description" label="Description" help="Press Enter to save.">
+                            <TextArea
+                                id="description"
+                                placeholder="What this website is for"
+                                autoSize={{ minRows: 1, maxRows: 4 }}
+                                defaultValue={website.description}
+                                disabled={loadingEmail}
+                                onPressEnter={async (e) => {
+                                    e.preventDefault();
+                                    handleDescriptionChange((e.target as HTMLInputElement).value);
+                                }}
+                            />
+                        </Field>
+                    </div>
+                </fieldset>
+
+                <fieldset className="min-w-0">
+                    <Legend>Access & notifications</Legend>
+                    <div className="space-y-3">
+                        <Field id="admin" label="Admin user" help="Press Enter to save.">
+                            <Input
+                                id="admin"
+                                placeholder="Username"
+                                defaultValue={website.admin}
+                                disabled={loadingEmail}
+                                onPressEnter={async (e) => {
+                                    handleAdminChange((e.target as HTMLInputElement).value);
+                                }}
+                            />
+                        </Field>
+                        <Field
+                            id="users"
+                            label="Additional users"
+                            help="They can view this website and receive its scan emails."
+                        >
+                            <Select
+                                mode="tags"
+                                style={{ width: '100%' }}
+                                id="users"
+                                placeholder="Add usernames"
+                                value={website.users.length > 0 ? website.users : undefined}
+                                disabled={loadingEmail}
+                                onChange={(value) => {
+                                    handleUsersChange(value.filter((v) => v.trim() !== ''));
+                                }}
+                            />
+                        </Field>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                            <Switch
+                                id="public"
+                                checked={website.public}
+                                loading={loadingPublic}
+                                onChange={handleChangePublic}
+                            />
+                            <label htmlFor="public">Public reports</label>
+                            <span className="text-xs text-gray-500">
+                                Anyone can view them without signing in.
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                            <Switch
+                                id="should-email"
+                                checked={website.should_email}
                                 loading={loadingShouldEmail}
-                                onClick={() => handleShouldEmailChange(!website.should_email)}
-                                icon={<InfoCircleOutlined />}
-                            >
-                                {website.should_email
-                                    ? 'Email Notifications: ON'
-                                    : 'Email Notifications: OFF'}
-                            </Button>
-                        </Tooltip>
-                        <Tooltip title="Send the latest report email to all users immediately, regardless of notification settings or thresholds.">
+                                onChange={handleShouldEmailChange}
+                            />
+                            <label htmlFor="should-email">
+                                Email admin and users when a scan finishes
+                            </label>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                             <Button
+                                size="small"
                                 onClick={handleSendEmailUpdate}
                                 loading={loadingEmail}
-                                type="dashed"
                             >
-                                Send Report Email Now
+                                Send report email now
                             </Button>
-                        </Tooltip>
-                    </Flex>
-                    <div className="text-xs text-gray-500 mt-2">
-                        Last notified:{' '}
-                        {website.last_notified
-                            ? new Date(website.last_notified).toLocaleString()
-                            : 'Never'}
-                    </div>
-                </div>
-
-                {/* Public Access Controls */}
-                <div>
-                    <div className="text-sm font-medium text-gray-700 mb-3">Public Access</div>
-                    <Tooltip
-                        title={
-                            website.public
-                                ? "Make this website's reports private (only accessible to authorized users)."
-                                : "Make this website's reports publicly accessible."
-                        }
-                    >
-                        <Button
-                            type={website.public ? 'primary' : 'default'}
-                            loading={loadingPublic}
-                            onClick={() => handleChangePublic(!website.public)}
-                            danger={website.public}
-                        >
-                            {website.public ? 'Public Access: ON' : 'Public Access: OFF'}
-                        </Button>
-                    </Tooltip>
-                </div>
-
-                {/* Danger Zone Section */}
-                <Divider titlePlacement="left">
-                    <span className="text-red-600">Danger Zone</span>
-                </Divider>
-                <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-                    <Flex justify="space-between" align="center" wrap="wrap" gap="12px">
-                        <div>
-                            <div className="text-sm font-medium text-gray-900 mb-1">
-                                Delete Website
-                            </div>
-                            <div className="text-xs text-gray-600">
-                                Once deleted, this website and all its reports will be permanently
-                                removed.
-                            </div>
+                            <span>
+                                Last notified:{' '}
+                                {website.last_notified
+                                    ? new Date(website.last_notified).toLocaleString()
+                                    : 'Never'}
+                            </span>
                         </div>
-                        <Button
-                            danger
-                            onClick={() => setShowDeleteModal(true)}
-                            loading={loadingDelete}
-                        >
-                            Delete Website
-                        </Button>
-                    </Flex>
-                    <Modal
-                        title="Confirm Deletion"
-                        open={showDeleteModal}
-                        onCancel={() => setShowDeleteModal(false)}
-                        onOk={handleDelete}
-                    >
-                        <p>Are you sure you want to delete this website?</p>
-                    </Modal>
+                    </div>
+                </fieldset>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm">
+                <div>
+                    <span className="font-medium text-red-700">Delete website.</span>{' '}
+                    <span className="text-gray-600">
+                        Removes this website and all of its reports permanently.
+                    </span>
                 </div>
-            </Space>
+                <Button
+                    danger
+                    size="small"
+                    onClick={() => setShowDeleteModal(true)}
+                    loading={loadingDelete}
+                >
+                    Delete Website
+                </Button>
+            </div>
+            <Modal
+                title="Confirm Deletion"
+                open={showDeleteModal}
+                onCancel={() => setShowDeleteModal(false)}
+                onOk={handleDelete}
+            >
+                <p>Are you sure you want to delete this website?</p>
+            </Modal>
             {scanTaskId && scanStatusEndpoint && (
                 <ScanProgressModal
                     taskId={scanTaskId}
