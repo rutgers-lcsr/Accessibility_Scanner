@@ -8,15 +8,17 @@ import {
     SyncOutlined,
 } from '@ant-design/icons';
 import { Alert, Modal, Progress, Space, Spin, Tag } from 'antd';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 
 type Props = {
     taskId: string;
     statusEndpoint: string;
-    onComplete?: () => void;
+    onComplete?: (status: TaskStatus) => void;
     onError?: (error: string) => void;
     visible: boolean;
     onClose: () => void;
+    // Replaces the generic success message (a page rescan shows what changed).
+    renderSuccess?: (status: TaskStatus) => ReactNode;
 };
 
 const ScanProgressModal = ({
@@ -26,6 +28,7 @@ const ScanProgressModal = ({
     onError,
     visible,
     onClose,
+    renderSuccess,
 }: Props) => {
     const { handlerUserApiRequest } = useUser();
     const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
@@ -45,7 +48,7 @@ const ScanProgressModal = ({
                 if (status.state === 'SUCCESS') {
                     clearInterval(intervalId);
                     if (onComplete) {
-                        onComplete();
+                        onComplete(status);
                     }
                 } else if (status.state === 'FAILURE') {
                     clearInterval(intervalId);
@@ -130,7 +133,7 @@ const ScanProgressModal = ({
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <div style={{ textAlign: 'center' }}>{getStateIcon()}</div>
 
-                <div style={{ textAlign: 'center' }}>
+                <div style={{ textAlign: 'center' }} aria-live="polite">
                     <Space direction="vertical" size="small">
                         <div>
                             <strong>Task ID:</strong> <code>{taskId}</code>
@@ -183,7 +186,10 @@ const ScanProgressModal = ({
                     </div>
                 )}
 
-                {taskStatus?.state === 'SUCCESS' && taskStatus.result && (
+                {taskStatus?.state === 'SUCCESS' && taskStatus.result && renderSuccess && (
+                    <div>{renderSuccess(taskStatus)}</div>
+                )}
+                {taskStatus?.state === 'SUCCESS' && taskStatus.result && !renderSuccess && (
                     <Alert
                         message="Scan Completed Successfully!"
                         description={

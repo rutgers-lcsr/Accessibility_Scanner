@@ -45,16 +45,14 @@ function FixFirstList({
     }, [focusRule, data]);
 
     if (data.pages_audited === 0) {
-        return (
-            <Alert type="info" showIcon message="No page of this website has been scanned yet." />
-        );
+        return <Alert type="info" showIcon title="No page of this website has been scanned yet." />;
     }
     if (data.rules.length === 0) {
         return (
             <Alert
                 type="success"
                 showIcon
-                message="No open violations on the audited pages."
+                title="No open violations on the audited pages."
                 description={
                     data.suppressed_rules > 0
                         ? `${plural(data.suppressed_rules, 'rule')} fully marked false positive or accepted.`

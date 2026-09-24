@@ -33,6 +33,7 @@ export type AxeResultSummary = Omit<AxeResult, 'nodes'> & {
 };
 
 export type WebsiteAxeResultReport = {
+    site_id: number;
     url: string;
     timestamp: string;
     report_id: number;
@@ -92,6 +93,8 @@ export type Report = {
     // findings of this report when it is the page's latest, else null
     findings: Finding[] | null;
     can_edit: boolean;
+    // the caller may rescan this page (the website's admin, its members, site admins)
+    can_scan: boolean;
     suppressed_counts: AxeReportCounts | null;
 };
 

@@ -16,9 +16,19 @@ type Props = {
     canEdit: boolean;
     // Refresh the website (header counts) after a verdict changed what counts.
     onCountsChanged?: () => void;
+    canScan?: boolean;
+    onPageScanned?: () => void;
 };
 
-function WebsiteReport({ websiteId, report, user, canEdit, onCountsChanged }: Props) {
+function WebsiteReport({
+    websiteId,
+    report,
+    user,
+    canEdit,
+    onCountsChanged,
+    canScan,
+    onPageScanned,
+}: Props) {
     const { handlerUserApiRequest } = useUser();
     const { data: findings, mutate } = useSWR<WebsiteFindings>(
         `/api/websites/${websiteId}/findings?status=current`,
@@ -61,6 +71,8 @@ function WebsiteReport({ websiteId, report, user, canEdit, onCountsChanged }: Pr
                     ruleFindings={findings ? ruleFindings : undefined}
                     canEdit={canEdit}
                     onBulkStatus={onBulkStatus}
+                    canScan={canScan}
+                    onPageScanned={onPageScanned}
                 />
             </Card>
         </div>

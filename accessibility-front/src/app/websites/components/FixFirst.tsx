@@ -1,6 +1,7 @@
 'use client';
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
+import RescanPageButton from '@/components/RescanPageButton';
 import { useBulkFindingStatus } from '@/hooks/useBulkFindingStatus';
 import { fetcherApi } from '@/lib/api';
 import { platformHint } from '@/lib/guides';
@@ -18,9 +19,19 @@ type Props = {
     categories: string[];
     // Refresh the website (header counts) after a verdict changed what counts.
     onCountsChanged?: () => void;
+    canScan?: boolean;
+    onPageScanned?: () => void;
 };
 
-function FixFirst({ websiteId, user, canEdit, categories, onCountsChanged }: Props) {
+function FixFirst({
+    websiteId,
+    user,
+    canEdit,
+    categories,
+    onCountsChanged,
+    canScan = false,
+    onPageScanned,
+}: Props) {
     const { handlerUserApiRequest } = useUser();
     const { params } = useUrlFilters();
     const { data, error, isLoading, mutate } = useSWR<WebsiteFixFirst>(
@@ -44,6 +55,15 @@ function FixFirst({ websiteId, user, canEdit, categories, onCountsChanged }: Pro
                 platform={platformHint(categories)}
                 onBulkStatus={onBulkStatus}
                 focusRule={params.get('rule')}
+                renderPageAction={(page) =>
+                    canScan ? (
+                        <RescanPageButton
+                            siteId={page.site_id}
+                            size="small"
+                            onScanned={onPageScanned}
+                        />
+                    ) : null
+                }
             />
         </div>
     );

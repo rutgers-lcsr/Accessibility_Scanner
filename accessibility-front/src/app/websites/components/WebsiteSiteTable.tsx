@@ -1,5 +1,6 @@
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
+import RescanPageButton from '@/components/RescanPageButton';
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
 import { PublicUser } from '@/lib/types/user';
@@ -14,9 +15,11 @@ import SiteHistoryChart from './SiteHistoryChart';
 type Props = {
     websiteId: number;
     user: PublicUser | null;
+    canScan?: boolean;
+    onPageScanned?: () => void;
 };
 
-function WebsiteSiteTable({ websiteId, user }: Props) {
+function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: Props) {
     const { handlerUserApiRequest } = useUser();
 
     // Use a ref to avoid resetting pageSize on re-render
@@ -103,12 +106,22 @@ function WebsiteSiteTable({ websiteId, user }: Props) {
         {
             title: 'Actions',
             key: 'actions',
-            render: (text: string, record: Site) =>
-                record.current_report ? (
-                    <a href={`/reports/${record.current_report.id}`}>View Report</a>
-                ) : (
-                    <span className="text-gray-400">No report yet</span>
-                ),
+            render: (text: string, record: Site) => (
+                <span className="flex flex-wrap items-center gap-2">
+                    {record.current_report ? (
+                        <a href={`/reports/${record.current_report.id}`}>View Report</a>
+                    ) : (
+                        <span className="text-gray-400">No report yet</span>
+                    )}
+                    {canScan && (
+                        <RescanPageButton
+                            siteId={record.id}
+                            size="small"
+                            onScanned={onPageScanned}
+                        />
+                    )}
+                </span>
+            ),
         },
     ];
 

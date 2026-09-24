@@ -42,7 +42,7 @@ function AdminItems({ website, mutate }: Props) {
         handleCloseProgress,
     } = useScan({
         websiteId: website.id,
-        onComplete: mutate,
+        onComplete: () => mutate(),
     });
 
     const handleActivate = async () => {

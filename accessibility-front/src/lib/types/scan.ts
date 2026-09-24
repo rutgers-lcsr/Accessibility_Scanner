@@ -25,6 +25,9 @@ export type TaskStatus = {
         reports_generated?: number;
         sites_scanned?: number;
         error?: string | null;
+        // page scans: the report the scan stored
+        site_url?: string;
+        report_id?: number | null;
     };
 };
 

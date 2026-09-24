@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useGuides } from '@/hooks/useGuides';
 import { guideHref } from '@/lib/guides';
 import Link from 'next/link';
+import RescanPageButton from './RescanPageButton';
 import ViolationNode, { findingKey, findingSelector } from './ViolationNode';
 
 type Props = {
@@ -21,6 +22,8 @@ type Props = {
     canEdit?: boolean;
     onFindingChanged?: (finding: Finding) => void;
     onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
+    canScan?: boolean;
+    onPageScanned?: () => void;
 };
 
 const NODE_PAGE = 10;
@@ -164,6 +167,8 @@ function AuditAccessibilityItem({
     canEdit = false,
     onFindingChanged,
     onBulkStatus,
+    canScan = false,
+    onPageScanned,
 }: Props) {
     const guides = useGuides();
     if (!accessibilityResult) return <div>No accessibility result provided.</div>;
@@ -244,6 +249,15 @@ function AuditAccessibilityItem({
                                 >
                                     {report.url}
                                 </a>
+                                {canScan && (
+                                    <span style={{ marginLeft: 8 }}>
+                                        <RescanPageButton
+                                            siteId={report.site_id}
+                                            size="small"
+                                            onScanned={onPageScanned}
+                                        />
+                                    </span>
+                                )}
                             </li>
                         ))}
                     </ul>

@@ -27,6 +27,9 @@ type Props = {
     ruleFindings?: Record<string, FindingRuleGroup>;
     canEdit?: boolean;
     onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
+    // Offer "Rescan this page" on each affected page (website page).
+    canScan?: boolean;
+    onPageScanned?: () => void;
 };
 
 function isWebsite(v: Violation): v is WebsiteAxeResult {
@@ -55,6 +58,8 @@ function ViolationsList({
     ruleFindings,
     canEdit = false,
     onBulkStatus,
+    canScan = false,
+    onPageScanned,
 }: Props) {
     const { params, setFilters } = useUrlFilters();
     const impacts = (params.get('impact') ?? '').split(',').filter(Boolean) as Impact[];
@@ -233,6 +238,8 @@ function ViolationsList({
                         canEdit={canEdit}
                         onFindingChanged={onFindingChanged}
                         onBulkStatus={onBulkStatus}
+                        canScan={canScan}
+                        onPageScanned={onPageScanned}
                     />
                 ))
             )}

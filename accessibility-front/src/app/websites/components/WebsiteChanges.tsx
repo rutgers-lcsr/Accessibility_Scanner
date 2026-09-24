@@ -2,59 +2,17 @@
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
 import { fetcherApi } from '@/lib/api';
-import { ImpactTag } from '@/lib/impact';
-import { ChangeRule, WebsiteChanges as WebsiteChangesType } from '@/lib/types/finding';
+import { WebsiteChanges as WebsiteChangesType } from '@/lib/types/finding';
 import { PublicUser } from '@/lib/types/user';
 import { useUser } from '@/providers/User';
-import { Alert, Card, Collapse, Tag } from 'antd';
+import { Alert, Card, Collapse } from 'antd';
 import useSWR from 'swr';
+import RuleRows from './RuleRows';
 
 type Props = {
     websiteId: number;
     user: PublicUser | null;
 };
-
-function RuleRows({ rules, empty }: { rules: ChangeRule[]; empty: string }) {
-    if (rules.length === 0) return <div className="text-gray-500">{empty}</div>;
-    return (
-        <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
-            {rules.map((rule) => (
-                <li key={rule.rule_id} className="mb-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <ImpactTag impact={rule.impact} />
-                        <span className="font-semibold">{rule.rule_id}</span>
-                        <span className="text-gray-600">{rule.help}</span>
-                        <Tag>
-                            {rule.count} {rule.count === 1 ? 'element' : 'elements'}
-                        </Tag>
-                        {rule.help_url && (
-                            <a href={rule.help_url} target="_blank" rel="noopener noreferrer">
-                                How to fix
-                            </a>
-                        )}
-                    </div>
-                    <ul className="ml-4 mt-1 text-sm">
-                        {rule.pages.map((page) => (
-                            <li key={page.site_id}>
-                                <a
-                                    href={`/reports/${page.report_id}?rule=${encodeURIComponent(rule.rule_id)}#violation-${encodeURIComponent(rule.rule_id)}`}
-                                >
-                                    {page.url}
-                                </a>{' '}
-                                ({page.count})
-                                {page.findings.some((f) => f.reopened) && (
-                                    <Tag color="orange" style={{ marginLeft: 8 }}>
-                                        reopened
-                                    </Tag>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </li>
-            ))}
-        </ul>
-    );
-}
 
 // New, fixed and still-open findings between the previous and the latest scan.
 function WebsiteChanges({ websiteId, user }: Props) {

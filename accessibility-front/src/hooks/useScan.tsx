@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useUser } from '@/providers/User';
 import { useAlerts } from '@/providers/Alerts';
 import { APIError } from '@/lib/api';
-import { scanResponse } from '@/lib/types/scan';
+import { scanResponse, TaskStatus } from '@/lib/types/scan';
 import { Website } from '@/lib/types/website';
 
 type UseScanOptions = {
@@ -11,10 +11,18 @@ type UseScanOptions = {
     siteId?: number;
     // Audit one page ad hoc (POST /api/scans/quick); startScan then takes the URL.
     quick?: boolean;
-    onComplete?: () => void;
+    onComplete?: (status?: TaskStatus) => void;
+    // Leave the progress modal open on completion (a page rescan shows what changed there).
+    closeOnComplete?: boolean;
 };
 
-export function useScan({ websiteId, siteId, quick = false, onComplete }: UseScanOptions) {
+export function useScan({
+    websiteId,
+    siteId,
+    quick = false,
+    onComplete,
+    closeOnComplete = true,
+}: UseScanOptions) {
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
     const [loading, setLoading] = useState(false);
@@ -77,7 +85,14 @@ export function useScan({ websiteId, siteId, quick = false, onComplete }: UseSca
                     'error'
                 );
             } else if (apiError?.response?.status === 409) {
-                addAlert('You already have a quick scan running; wait for it to finish', 'warning');
+                addAlert(
+                    quick
+                        ? 'You already have a quick scan running; wait for it to finish'
+                        : 'This page is already being scanned; wait for it to finish',
+                    'warning'
+                );
+            } else if (apiError?.response?.status === 429) {
+                addAlert('You can start five scans a minute; try again in a moment', 'warning');
             } else if (error instanceof Error) {
                 addAlert('Failed to initiate scan: ' + error.message, 'error');
             } else {
@@ -87,11 +102,13 @@ export function useScan({ websiteId, siteId, quick = false, onComplete }: UseSca
         }
     };
 
-    const handleScanComplete = () => {
+    const handleScanComplete = (status?: TaskStatus) => {
         setLoading(false);
-        setShowProgress(false);
-        addAlert('Scan completed successfully!', 'success');
-        if (onComplete) onComplete();
+        if (closeOnComplete) {
+            setShowProgress(false);
+            addAlert('Scan completed successfully!', 'success');
+        }
+        if (onComplete) onComplete(status);
     };
 
     const handleScanError = (error: string) => {

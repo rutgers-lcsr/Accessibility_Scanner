@@ -8,7 +8,7 @@ import { Website as WebsiteType } from '@/lib/types/website';
 import { useUrlFilters } from '@/lib/urlFilters';
 import { useUser } from '@/providers/User';
 import { Alert, Layout, Tabs, TabsProps } from 'antd';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
 import AdminItems from './AdminItems';
@@ -29,6 +29,7 @@ type Props = {
 
 const Website = ({ websiteId, user }: Props) => {
     const { handlerUserApiRequest } = useUser();
+    const { mutate: mutateAll } = useSWRConfig();
     // The open tab lives in the URL (?tab=) so links from emails and cards land on it.
     const { params, setFilters } = useUrlFilters();
     const activeTab = params.get('tab') ?? 'fix';
@@ -53,6 +54,11 @@ const Website = ({ websiteId, user }: Props) => {
         (user.is_admin ||
             websiteReport.admin === user.user ||
             websiteReport.users.includes(user.user));
+    // Same people may rescan a page (Website.can_scan).
+    const canScan = canEdit;
+    // A page rescan changes the counts, the pages table and every list: refresh them all.
+    const onPageScanned = () =>
+        mutateAll((key) => typeof key === 'string' && key.startsWith(`/api/websites/${websiteId}`));
 
     // Mutate both the website report and the sites data when it become stale,
     // this is needed for a full page reload when the website is scanned
@@ -71,6 +77,8 @@ const Website = ({ websiteId, user }: Props) => {
                     canEdit={canEdit}
                     categories={websiteReport.categories}
                     onCountsChanged={() => mutateWebsiteReport()}
+                    canScan={canScan}
+                    onPageScanned={onPageScanned}
                 />
             ),
         },
@@ -84,7 +92,12 @@ const Website = ({ websiteId, user }: Props) => {
                     ) : reportError ? (
                         <PageError status={500} title="Error loading website report" />
                     ) : (
-                        <WebsiteSiteTable websiteId={websiteId} user={user} />
+                        <WebsiteSiteTable
+                            websiteId={websiteId}
+                            user={user}
+                            canScan={canScan}
+                            onPageScanned={onPageScanned}
+                        />
                     )}
                 </>
             ),
@@ -99,6 +112,8 @@ const Website = ({ websiteId, user }: Props) => {
                     user={user}
                     canEdit={canEdit}
                     onCountsChanged={() => mutateWebsiteReport()}
+                    canScan={canScan}
+                    onPageScanned={onPageScanned}
                 />
             ),
         },

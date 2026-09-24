@@ -169,7 +169,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 </p>
                             </Card>
                         </section>
-                        {report.can_edit && <AdminReportItems report={report} />}
+                        {report.can_scan && <AdminReportItems report={report} />}
                     </Card>
 
                     <Card>
