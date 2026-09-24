@@ -91,6 +91,12 @@ celery.conf.update(
             'task': 'scanner.tasks.send_admin_digest',
             'schedule': crontab(day_of_week=DIGEST_DAY_OF_WEEK, hour=DIGEST_HOUR_UTC, minute=0),
         },
+        # Daily owner digests and reminders, half an hour after the admin digest's hour;
+        # on/off and the reminder periods are Settings.
+        'owner-digests': {
+            'task': 'scanner.tasks.send_owner_digests',
+            'schedule': crontab(hour=DIGEST_HOUR_UTC, minute=30),
+        },
         # Nightly report retention; a no-op (with a logged plan) until enabled in Settings.
         'prune-reports': {
             'task': 'scanner.tasks.prune_reports',

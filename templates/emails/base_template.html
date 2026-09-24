@@ -2,80 +2,17 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="description"
-              content="Rutgers Accessibility Scanner provides accessibility reports for Rutgers University websites.">
-        <meta name="keywords"
-              content="Rutgers, Accessibility, Scanner, University, LCSR, Audit, Email">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Rutgers Accessibility Scanner</title>
-        <style>
-        body {
-            background-color: #f2f2f2;
-            color: #222222;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        .email-container {
-            background: #ffffff;
-            border: 1px solid #d8d8d8;
-            max-width: 600px;
-            margin: 40px auto;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            padding: 32px;
-        }
-        .email-header {
-            background: #cc0033;
-            color: #ffffff;
-            padding: 16px 32px;
-            border-radius: 8px 8px 0 0;
-            font-size: 1.5em;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-        .email-content {
-            padding: 24px 0;
-            color: #222222;
-            font-size: 1em;
-        }
-        .email-footer {
-            background: #f2f2f2;
-            color: #666666;
-            padding: 16px 32px;
-            border-radius: 0 0 8px 8px;
-            font-size: 0.9em;
-            text-align: center;
-        }
-        a {
-            color: #007fac;
-            text-decoration: none;
-        }
-        a:hover {
-            color: #7dbfd6;
-        }
-        .btn {
-            display: inline-block;
-            background: #cc0033;
-            color: #fff;
-            padding: 10px 24px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: 500;
-            margin-top: 16px;
-        }
-        .btn:hover {
-            background: #8e0d18;
-        }
-        </style>
     </head>
-    <body>
-        <div class="email-container">
-            <div class="email-header">Rutgers LCSR Accessibility Scanner</div>
-            <div class="email-content">
+    <body style="margin:0;padding:0;background:#f2f2f2;color:#222222;font-family:'Segoe UI',Arial,sans-serif;">
+        <div style="max-width:600px;margin:40px auto;background:#ffffff;border:1px solid #d8d8d8;border-radius:8px;padding:32px;">
+            <div style="background:#cc0033;color:#ffffff;padding:16px 32px;border-radius:8px 8px 0 0;font-size:1.5em;font-weight:bold;letter-spacing:1px;">Rutgers LCSR Accessibility Scanner</div>
+            <div style="padding:24px 0;color:#222222;font-size:1em;line-height:1.5;">
                 {% block content %}
                 {% endblock content %}
             </div>
-            <div class="email-footer">{{ year }} LCSR Rutgers University | Accessibility Scanner</div>
+            <div style="background:#f2f2f2;color:#666666;padding:16px 32px;border-radius:0 0 8px 8px;font-size:0.9em;text-align:center;">{{ year }} LCSR Rutgers University | Accessibility Scanner</div>
         </div>
     </body>
 </html>

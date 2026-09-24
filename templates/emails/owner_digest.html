@@ -1,0 +1,66 @@
+{% extends "emails/base_template.html" %}
+{% block content %}
+{% set t = digest.totals %}
+{% if tone == 'escalation' %}
+<h1>Action required: accessibility issues still open</h1>
+{% elif tone == 'reminder' %}
+<h1>Reminder: accessibility issues still open</h1>
+{% elif tone == 'first' %}
+<h1>Your accessibility report</h1>
+{% elif tone == 'no_change' %}
+<h1>No change since your last report</h1>
+{% else %}
+<h1>Your accessibility update</h1>
+{% endif %}
+
+<p>
+{% if digest.engagement == 'fixed' %}
+    You fixed {{ t.fixed_since }} issue{{ '' if t.fixed_since == 1 else 's' }} since our last email{% if digest.since %} on {{ digest.since | datetimeformat('%b %d, %Y') }}{% endif %}. Thank you.
+{% elif digest.engagement == 'never_opened' %}
+    You have not opened your report yet. It takes a few minutes, and the fixes below clear most of the issues.
+{% elif digest.engagement == 'not_since_last_email' %}
+    Nothing has changed since our last email{% if digest.since %} on {{ digest.since | datetimeformat('%b %d, %Y') }}{% endif %}.
+{% else %}
+    You looked at your report{% if digest.user.last_viewed %} on {{ digest.user.last_viewed | datetimeformat('%b %d, %Y') }}{% endif %}; nothing has changed since.
+{% endif %}
+</p>
+
+{% if digest.fix_first %}
+<h2 style="font-size:1.1em;">Fix these first</h2>
+<ol>
+{% for rule in digest.fix_first %}
+    <li style="margin-bottom:8px;">
+        <em>{{ rule.help }}</em> clears {{ rule.occurrences }} issue{{ '' if rule.occurrences == 1 else 's' }}
+        on {{ rule.pages }} page{{ '' if rule.pages == 1 else 's' }} of {{ rule.website_host }} —
+        <a href="{{ rule.link }}">Show me where</a> · <a href="{{ rule.guide }}">How to fix</a>
+    </li>
+{% endfor %}
+</ol>
+{% endif %}
+
+<h2 style="font-size:1.1em;">Your website{{ '' if digest.websites | length == 1 else 's' }}</h2>
+{% for w in digest.websites if w.show %}
+<p>
+    <a href="{{ client_url }}/websites/{{ w.id }}">{{ w.url }}</a><br>
+    {% if w.last_scan_status in ('failed', 'unreachable') %}
+        The last scan {{ 'could not reach this website' if w.last_scan_status == 'unreachable' else 'failed' }}{% if w.last_scan_error %}: {{ w.last_scan_error }}{% endif %}.<br>
+    {% endif %}
+    {{ w.violations.total }} issue{{ '' if w.violations.total == 1 else 's' }} on {{ w.pages_with_issues }} page{{ '' if w.pages_with_issues == 1 else 's' }}{% if w.previous_violations is not none %}, {{ w.previous_violations }} → {{ w.violations.total }} since last email{% endif %}.<br>
+    {% if w.last_scanned %}Scanned {{ w.last_scanned | datetimeformat('%b %d, %Y') }}.{% else %}Not scanned yet.{% endif %}
+    {% if w.escalated %} Copied to {{ digest.escalation_email }}.{% endif %}
+</p>
+{% endfor %}
+{% if digest.hidden_websites %}
+<p>and {{ digest.hidden_websites }} more website{{ '' if digest.hidden_websites == 1 else 's' }} with no change.</p>
+{% endif %}
+
+{% include "emails/_policy.html" %}
+
+<p><a href="{{ client_url }}/dashboard" style="{{ button_style }}">Open your dashboard</a></p>
+
+{% if unsubscribe_url %}
+<p style="font-size:0.9em;color:#666666;margin-top:24px;">
+    <a href="{{ unsubscribe_url }}">Stop these emails</a>, or switch email off per website on its page.
+</p>
+{% endif %}
+{% endblock content %}

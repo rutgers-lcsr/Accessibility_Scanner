@@ -99,3 +99,13 @@ def test_changes_endpoints_and_visibility(client, make_user, make_website, add_s
     website.public = True
     assert client.get(f"/api/websites/{website.id}/changes/").status_code == 200
     assert client.get(f"/api/sites/{site.id}/changes/").status_code == 200
+
+
+def test_is_regression_rules():
+    from services.findings import is_regression
+
+    baseline = {"since": None, "new": [{"impact": "critical"}], "previous": {"total": 0}, "current": {"total": 5}}
+    assert is_regression(baseline) is False
+    assert is_regression({"since": "x", "new": [{"impact": "serious"}], "previous": {"total": 5}, "current": {"total": 5}}) is True
+    assert is_regression({"since": "x", "new": [], "previous": {"total": 3}, "current": {"total": 4}}) is True
+    assert is_regression({"since": "x", "new": [{"impact": "minor"}], "previous": {"total": 4}, "current": {"total": 3}}) is False

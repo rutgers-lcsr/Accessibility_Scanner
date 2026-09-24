@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stop these emails?</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 3rem auto; max-width: 36rem; padding: 0 1rem; color: #222; }
+        a { color: #cc0033; }
+        button { background: #cc0033; color: #fff; border: 0; border-radius: 4px; padding: 10px 24px; font-size: 1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Stop emails about {% if websites | length == 1 %}{{ websites[0].url }}{% else %}your {{ websites | length }} websites{% endif %}?</h1>
+        {% if websites | length > 1 %}
+        <ul>
+            {% for website in websites %}<li>{{ website.url }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        <p>Scan results stay available on each website's page, where you can turn emails back on at any time.</p>
+        <form method="post" action="{{ client_url }}/api/users/unsubscribe/">
+            <input type="hidden" name="token" value="{{ token }}">
+            <button type="submit">Yes, stop these emails</button>
+        </form>
+    </main>
+</body>
+</html>

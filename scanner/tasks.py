@@ -12,7 +12,6 @@ from models import db
 from models.website import Site, Website
 from models.report import Report
 from scanner.scan import generate_reports as async_generate_reports, generate_single_site_report as async_generate_single_site_report, run_quick_scan as async_run_quick_scan
-from mail.emails import ScanFinishedEmail
 
 
 def _run_scan(loop: asyncio.AbstractEventLoop, coro, label: str):
@@ -231,6 +230,19 @@ def send_admin_digest():
     sender = AdminDigestEmail()
     sent = sender.send()
     return {'sent': sent, 'recipients': len(sender.msg.recipients) if sent and sender.msg else 0}
+
+
+@celery.task(name='scanner.tasks.send_owner_digests')
+def send_owner_digests():
+    """Daily owner digests and reminders (scheduled by beat), unless switched off in
+    Settings (owner_digest_enabled). Who gets what is decided in services.owner_digest."""
+    from models.settings import Settings
+    from services.owner_digest import run_owner_digests
+
+    if (Settings.get('owner_digest_enabled') or '').lower() != 'true':
+        log_message("Owner digests are switched off in Settings", 'info')
+        return {'users': 0, 'sent': 0, 'reminders': 0, 'escalations': 0, 'skipped': 0, 'disabled': True}
+    return run_owner_digests()
 
 
 @celery.task(name='scanner.tasks.prune_reports')

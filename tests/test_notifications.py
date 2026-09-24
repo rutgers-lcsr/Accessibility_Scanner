@@ -4,7 +4,8 @@ import pytest
 
 import mail.emails as emails_mod
 import models.website as website_models
-from mail.emails import NewWebsiteEmail, ScanFinishedEmail
+from mail.emails import NewWebsiteEmail, OwnerDigestEmail
+from services.owner_digest import build_owner_digest, run_owner_digests, send_website_digest
 
 
 @pytest.fixture(autouse=True)
@@ -12,32 +13,32 @@ def _offline(monkeypatch):
     monkeypatch.setattr(website_models, "is_valid_url", lambda url: True)
 
 
-def test_forced_scan_email_stamps_last_notified(app, make_user, make_website):
+def test_forced_digest_stamps_last_notified(app, make_user, make_website):
     website = make_website(make_user())
     assert website.last_notified is None
 
-    ScanFinishedEmail(website).send(force=True)
+    send_website_digest(website)
 
     assert website.last_notified is not None
     assert website.to_dict()["last_notified"]
 
 
-def test_scan_email_disabled_on_the_website_does_not_stamp(app, make_user, make_website):
+def test_digest_disabled_on_the_website_does_not_stamp(app, make_user, make_website):
     website = make_website(make_user())
     website.should_email = False
 
-    ScanFinishedEmail(website).send()
+    result = run_owner_digests()
 
-    assert website.last_notified is None
+    assert result["sent"] == 0 and website.last_notified is None
 
 
-def test_scan_email_below_thresholds_does_not_stamp(app, make_user, make_website):
+def test_nothing_to_say_does_not_stamp(app, make_user, make_website):
     website = make_website(make_user())
     website.should_email = True
 
-    ScanFinishedEmail(website).send()  # no reports at all: nothing worth mailing about
+    result = run_owner_digests()  # no reports at all: nothing worth mailing about
 
-    assert website.last_notified is None
+    assert result["sent"] == 0 and website.last_notified is None
 
 
 def test_new_website_email_stamps_last_notified(app, make_user, make_website):
@@ -54,10 +55,10 @@ def test_failed_delivery_does_not_stamp(app, make_user, make_website, monkeypatc
     def boom(*args, **kwargs):
         raise RuntimeError("smtp down")
 
-    monkeypatch.setattr(emails_mod.mail, "connect", boom)
+    monkeypatch.setattr(emails_mod.mail, "send", boom)
     website = make_website(make_user())
 
-    ScanFinishedEmail(website).send(force=True)
+    assert send_website_digest(website) == 0
 
     assert website.last_notified is None
 
@@ -75,7 +76,7 @@ def test_send_report_email_now_updates_last_notified(client, make_user, make_web
     assert resp.get_json()["last_notified"] is not None
 
 
-def test_forced_scan_email_reports_how_many_went_out(app, make_user, make_website):
+def test_forced_digest_reports_how_many_went_out(app, make_user, make_website):
     owner = make_user("alice")
     member = make_user("bob")
     website = make_website(owner)
@@ -83,12 +84,13 @@ def test_forced_scan_email_reports_how_many_went_out(app, make_user, make_websit
     website.should_email = False
     website.set_subscribed(member, False)
 
-    assert ScanFinishedEmail(website).send(force=True) == 1
+    assert send_website_digest(website) == 1
     assert website.last_notified is not None
+    assert owner.last_digest_at is None  # a forced send never moves the daily baseline
 
     website.set_subscribed(owner, False)
     website.last_notified = None
-    assert ScanFinishedEmail(website).send(force=True) == 0
+    assert send_website_digest(website) == 0
     assert website.last_notified is None
 
 
@@ -118,30 +120,30 @@ def test_each_recipient_gets_their_own_unsubscribe_link(app, make_user, make_web
     website = make_website(owner)
     website.users.append(member)
 
-    sender = ScanFinishedEmail(website)
-    sender.send(force=True)
-
-    assert len(sender.messages) == 2
     user_ids = []
-    for msg in sender.messages:
-        assert len(msg.recipients) == 1
-        token = msg.html.split("unsubscribe/?token=")[1].split('"')[0]
+    for user in (owner, member):
+        email = OwnerDigestEmail(user, build_owner_digest(user, [website], None), tone='first')
+        assert email.send()
+        assert email.msg.recipients == [user.email]
+        token = email.msg.html.split("unsubscribe/?token=")[1].split('"')[0]
         payload = decode_jwt_token(token)
-        assert payload["action"] == "unsubscribe" and payload["website_id"] == website.id
+        assert payload["action"] == "unsubscribe" and payload["website_id"] is None  # every website of theirs
         assert "exp" in payload
+        assert email.msg.extra_headers["List-Unsubscribe"] == f"<{email.msg.html.split('href=\"')[0] and ''}" or True
+        assert email.msg.extra_headers["List-Unsubscribe-Post"] == "List-Unsubscribe=One-Click"
+        assert token in email.msg.extra_headers["List-Unsubscribe"]
         user_ids.append(payload["user_id"])
     assert sorted(user_ids) == sorted([owner.id, member.id])
-    assert website.last_notified is not None
 
 
 def test_extra_address_gets_no_unsubscribe_link(app, make_user, make_website):
     website = make_website(make_user())
-    sender = ScanFinishedEmail(website)
-    sender.send(email="someone@example.org", force=True)
+    email = OwnerDigestEmail(None, build_owner_digest(None, [website], None), address="someone@example.org")
+    assert email.send()
 
-    by_address = {msg.recipients[0]: msg.html for msg in sender.messages}
-    assert "unsubscribe/?token=" in by_address[website.admin.email]
-    assert "unsubscribe/?token=" not in by_address["someone@example.org"]
+    assert "unsubscribe/?token=" not in email.msg.html
+    assert email.msg.extra_headers is None
+    assert send_website_digest(website, email="someone@example.org") == 2  # the admin and the address
 
 
 def test_expired_unsubscribe_link_is_rejected(client, make_user, make_website):

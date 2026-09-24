@@ -1,5 +1,6 @@
 """Flask CLI commands for maintenance work: ``flask findings backfill``,
-``flask maintenance retention`` and ``flask maintenance slim-reports``."""
+``flask maintenance retention``, ``flask maintenance slim-reports`` and
+``flask mail owner-digests``."""
 import click
 from flask.cli import AppGroup
 
@@ -58,4 +59,24 @@ def slim_reports(dry_run, batch):
     click.echo(
         f"Checked {result['checked']} reports; {result['rewritten']} "
         f"{'would be' if dry_run else 'were'} rewritten."
+    )
+
+
+mail_cli = AppGroup('mail', help='Owner digests and reminders.')
+
+
+@mail_cli.command('owner-digests')
+@click.option('--dry-run', is_flag=True, help='Say who would get what without sending or recording anything.')
+@click.option('--user', 'user_ids', type=int, multiple=True, help='Only these user ids, sent even when nothing changed.')
+def owner_digests(dry_run, user_ids):
+    """Send the owner digests and reminders that are due, as the daily task does."""
+    from services.owner_digest import run_owner_digests
+
+    result = run_owner_digests(dry_run=dry_run, user_ids=list(user_ids) or None)
+    for line in result.get('details', []):
+        click.echo(line)
+    verb = 'would send' if dry_run else 'sent'
+    click.echo(
+        f"{result['users']} people considered, {verb} {result['sent']} digests "
+        f"({result['reminders']} reminders, {result['escalations']} escalations), {result['skipped']} skipped."
     )

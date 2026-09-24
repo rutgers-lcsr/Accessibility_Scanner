@@ -1,7 +1,9 @@
 from flask import Blueprint, current_app, jsonify, request, Response
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
-from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail, ScanFinishedEmail
+from mail.emails import AdminNewWebsiteEmail, NewWebsiteEmail
+from models.notifications import WebsiteView
+from services.owner_digest import send_website_digest
 from models.report import  Report
 from models.settings import Settings
 from models.user import Profile, User
@@ -10,6 +12,7 @@ from models import db
 from sqlalchemy import case, func, or_
 from flask_sqlalchemy import pagination
 
+from scanner.log import log_message
 from scanner.utils.service import check_url
 from services.history import daily_history, effective_counts
 from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
@@ -238,7 +241,7 @@ def email_website_report(website_id):
     if not website:
         return jsonify({'error': 'Website not found'}), 404
     try:
-        sent = ScanFinishedEmail(website).send(email=email, force=True)
+        sent = send_website_digest(website, email=email)
         return jsonify({'message': 'Email sent successfully' if sent else 'No one to email', 'sent': sent}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1206,6 +1209,13 @@ def get_overall_website(website_id):
     if not website.can_view(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
 
+    # Engagement, not activity: when the website's own people last looked at it.
+    if current_user and website.is_member(current_user):
+        try:
+            WebsiteView.touch(current_user.id, website.id)
+        except Exception as e:
+            db.session.rollback()
+            log_message(f"Could not record a view of website {website.id}: {e}", 'warning')
     return jsonify(website.to_dict(with_report=True)), 200
 
 @website_bp.route('/<int:website_id>/axe/', methods=['GET'])

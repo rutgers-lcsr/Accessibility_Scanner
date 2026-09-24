@@ -11,9 +11,11 @@
 </head>
 <body>
     <main>
-        <h1>You will no longer receive emails about {{ website.url }}</h1>
-        <p>Scan results for this website will still be available on its page, and you can turn emails back on there at any time.</p>
-        <p><a href="{{ client_url }}/websites/{{ website.id }}">Open the website page</a></p>
+        <h1>You will no longer receive emails about {% if websites | length == 1 %}{{ websites[0].url }}{% else %}your {{ websites | length }} websites{% endif %}</h1>
+        <p>Scan results will still be available on each website's page, and you can turn emails back on there at any time.</p>
+        <ul>
+            {% for website in websites %}<li><a href="{{ client_url }}/websites/{{ website.id }}">{{ website.url }}</a></li>{% endfor %}
+        </ul>
     </main>
 </body>
 </html>

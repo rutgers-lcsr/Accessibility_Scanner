@@ -1,18 +1,19 @@
-from operator import or_
-from flask import Flask, render_template
-from flask_mail import Message
-from config import CLIENT_URL, TESTING
-from mail import mail
-from models.report import Report
-from models.user import User
-from models import db
-from models.website import Website
-from models.user import Profile
 from datetime import datetime, timedelta, timezone
 
+from flask import render_template
+from flask_mail import Message
+from jinja2 import TemplateNotFound
+
+from config import CLIENT_URL, TESTING
+from mail import mail
+from models import db
+from models.user import Profile, User
+from models.website import Website
 from scanner.log import log_message
 from utils.jwt import generate_jwt_token
 from utils.urls import get_netloc
+
+
 class AccessEmails():
     def __init__(self):
         self.client_url = CLIENT_URL
@@ -85,15 +86,23 @@ class AccessEmails():
 
 UNSUBSCRIBE_LINK_DAYS = 90
 
+BUTTON_STYLE = ("display:inline-block;background:#cc0033;color:#ffffff;padding:10px 24px;"
+                "border-radius:4px;text-decoration:none;font-weight:500;margin-top:16px;")
 
-def _unsubscribe_token(website: Website, user: User) -> str:
-    """A personal unsubscribe link for one recipient of one website's emails."""
+
+def _unsubscribe_token(website: Website | None, user: User) -> str:
+    """A personal unsubscribe link for one recipient: one website's emails, or every
+    website of theirs when ``website`` is None (the digest and its List-Unsubscribe)."""
     return generate_jwt_token({
         "action": "unsubscribe",
-        "website_id": website.id,
+        "website_id": website.id if website else None,
         "user_id": user.id,
         "exp": datetime.now(timezone.utc) + timedelta(days=UNSUBSCRIBE_LINK_DAYS),
     })
+
+
+def _unsubscribe_url(token: str) -> str:
+    return f"{CLIENT_URL}/api/users/unsubscribe/?token={token}"
 
 
 def _admin_emails() -> list:
@@ -109,6 +118,29 @@ def _mark_notified(website: Website) -> None:
     db.session.commit()
 
 
+def _render(name: str, **context) -> tuple:
+    """The HTML body from emails/<name>.html and the text body from emails/<name>.txt
+    (None when the email has no text version)."""
+    html = render_template(f"emails/{name}.html", **context)
+    try:
+        text = render_template(f"emails/{name}.txt", **context)
+    except TemplateNotFound:
+        text = None
+    return html, text
+
+
+def _personal_message(subject: str, address: str, token, template: str, cc=None, **context) -> Message:
+    """One recipient's message: HTML plus a plain-text part and, when the recipient has an
+    account (``token``), the unsubscribe link in the footer and the headers mail clients
+    turn into an "Unsubscribe" button."""
+    unsubscribe_url = _unsubscribe_url(token) if token else None
+    html, text = _render(template, unsubscribe_url=unsubscribe_url, button_style=BUTTON_STYLE, **context)
+    headers = None
+    if unsubscribe_url:
+        headers = {'List-Unsubscribe': f'<{unsubscribe_url}>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'}
+    return Message(subject, recipients=[address], cc=cc or None, body=text, html=html, extra_headers=headers)
+
+
 class AdminNewWebsiteEmail(AccessEmails):
     def __init__(self, website: Website):
         self.website = website
@@ -116,11 +148,12 @@ class AdminNewWebsiteEmail(AccessEmails):
 
     def send(self):
         msg = Message("New Website Added", recipients=_admin_emails())
-
-        msg.html = render_template("emails/admin_new_website.html", year=self.year, website=self.website, client_url=self.client_url)
+        msg.html = render_template("emails/admin_new_website.html", year=self.year, website=self.website,
+                                   client_url=self.client_url, button_style=BUTTON_STYLE)
         self.msg = msg
         super().send()
-        
+
+
 class NewWebsiteEmail(AccessEmails):
     def __init__(self, website: Website):
         self.website = website
@@ -132,121 +165,52 @@ class NewWebsiteEmail(AccessEmails):
             log_message(f"Website {self.website.id} has no associated user emails to send new website notification.", 'warning')
             return
 
-        messages = []
-        for user in recipients:
-            msg = Message("New Website Added", recipients=[user.email])
-            msg.html = render_template(
-                "emails/new_website.html", year=self.year, website=self.website,
-                client_url=self.client_url, jwt_token=_unsubscribe_token(self.website, user),
-            )
-            messages.append(msg)
-
+        messages = [
+            _personal_message("New Website Added", user.email, _unsubscribe_token(self.website, user), 'new_website',
+                              year=self.year, website=self.website, client_url=self.client_url)
+            for user in recipients
+        ]
         if self.send_each(messages):
             _mark_notified(self.website)
 
-class ScanFinishedEmail(AccessEmails):
-    def __init__(self, website: Website, changes: dict | None = None):
-        self.website = website
-        self.report_counts = website.get_report_counts()
-        if changes is None:
-            from services.findings import changes_for_sites  # local import: services import models
-            from models.website import Site
-            changes = changes_for_sites([row.id for row in website.sites.with_entities(Site.id).all()])
-        self.changes = changes
-        from services.overview import scan_summary  # local import: services import models
-        self.summary = scan_summary(website)
+
+class OwnerDigestEmail(AccessEmails):
+    """One person's digest over their websites (services.owner_digest builds it and
+    decides who gets one). ``tone`` is first, update, no_change, reminder or escalation."""
+
+    def __init__(self, user, digest: dict, tone: str = 'update', cc=None, address: str | None = None):
+        self.user = user
+        self.digest = digest
+        self.tone = tone
+        self.cc = cc
+        self.address = address or (user.email if user else None)
         super().__init__()
 
-    def _worth_sending(self) -> bool:
-        """Automatic sends only go out when the results are significant."""
-        violations = self.report_counts.get('violations', {})
-        significant = (
-            violations.get('critical', 0) > 0
-            or violations.get('serious', 0) >= 5
-            or violations.get('moderate', 0) >= 10
-            or violations.get('minor', 0) >= 10
-            or violations.get('total', 0) > 15
-        )
-        if not significant:
-            log_message(f"Scan finished email not sent for website {self.website.id} due to no significant issues found.", 'info')
-            log_message(f"Scan counts: {self.report_counts}", 'info')
-        return significant
+    def subject(self) -> str:
+        websites = self.digest['websites']
+        totals = self.digest['totals']
+        host = websites[0]['host'] if len(websites) == 1 else f"{len(websites)} websites"
+        serious = totals['critical_serious']
+        issue = 'issue' if serious == 1 else 'issues'
+        if self.tone == 'escalation':
+            return f"Action required: {host} still has {serious} critical or serious accessibility {issue}"
+        if self.tone == 'reminder':
+            return f"Reminder: {host} still has {serious} critical or serious accessibility {issue}"
+        if websites and all(w['last_scan_status'] in ('failed', 'unreachable') for w in websites):
+            return f"Accessibility scan failed: {host}"
+        if self.tone == 'first':
+            return f"Accessibility report for {host}: {totals['violations']} issues on {totals['pages_with_issues']} pages"
+        if self.tone == 'no_change':
+            return f"No change on {host}: {totals['violations']} open accessibility issues"
+        return f"{host}: {totals['fixed_since']} fixed, {totals['new_since']} new accessibility issues"
 
-    def _subject(self) -> str:
-        host = get_netloc(self.website.url)
-        status = self.summary.get('status')
-        if status in ('unreachable', 'failed'):
-            return f"Accessibility scan {status}: {host}"
-        violations = self.summary['violations']
-        return (f"Accessibility scan finished: {host}: {violations['total']} violations "
-                f"({violations['critical']} critical)")
-
-    def _message(self, address: str, jwt_token: str | None, website: dict) -> Message:
-        msg = Message(self._subject(), recipients=[address])
-        msg.html = render_template(
-            "emails/scan_finished.html", year=self.year, website=website,
-            client_url=self.client_url, scan=self.report_counts, summary=self.summary,
-            changes=self.changes, timestamp=datetime.now().isoformat(), jwt_token=jwt_token,
-        )
-        return msg
-
-    def send(self, email=None, force=False) -> int:
-        """Email the website's people; returns how many messages went out."""
-        if not force and not self.website.should_email:
-            return 0
-        if not force and not self._worth_sending():
-            return 0
-
-        # One message per recipient, each with a personal unsubscribe link. An address
-        # given by hand (the admin's "send to" box) has no account to opt out, so no link.
-        targets = [(user.email, _unsubscribe_token(self.website, user))
-                   for user in self.website.get_recipients() if user.email]
-        if email and email not in {address for address, _ in targets}:
-            targets.append((email, None))
-        if not targets:
-            log_message(f"Website {self.website.id} has no associated user emails to send scan finished notification.", 'warning')
-            return 0
-
-        website = self.website.to_dict()  # once, not per recipient: it walks every page
-        sent = self.send_each([self._message(address, token, website) for address, token in targets])
-        if sent:
-            _mark_notified(self.website)
-        return sent
-
-
-class ScanRegressionEmail(AccessEmails):
-    """Sent instead of the scan-finished email when a scan is worse than the previous one
-    (services.findings.is_regression). No severity thresholds: a regression is news."""
-
-    def __init__(self, website: Website, changes: dict):
-        self.website = website
-        self.changes = changes
-        super().__init__()
-
-    def send(self, force: bool = False) -> bool:
-        if not force and not self.website.should_email:
+    def send(self) -> bool:
+        if not self.address:
             return False
-        recipients = [user for user in self.website.get_recipients() if user.email]
-        if not recipients:
-            log_message(f"Website {self.website.id} has no associated user emails to send regression notification.", 'warning')
-            return False
-
-        new_total = self.changes.get('new_count', 0)
-        subject = f"Accessibility regression on {get_netloc(self.website.url)}: {new_total} new violation{'s' if new_total != 1 else ''}"
-        messages = []
-        for user in recipients:
-            msg = Message(subject, recipients=[user.email])
-            msg.html = render_template(
-                "emails/scan_regression.html", year=self.year, website=self.website,
-                client_url=self.client_url, changes=self.changes,
-                jwt_token=_unsubscribe_token(self.website, user),
-            )
-            messages.append(msg)
-
-        sent = self.send_each(messages) > 0
-        if sent:
-            _mark_notified(self.website)
-        return sent
+        token = _unsubscribe_token(None, self.user) if self.user else None
+        self.msg = _personal_message(self.subject(), self.address, token, 'owner_digest', cc=self.cc,
+                                     year=self.year, client_url=self.client_url, digest=self.digest, tone=self.tone)
+        return super().send()
 
 
 class AdminDigestEmail(AccessEmails):
@@ -269,6 +233,7 @@ class AdminDigestEmail(AccessEmails):
             return False
 
         msg = Message(f"Weekly accessibility digest: {datetime.now().strftime('%b %d, %Y')}", recipients=recipients)
-        msg.html = render_template("emails/admin_digest.html", year=self.year, client_url=self.client_url, digest=digest)
+        msg.html = render_template("emails/admin_digest.html", year=self.year, client_url=self.client_url,
+                                   digest=digest, button_style=BUTTON_STYLE)
         self.msg = msg
         return super().send()

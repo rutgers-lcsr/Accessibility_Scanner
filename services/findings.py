@@ -13,7 +13,7 @@ import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import func
+from sqlalchemy import and_, case, func, or_, true
 
 from models import db
 from models.finding import FINDING_STATUSES, Finding, SUPPRESSED_STATUSES
@@ -299,6 +299,53 @@ def bulk_set_status(site_ids, rule_id: str, status: str, note: str | None, user_
             set_finding_status(finding, status, note, user_id)
             updated += 1
     return updated
+
+
+def findings_since(website_ids, since: datetime | None) -> dict:
+    """``{website_id: {'fixed': n, 'triaged': n, 'new': n}}`` since ``since`` (all time
+    when None): findings the scanner closed (status fixed, status_by NULL), verdicts
+    people gave (status_by set, TRIAGED_STATUSES), and open findings first seen."""
+    if not website_ids:
+        return {}
+    since = _naive(since)
+
+    def after(column):
+        return true() if since is None else column >= since
+
+    scanner_fixed = case((and_(Finding.status == 'fixed', Finding.status_by.is_(None), after(Finding.status_at)), 1), else_=0)
+    triaged = case((and_(Finding.status_by.isnot(None), Finding.status.in_(TRIAGED_STATUSES), after(Finding.status_at)), 1), else_=0)
+    new = case((and_(Finding.status == 'open', after(Finding.first_seen)), 1), else_=0)
+    rows = (
+        db.session.query(Site_Website_Assoc.c.website_id, func.sum(scanner_fixed), func.sum(triaged), func.sum(new))
+        .select_from(Site_Website_Assoc)
+        .join(Finding, Finding.site_id == Site_Website_Assoc.c.site_id)
+        .filter(Site_Website_Assoc.c.website_id.in_(list(website_ids)))
+        .group_by(Site_Website_Assoc.c.website_id)
+        .all()
+    )
+    return {website_id: {'fixed': int(fixed or 0), 'triaged': int(verdicts or 0), 'new': int(fresh or 0)}
+            for website_id, fixed, verdicts, fresh in rows}
+
+
+def last_activity_at(website_ids) -> dict:
+    """``{website_id: datetime | None}``: when a person last acted on the website, that is
+    gave a verdict, or something got fixed (the scanner closed a finding). Looking at a
+    report is not acting."""
+    if not website_ids:
+        return {}
+    acted = or_(
+        and_(Finding.status_by.isnot(None), Finding.status.in_(TRIAGED_STATUSES)),
+        and_(Finding.status == 'fixed', Finding.status_by.is_(None)),
+    )
+    rows = (
+        db.session.query(Site_Website_Assoc.c.website_id, func.max(Finding.status_at))
+        .select_from(Site_Website_Assoc)
+        .join(Finding, Finding.site_id == Site_Website_Assoc.c.site_id)
+        .filter(Site_Website_Assoc.c.website_id.in_(list(website_ids)), acted)
+        .group_by(Site_Website_Assoc.c.website_id)
+        .all()
+    )
+    return {website_id: last for website_id, last in rows}
 
 
 def list_findings(site_ids, status: str = 'current', rule_id: str | None = None) -> dict:

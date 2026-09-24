@@ -1,0 +1,14 @@
+New Website Added
+
+You've added the following site: {{ website.url }}
+Status: {% if website.active %}Active{% else %}Inactive. An Admin must review this site before it becomes active.{% endif %}
+
+The accessibility scanner provides automatic scanning of websites. To comply with WCAG 2.1 AA, please ensure your website meets the necessary requirements.
+View the website: {{ client_url }}/websites/{{ website.id }}
+
+More on the standard: https://www.w3.org/WAI/standards-guidelines/wcag/ and https://accessibility.rutgers.edu/
+
+{% include "emails/_policy.txt" %}
+{% if unsubscribe_url %}
+Unsubscribe: {{ unsubscribe_url }}
+{% endif %}

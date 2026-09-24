@@ -15,6 +15,7 @@ from models import db
 from models.report import Report
 from models.website import Site, Site_Website_Assoc, Website
 from services.documents import document_counts, empty_document_counts
+from models.notifications import WebsiteView
 from services.findings import triage_activity
 from services.history import effective_counts, sum_counts
 
@@ -217,55 +218,6 @@ def build_overview(websites, top: int = 10) -> dict:
     }
 
 
-def scan_summary(website: Website, top: int = 5) -> dict:
-    """What the scan-finished email says: effective counts over the latest report of
-    every page, the top rules, the worst pages, coverage, and the change since the
-    website's people were last emailed."""
-    site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
-    latest = latest_reports([website.id])
-    counts = sum_counts({
-        site_id: effective_counts(row.report_counts, row.suppressed_counts)
-        for site_id, row in latest.items()
-    })
-
-    pages = []
-    for row in latest.values():
-        violations = effective_counts(row.report_counts, row.suppressed_counts)['violations']
-        pages.append({'url': row.url, 'report_id': row.id, 'violations': violations['total'],
-                      'critical': violations['critical'], 'serious': violations['serious']})
-    worst_pages = sorted((page for page in pages if page['violations']), key=lambda p: (-p['violations'], -p['critical'], p['url']))[:top]
-
-    since_last_email = None
-    if website.last_notified:
-        then = latest_reports([website.id], before=website.last_notified)
-        if then:
-            previous = sum_counts({
-                site_id: effective_counts(row.report_counts, row.suppressed_counts)
-                for site_id, row in then.items()
-            })['violations']['total']
-            since_last_email = {'previous': previous, 'current': counts['violations']['total'],
-                                'when': iso(website.last_notified)}
-
-    failed = 0
-    if site_ids:
-        failed = db.session.query(Site.id).filter(Site.id.in_(site_ids), Site.last_scan_status == 'failed').count()
-
-    return {
-        'violations': counts['violations'],
-        'passes': counts['passes']['total'],
-        'incomplete': counts['incomplete']['total'],
-        'top_issues': top_rules([row.id for row in latest.values()], top),
-        'worst_pages': worst_pages,
-        'since_last_email': since_last_email,
-        'pages_total': len(site_ids),
-        'pages_audited': len(latest),
-        'pages_failed': failed,
-        'status': website.last_scan_status,
-        'error': website.last_scan_error,
-        'last_scanned': iso(website.last_scanned),
-    }
-
-
 def build_digest(days: int = 7) -> dict:
     """The weekly system digest for site admins: totals now, the websites that moved most
     since ``days`` ago, websites audited for the first time, failing and never-scanned
@@ -363,6 +315,7 @@ def build_owners(days: int = 90) -> dict:
     activity = triage_activity(website_ids)
     at_email = reports_at_last_email(website_ids)
     at_period = latest_reports(website_ids, before=cutoff)
+    views = WebsiteView.by_website(website_ids)
 
     owners = {}
     for website in websites:
@@ -382,6 +335,13 @@ def build_owners(days: int = 90) -> dict:
             'since_last_email': None if previous_email is None else
                 {'when': iso(website.last_notified), 'previous': previous_email, 'current': current},
             'since_period': None if previous_period is None else {'previous': previous_period, 'current': current},
+            'last_viewed': iso(max(views.get(website.id, {}).values(), default=None)),
+            'reminders': {
+                'attention_since': iso(website.attention_since),
+                'last_reminded_at': iso(website.last_reminded_at),
+                'count': website.reminder_count or 0,
+                'escalated_at': iso(website.escalated_at),
+            },
         })
 
         owner = owners.get(website.admin_id)
@@ -391,6 +351,8 @@ def build_owners(days: int = 90) -> dict:
                 'id': admin.id if admin else None,
                 'username': admin.username if admin else None,
                 'email': admin.email if admin else None,
+                'last_login': iso(admin.last_login) if admin else None,
+                'last_viewed': None,
                 'websites_count': 0,
                 'pages': 0,
                 'pages_audited': 0,
@@ -411,6 +373,7 @@ def build_owners(days: int = 90) -> dict:
         # ISO strings of one format order like the moments they name.
         owner['last_scanned'] = max(filter(None, (owner['last_scanned'], row['last_scanned'])), default=None)
         owner['last_notified'] = max(filter(None, (owner['last_notified'], row['last_notified'])), default=None)
+        owner['last_viewed'] = max(filter(None, (owner['last_viewed'], row['last_viewed'])), default=None)
         owner['activity']['triaged'] += row['activity']['triaged']
         owner['activity']['last_triage'] = max(
             filter(None, (owner['activity']['last_triage'], row['activity']['last_triage'])), default=None)

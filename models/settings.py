@@ -18,6 +18,10 @@ AppSetting = Literal[
     "max_depth",
     "crawl_delay_ms",
     "admin_digest_enabled",
+    "owner_digest_enabled",
+    "reminder_after_days",
+    "escalate_after_days",
+    "escalation_email",
     "retention_enabled",
     "retention_keep_days",
     "retention_max_days",
@@ -41,6 +45,13 @@ DEFAULTS: dict[AppSetting, str] = {
     "max_depth": "5",
     "crawl_delay_ms": "250",
     "admin_digest_enabled": "true",
+    # Owner digests (services.owner_digest): daily, only to people with something new;
+    # reminders after this many days without activity, escalation after the second period
+    # to this address (empty = never escalate).
+    "owner_digest_enabled": "true",
+    "reminder_after_days": "30",
+    "escalate_after_days": "60",
+    "escalation_email": "",
     # Report retention is opt-in: run `flask maintenance retention --dry-run` first.
     "retention_enabled": "false",
     "retention_keep_days": "90",

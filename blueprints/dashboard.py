@@ -110,6 +110,7 @@ OWNER_CSV_COLUMNS = [
     'pages', 'pages_audited', 'violations', 'critical', 'serious', 'moderate', 'minor',
     'last_scanned', 'last_notified', 'triaged', 'last_triage',
     'violations_at_last_email', 'violations_at_period_start',
+    'last_login', 'last_viewed', 'reminders_sent', 'last_reminded', 'escalated_at',
 ]
 
 
@@ -127,6 +128,8 @@ def _owner_csv_rows(owners):
                 website['activity']['triaged'], website['activity']['last_triage'],
                 (website['since_last_email'] or {}).get('previous'),
                 (website['since_period'] or {}).get('previous'),
+                owner['last_login'], website['last_viewed'], website['reminders']['count'],
+                website['reminders']['last_reminded_at'], website['reminders']['escalated_at'],
             ]
 
 

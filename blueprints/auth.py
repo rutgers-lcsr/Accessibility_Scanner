@@ -1,5 +1,6 @@
 import hmac
 from urllib.parse import urlparse
+from datetime import datetime, timezone
 from flask import Blueprint, current_app, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required
 from authentication.permissions import is_site_admin
@@ -65,6 +66,8 @@ def cas_login():
         user.profile = Profile(user=user, is_admin=is_site_admin(user_email))
         db.session.add(user)
         db.session.commit()
+    user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.commit()
 
     # Lifetime comes from JWT_ACCESS_TOKEN_EXPIRES in config.py. The token is returned in
     # the body only; the Next.js proxy stores it in its own session and sends it as a

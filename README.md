@@ -131,9 +131,27 @@ Run inside the API container, for example `docker compose exec a11y-api flask fi
 
 A scan records every document a website's pages link to and, for PDFs on the website's own host, downloads up to `document_checks_per_scan` of them (each under `document_max_size_mb`) and checks whether the PDF is tagged, has a title and a language. Untagged PDFs have no reading structure for screen readers. The website page has a Documents tab; the dashboard shows documents found and untagged PDFs per website. Downloads honour `robots.txt` and the crawl delay, and are re-done every `document_recheck_days`. Documents on other hosts are listed but not fetched.
 
-## Weekly digest
+## Emails
 
-Every week, site admins get an email summarising all websites: totals, the websites whose violations moved most, websites audited for the first time, failing or unreachable websites, websites never scanned, and the most common rules. The day and hour come from `DIGEST_DAY_OF_WEEK` and `DIGEST_HOUR_UTC` (UTC) on the beat container; the digest can be switched off in Settings.
+Website owners and members get **one digest per person** covering all their websites, sent by
+the daily `send_owner_digests` task only when something changed for them since their last
+email (new or fixed findings, moved counts, a failed scan) or when a reminder is due. It leads
+with the fixes that clear the most pages (linking the Fix first tab and the fix guides) and
+says what the person fixed since last time. Nothing is sent from a scan itself.
+
+A website with open critical or serious issues and no activity (a verdict, or something the
+scanner saw fixed) for `reminder_after_days` gets a firmer reminder; after
+`escalate_after_days` the website admin's copy is also sent to `escalation_email` (empty
+means never). Opening the report page changes the wording but does not reset the clock. The
+Owners page shows last login, last look, reminders sent and escalations. The unsubscribe link
+shows a confirmation page and opts out on POST only (mail clients also get one-click
+unsubscribe headers). `flask mail owner-digests --dry-run` prints who would get what;
+`--user <id>` sends to one person. The site admins' weekly digest (`admin_digest_enabled`,
+`DIGEST_DAY_OF_WEEK`, `DIGEST_HOUR_UTC`) is unchanged.
+
+The emails and the website page carry a short note on why this is required (Rutgers Policy
+70.1.5, WCAG 2.1 AA, the ADA Title II web rule); confirm its wording with the Accessibility
+office before relying on it.
 
 ## Notes
 

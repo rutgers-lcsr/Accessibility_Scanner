@@ -13,7 +13,7 @@
 <p>
     The accessibility scanner provides automatic scanning of websites. To comply with WCAG 2.1AA standards, please
     ensure your website meets the necessary requirements.
-    <a class="btn" href="{{ client_url }}/websites/{{ website.id }}">View Website</a>
+    <a href="{{ client_url }}/websites/{{ website.id }}" style="{{ button_style }}">View Website</a>
 </p>
 <p>
     For more information on accessibility standards, visit
@@ -21,8 +21,10 @@
     <br>
     or visit <a href="https://accessibility.rutgers.edu/">Accessibility Rutgers</a> for university recommendations.
 </p>
-<p>
-    If you'd like to not receive these emails, please visit <a
-        href="{{ client_url }}/api/users/unsubscribe/?token={{ jwt_token }}">unsubscribe</a>.
+{% include "emails/_policy.html" %}
+{% if unsubscribe_url %}
+<p style="font-size:0.9em;color:#666666;margin-top:24px;">
+    If you'd like to not receive these emails, please visit <a href="{{ unsubscribe_url }}">unsubscribe</a>.
 </p>
+{% endif %}
 {% endblock content %}

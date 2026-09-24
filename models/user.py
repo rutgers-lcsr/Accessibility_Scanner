@@ -31,6 +31,10 @@ class User(db.Model):
     # password is nullable because users can login using cas
     password: Mapped[str] = db.Column(db.String(255), nullable=True)
     is_active: Mapped[bool] = db.Column(db.Boolean, default=True)
+    # Engagement, for the owner digests and the admin Owners page: the last CAS login,
+    # and when this person was last sent their digest (services.owner_digest).
+    last_login: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    last_digest_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
     profile: Mapped['Profile'] = db.relationship('Profile', backref='user', lazy=True, uselist=False)
@@ -46,6 +50,7 @@ class User(db.Model):
             'email': self.email,
             'is_admin': self.profile.is_admin if self.profile else False,
             'is_active': self.is_active,
+            'last_login': self.last_login,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }

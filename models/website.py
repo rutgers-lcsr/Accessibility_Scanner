@@ -280,6 +280,12 @@ class Website(db.Model):
     # When the website's admin and users were last emailed (new-website or scan-finished
     # notification, automatic or sent by hand). Written by mail.emails.
     last_notified: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    # Reminder state for the owner digests (services.owner_digest): when the current
+    # no-activity streak began, the last reminder and how many, and when it was escalated.
+    attention_since: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    last_reminded_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    escalated_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    reminder_count: Mapped[int] = db.Column(db.Integer, nullable=False, default=0, server_default='0')
     admin_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     admin: Mapped['User'] = db.relationship('User', back_populates='admin_websites', lazy=True)
     users: Mapped[List['User']] = db.relationship('User', secondary=UserWebsiteAssoc, back_populates='viewable_websites', lazy=True)
@@ -296,6 +302,10 @@ class Website(db.Model):
     
 
     # Permission checks
+    def is_member(self, user: User | None) -> bool:
+        """The website's admin or one of its users; site admins only when they are one."""
+        return bool(user) and (self.admin_id == user.id or user in self.users)
+
     def can_edit(self, user: User) -> bool:
         """The website's admin, its members and site admins: they triage findings, rescan
         pages and edit the member list and start pages. The fields only a site admin may

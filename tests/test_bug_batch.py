@@ -34,6 +34,11 @@ def test_unsubscribe_link_round_trip(client, make_user, make_website):
     token = generate_jwt_token({"action": "unsubscribe", "website_id": website.id, "user_id": owner.id})
     resp = client.get(f"/api/users/unsubscribe/?token={token}")
     assert resp.status_code == 200
+    assert "Stop emails about" in resp.get_data(as_text=True)
+    assert website.is_subscribed(owner) is True  # a GET (a mail scanner) changes nothing
+
+    resp = client.post("/api/users/unsubscribe/", data={"token": token})
+    assert resp.status_code == 200
     assert "no longer receive" in resp.get_data(as_text=True)
     assert website.is_subscribed(owner) is False
     assert website.should_email is True  # only this user, never the whole website

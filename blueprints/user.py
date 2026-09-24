@@ -18,31 +18,57 @@ def get_user():
     return jsonify(user.to_dict()), 200
     
 
-@user_bp.route('/unsubscribe/', methods=['GET'])
-def unsubscribe():
-    
-    # This token is created in NewWebsiteEmail
-    token = request.args.get('token')
+def _unsubscribe_target(token):
+    """``((user, websites), None)`` for a valid token, else ``(None, (response, status))``.
+    A token without a website id covers every website the person is emailed about."""
     if not token:
-        return jsonify({'error': 'Token is required'}), 400
-
+        return None, (jsonify({'error': 'Token is required'}), 400)
     payload = decode_jwt_token(token)
     if not payload or payload.get("error") is not None:
-        return jsonify({'error': 'Invalid token'}), 401
+        return None, (jsonify({'error': 'Invalid token'}), 401)
     if payload.get("action") == "subscribe":
         # Links from before opt-outs were per user; honouring them would silence the
         # whole website, which is what they used to do.
-        return jsonify({'error': 'This unsubscribe link is out of date; use the link in a newer email '
-                                 'or the notifications switch on the website page'}), 400
+        return None, (jsonify({'error': 'This unsubscribe link is out of date; use the link in a newer email '
+                                        'or the notifications switch on the website page'}), 400)
     if payload.get("action") != "unsubscribe" or not payload.get("user_id"):
-        return jsonify({'error': 'Invalid token'}), 401
-
-    website = db.session.get(Website, payload.get('website_id'))
+        return None, (jsonify({'error': 'Invalid token'}), 401)
     user = db.session.get(User, payload.get('user_id'))
-    if not website or not user:
-        return jsonify({'error': 'Website not found'}), 404
+    if not user:
+        return None, (jsonify({'error': 'Website not found'}), 404)
+    if payload.get('website_id') is None:
+        from services.owner_digest import member_websites
+        websites = member_websites(user)
+    else:
+        website = db.session.get(Website, payload.get('website_id'))
+        if not website:
+            return None, (jsonify({'error': 'Website not found'}), 404)
+        websites = [website]
+    return (user, websites), None
 
-    website.set_subscribed(user, False)
 
-    # The link is opened in a browser, so answer with a page rather than JSON.
-    return render_template('unsubscribed.html', website=website, client_url=CLIENT_URL), 200
+@user_bp.route('/unsubscribe/', methods=['GET'])
+def unsubscribe_confirm():
+    """The link in an email: shows what will be silenced and asks for a click. Opting out
+    happens on POST only, so a mail client that follows links cannot unsubscribe anyone."""
+    token = request.args.get('token')
+    target, error = _unsubscribe_target(token)
+    if error:
+        return error
+    user, websites = target
+    return render_template('unsubscribe_confirm.html', websites=websites, token=token, client_url=CLIENT_URL), 200
+
+
+@user_bp.route('/unsubscribe/', methods=['POST'])
+def unsubscribe():
+    """The confirmation form, or a mail client's one-click POST (RFC 8058) with the token
+    in the query string."""
+    token = request.form.get('token') or request.args.get('token')
+    target, error = _unsubscribe_target(token)
+    if error:
+        return error
+    user, websites = target
+    for website in websites:
+        website.set_subscribed(user, False, commit=False)
+    db.session.commit()
+    return render_template('unsubscribed.html', websites=websites, client_url=CLIENT_URL), 200

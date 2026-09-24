@@ -5,7 +5,6 @@ import requests
 import time
 from flask import current_app, has_app_context
 from playwright.async_api import async_playwright
-from mail.emails import ScanFinishedEmail, ScanRegressionEmail
 from scanner.browser.parse import document_type
 from scanner.browser.report import ACCESSIBILITY_USER_AGENT, AccessibilityReport, AccessibilitySummary, generate_report
 from scanner.log import log_message
@@ -16,7 +15,7 @@ from models.report import Report
 from models.settings import Settings
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
-from services.findings import changes_for_sites, is_regression, refresh_suppressed_counts, sync_report_findings
+from services.findings import refresh_suppressed_counts, sync_report_findings
 from utils.urls import get_full_url, get_netloc, get_site_netloc, get_website_url, normalize_url
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -568,6 +567,8 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                             commit_with_retry()
                 
                 website.last_scanned = db.func.current_timestamp()
+                website.last_scan_status = 'completed'
+                website.last_scan_error = None
                 website.current_task_id = None
                 db.session.add(website)
                 commit_with_retry()
@@ -592,19 +593,8 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                     log_message(f"Queueing website {url} for scan as it was linked by a site no longer associated with {website.url}", 'info')
                     queue_website_scan(other)
                 
-                # Tell the website's people: a regression gets its own email, otherwise the
-                # usual summary. Mail trouble must not turn a finished scan into a failed one.
-                website_doc = db.session.get(Website, website.id)
-                try:
-                    changes = changes_for_sites([row.id for row in website_doc.sites.with_entities(Site.id).all()])
-                    if is_regression(changes):
-                        ScanRegressionEmail(website_doc, changes).send()
-                    else:
-                        ScanFinishedEmail(website_doc, changes=changes).send()
-                except Exception as e:
-                    log_message(f"Error sending scan mail for {target_website}: {e}", 'error')
-                    db.session.rollback()
-                
+                # The website's people hear about it in their next owner digest
+                # (scanner.tasks.send_owner_digests), not from the scan itself.
                 outcome.update(status='completed', error=None)
                 log_message(f"Finished scan for website: {target_website}", 'info')
                 return results

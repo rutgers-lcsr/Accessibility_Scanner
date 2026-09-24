@@ -1,0 +1,23 @@
+{% set t = digest.totals -%}
+{% if tone == 'escalation' %}ACTION REQUIRED: accessibility issues still open{% elif tone == 'reminder' %}Reminder: accessibility issues still open{% elif tone == 'first' %}Your accessibility report{% elif tone == 'no_change' %}No change since your last report{% else %}Your accessibility update{% endif %}
+
+{% if digest.engagement == 'fixed' %}You fixed {{ t.fixed_since }} issue{{ '' if t.fixed_since == 1 else 's' }} since our last email{% if digest.since %} on {{ digest.since | datetimeformat('%b %d, %Y') }}{% endif %}. Thank you.{% elif digest.engagement == 'never_opened' %}You have not opened your report yet. It takes a few minutes, and the fixes below clear most of the issues.{% elif digest.engagement == 'not_since_last_email' %}Nothing has changed since our last email{% if digest.since %} on {{ digest.since | datetimeformat('%b %d, %Y') }}{% endif %}.{% else %}You looked at your report{% if digest.user.last_viewed %} on {{ digest.user.last_viewed | datetimeformat('%b %d, %Y') }}{% endif %}; nothing has changed since.{% endif %}
+
+{% if digest.fix_first %}FIX THESE FIRST
+{% for rule in digest.fix_first %}{{ loop.index }}. {{ rule.help }}: clears {{ rule.occurrences }} issue{{ '' if rule.occurrences == 1 else 's' }} on {{ rule.pages }} page{{ '' if rule.pages == 1 else 's' }} of {{ rule.website_host }}
+   Show me where: {{ rule.link }}
+   How to fix: {{ rule.guide }}
+{% endfor %}
+{% endif %}YOUR WEBSITE{{ '' if digest.websites | length == 1 else 'S' }}
+{% for w in digest.websites if w.show %}- {{ w.url }}
+  {% if w.last_scan_status in ('failed', 'unreachable') %}The last scan {{ 'could not reach this website' if w.last_scan_status == 'unreachable' else 'failed' }}{% if w.last_scan_error %}: {{ w.last_scan_error }}{% endif %}.
+  {% endif %}{{ w.violations.total }} issue{{ '' if w.violations.total == 1 else 's' }} on {{ w.pages_with_issues }} page{{ '' if w.pages_with_issues == 1 else 's' }}{% if w.previous_violations is not none %}, {{ w.previous_violations }} -> {{ w.violations.total }} since last email{% endif %}. {% if w.last_scanned %}Scanned {{ w.last_scanned | datetimeformat('%b %d, %Y') }}.{% else %}Not scanned yet.{% endif %}{% if w.escalated %} Copied to {{ digest.escalation_email }}.{% endif %}
+  {{ client_url }}/websites/{{ w.id }}
+{% endfor %}{% if digest.hidden_websites %}and {{ digest.hidden_websites }} more website{{ '' if digest.hidden_websites == 1 else 's' }} with no change.
+{% endif %}
+{% include "emails/_policy.txt" %}
+
+Open your dashboard: {{ client_url }}/dashboard
+{% if unsubscribe_url %}
+Stop these emails: {{ unsubscribe_url }} (or switch email off per website on its page).
+{% endif %}

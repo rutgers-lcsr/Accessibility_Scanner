@@ -30,6 +30,13 @@ def _boolean(value):
     return None, "must be true or false"
 
 
+def _email_or_empty(value):
+    value = str(value).strip()
+    if value and not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', value):
+        return None, 'must be an email address or empty'
+    return value, None
+
+
 def _hostname_or_empty(value):
     text = str(value).strip().lower()
     if text == "" or _HOSTNAME.match(text):
@@ -58,6 +65,10 @@ VALIDATORS = {
     "max_depth": _int_at_least(0),
     "crawl_delay_ms": _int_at_least(0),
     "admin_digest_enabled": _boolean,
+    "owner_digest_enabled": _boolean,
+    "reminder_after_days": _int_at_least(1),
+    "escalate_after_days": _int_at_least(1),
+    "escalation_email": _email_or_empty,
     "retention_enabled": _boolean,
     "retention_keep_days": _int_at_least(1),
     "retention_max_days": _int_at_least(1),
