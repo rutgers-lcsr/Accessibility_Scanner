@@ -18,6 +18,7 @@ from services.findings import bulk_set_status, changes_for_sites, list_findings
 from utils.export import csv_response
 from utils.limiter import limiter
 from utils.urls import get_netloc, is_valid_url
+from services.preview import home_site, latest_report_with_photo, preview_jpeg
 website_bp = Blueprint('website', __name__,  url_prefix="/websites")
 
 
@@ -328,6 +329,55 @@ def get_website_findings(website_id):
         return jsonify({'error': f"status must be one of {', '.join(FINDING_LISTING_STATUSES)}"}), 400
     site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
     return jsonify(list_findings(site_ids, status, request.args.get('rule'))), 200
+
+
+@website_bp.route('/<int:website_id>/preview/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_preview(website_id):
+    """
+    A small screenshot of the top of the website's home page, from its latest report.
+    ---
+    tags:
+        - Websites
+    parameters:
+        - in: path
+          name: website_id
+          required: true
+          type: integer
+    responses:
+        200:
+            description: A JPEG, cacheable per user and revalidated by ETag.
+        403:
+            description: Not allowed to view this website.
+        404:
+            description: Unknown website, or no page of it has a screenshot yet.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not current_user and not website.public:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    site = home_site(website)
+    report = latest_report_with_photo(site.id) if site else None
+    if not report:
+        return jsonify({'error': 'This website has no screenshot yet'}), 404
+
+    # The thumbnail of a given report never changes, so a browser that has it only
+    # needs the ETag check; the image work happens on a miss.
+    etag = f"preview-{report.id}"
+    if request.if_none_match.contains(etag):
+        response = Response(status=304)
+    else:
+        photo = db.session.query(Report.photo).filter(Report.id == report.id).scalar()
+        response = Response(preview_jpeg(photo), mimetype='image/jpeg')
+    response.set_etag(etag)
+    response.last_modified = report.timestamp
+    response.cache_control.private = True
+    response.cache_control.max_age = 86400
+    return response
 
 
 @website_bp.route('/<int:website_id>/documents/', methods=['GET'])

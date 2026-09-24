@@ -1,5 +1,6 @@
 'use client';
 import ScanStatusTag from '@/components/ScanStatusTag';
+import WebsitePreview from '@/components/WebsitePreview';
 import { IMPACTS } from '@/lib/impact';
 import { Change, Owner, OwnerWebsite } from '@/lib/types/owners';
 import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
@@ -66,7 +67,9 @@ function Identity({ row }: { row: Row }) {
     }
     return (
         <>
-            <Link href={`/websites/${row.id}`}>{row.url}</Link>
+            <WebsitePreview websiteId={row.id} url={row.url}>
+                <Link href={`/websites/${row.id}`}>{row.url}</Link>
+            </WebsitePreview>
             {row.description && (
                 <Typography.Paragraph
                     type="secondary"

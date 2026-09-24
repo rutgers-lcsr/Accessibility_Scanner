@@ -1,6 +1,7 @@
 'use client';
 import PageError from '@/components/PageError';
 import PageHeading from '@/components/PageHeading';
+import WebsitePreview from '@/components/WebsitePreview';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
@@ -78,7 +79,9 @@ function Websites({ user }: Props) {
             dataIndex: 'url',
             key: 'url',
             render: (text: string, record: WebsiteType) => (
-                <Link href={`/websites/${record.id}`}>{text}</Link>
+                <WebsitePreview websiteId={record.id} url={text}>
+                    <Link href={`/websites/${record.id}`}>{text}</Link>
+                </WebsitePreview>
             ),
         },
         ...(user?.is_admin ? adminColumns : []),
