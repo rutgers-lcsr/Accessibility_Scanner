@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped
 from models.assoc import UserWebsiteAssoc
 from models.document import Document, DocumentSiteAssoc  # noqa: F401  (registers the models for create_all)
 from models.finding import Finding  # noqa: F401  (registers the model for create_all)
-from models.notifications import NotificationOptOut
+from models.notifications import NotificationOptOut, WebsiteView
 from models.report import AxeReportCounts, Report, ReportMinimized
 from services.history import effective_counts
 from models.rules import Rule
@@ -662,13 +662,36 @@ class Website(db.Model):
         self.tags = Settings.get(key='default_tags')
 
     def delete(self, delete_domain: bool = True, commit: bool = True):
+        """Delete the website, its own pages with their reports and findings, its documents,
+        members, opt-outs and views. Pages shared with another website only lose the
+        link. Row deletes are issued in SQL: letting the ORM cascade would load every
+        report (its JSON included) and every finding into memory and delete them one at
+        a time, which took minutes for a large website."""
         try:
-            for site in self.sites.all():  # snapshot: the relationship is modified below
-                if len(site.websites.all()) <= 1:
-                    site.delete(commit=False)
-                else:
-                    site.websites.remove(self)
-                    db.session.add(site)
+            site_ids = [row.id for row in self.sites.with_entities(Site.id).all()]
+            shared = set()
+            if site_ids:
+                shared = {
+                    row.site_id for row in
+                    db.session.query(Site_Website_Assoc.c.site_id)
+                    .filter(Site_Website_Assoc.c.site_id.in_(site_ids), Site_Website_Assoc.c.website_id != self.id)
+                    .all()
+                }
+            own = [site_id for site_id in site_ids if site_id not in shared]
+            for start in range(0, len(own), 500):
+                chunk = own[start:start + 500]
+                db.session.query(Finding).filter(Finding.site_id.in_(chunk)).delete(synchronize_session=False)
+                db.session.query(Report).filter(Report.site_id.in_(chunk)).delete(synchronize_session=False)
+                db.session.execute(DocumentSiteAssoc.delete().where(DocumentSiteAssoc.c.site_id.in_(chunk)))
+                db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id.in_(chunk)))
+                db.session.query(Site).filter(Site.id.in_(chunk)).delete(synchronize_session=False)
+            db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id))
+            document_ids = db.session.query(Document.id).filter(Document.website_id == self.id)
+            db.session.execute(DocumentSiteAssoc.delete().where(DocumentSiteAssoc.c.document_id.in_(document_ids)))
+            db.session.query(Document).filter(Document.website_id == self.id).delete(synchronize_session=False)
+            db.session.execute(UserWebsiteAssoc.delete().where(UserWebsiteAssoc.c.website_id == self.id))
+            db.session.query(NotificationOptOut).filter_by(website_id=self.id).delete(synchronize_session=False)
+            db.session.query(WebsiteView).filter_by(website_id=self.id).delete(synchronize_session=False)
 
             domain = self.domain
             db.session.delete(self)
