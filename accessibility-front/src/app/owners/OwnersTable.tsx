@@ -157,6 +157,19 @@ function OwnersTable({ owners, periodDays, selectedRowKeys, onSelectionChange }:
             sorter: dateSorter((r) => r.last_notified),
         },
         {
+            title: 'Last looked',
+            key: 'last_viewed',
+            render: (_, row) => (
+                <>
+                    {date(row.last_viewed) ?? <Empty />}
+                    {isOwner(row) && row.last_login && (
+                        <div className="text-xs text-gray-500">login {date(row.last_login)}</div>
+                    )}
+                </>
+            ),
+            sorter: dateSorter((r) => r.last_viewed),
+        },
+        {
             title: 'Last triage',
             key: 'last_triage',
             render: (_, row) => (
@@ -170,6 +183,23 @@ function OwnersTable({ owners, periodDays, selectedRowKeys, onSelectionChange }:
                 </>
             ),
             sorter: dateSorter((r) => r.activity.last_triage),
+        },
+        {
+            title: 'Reminders',
+            key: 'reminders',
+            align: 'right',
+            render: (_, row) =>
+                isOwner(row) ? null : (
+                    <>
+                        {row.reminders.count || <Empty />}
+                        {row.reminders.escalated_at && (
+                            <div>
+                                <Tag color="red">Escalated {date(row.reminders.escalated_at)}</Tag>
+                            </div>
+                        )}
+                    </>
+                ),
+            sorter: numberSorter((r) => (isOwner(r) ? 0 : r.reminders.count)),
         },
         {
             title: 'Since last email',

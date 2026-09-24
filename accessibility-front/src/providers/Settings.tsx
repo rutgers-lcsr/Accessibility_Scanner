@@ -15,6 +15,10 @@ type Settings = {
     max_depth: string;
     crawl_delay_ms: string;
     admin_digest_enabled: string;
+    owner_digest_enabled: string;
+    reminder_after_days: string;
+    escalate_after_days: string;
+    escalation_email: string;
     retention_enabled: string;
     retention_keep_days: string;
     retention_max_days: string;

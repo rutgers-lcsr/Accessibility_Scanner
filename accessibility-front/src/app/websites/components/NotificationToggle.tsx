@@ -56,7 +56,7 @@ function NotificationToggle({ website, user }: Props) {
             <Tooltip
                 title={
                     data.website_wide
-                        ? 'Scan results and regressions for this website are emailed to you.'
+                        ? 'This website is part of your digest emails: what to fix first and what changed.'
                         : 'Email is switched off for this website by a site admin; your setting applies once it is on.'
                 }
             >

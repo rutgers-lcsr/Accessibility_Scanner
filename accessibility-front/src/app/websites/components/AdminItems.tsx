@@ -441,7 +441,7 @@ function AdminItems({ website, mutate }: Props) {
                                 onChange={handleShouldEmailChange}
                             />
                             <label htmlFor="should-email">
-                                Email admin and users when a scan finishes
+                                Include this website in the owner digest emails
                             </label>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
@@ -450,7 +450,7 @@ function AdminItems({ website, mutate }: Props) {
                                 onClick={handleSendEmailUpdate}
                                 loading={loadingEmail}
                             >
-                                Send report email now
+                                Send digest now
                             </Button>
                             <span>
                                 Last notified:{' '}

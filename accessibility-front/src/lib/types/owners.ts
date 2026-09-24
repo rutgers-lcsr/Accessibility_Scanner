@@ -11,6 +11,13 @@ export type Activity = {
     last_triage: string | null;
 };
 
+export type Reminders = {
+    attention_since: string | null;
+    last_reminded_at: string | null;
+    count: number;
+    escalated_at: string | null;
+};
+
 type Counts = {
     pages: number;
     pages_audited: number;
@@ -20,6 +27,8 @@ type Counts = {
     activity: Activity;
     since_last_email: Change;
     since_period: Change;
+    // when this website's own people (or, on an owner row, any of them) last opened its page
+    last_viewed: string | null;
 };
 
 export type OwnerWebsite = Counts & {
@@ -29,6 +38,7 @@ export type OwnerWebsite = Counts & {
     categories: string[];
     users: string[];
     last_scan_status: ScanStatus;
+    reminders: Reminders;
     passes: number;
     incomplete: number;
     documents: number;
@@ -42,6 +52,7 @@ export type Owner = Counts & {
     id: number | null;
     username: string | null;
     email: string | null;
+    last_login: string | null;
     websites_count: number;
     websites: OwnerWebsite[];
 };

@@ -2,6 +2,7 @@
 import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
 import ImpactTiles from '@/components/ImpactTiles';
 import PageHeading from '@/components/PageHeading';
+import PolicyNote from '@/components/PolicyNote';
 import { fetcherApi } from '@/lib/api';
 import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
@@ -198,6 +199,9 @@ const Website = ({ websiteId, user }: Props) => {
                         Accessibility Report
                     </h2>
                     <ImpactTiles counts={violations} />
+                    <div className="mt-6">
+                        <PolicyNote />
+                    </div>
                     {violations.total > 15 && (
                         // Give some advice if there are too many violations
                         <div className="mt-6 rounded-md p-4">

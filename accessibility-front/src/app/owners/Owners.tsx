@@ -64,7 +64,7 @@ function Owners() {
             }
         }
         setProgress(null);
-        const parts = [`Report email sent for ${plural(emailed, 'website')}`];
+        const parts = [`Digest sent for ${plural(emailed, 'website')}`];
         if (nobody) parts.push(`${nobody} had no one to email`);
         if (failed) parts.push(`${failed} failed`);
         addAlert(parts.join('; '), failed ? 'warning' : 'success');
@@ -95,8 +95,8 @@ function Owners() {
                             {plural(count, 'website')} selected
                         </span>
                         <Popconfirm
-                            title={`Send the report email for ${plural(count, 'website')}?`}
-                            description="The admin and users of each website get its current report now."
+                            title={`Send the digest for ${plural(count, 'website')}?`}
+                            description="The admin and users of each website get its digest now: what to fix first and what changed."
                             okText="Send"
                             onConfirm={sendEmails}
                             disabled={count === 0 || progress !== null}
@@ -109,7 +109,7 @@ function Owners() {
                             >
                                 {progress
                                     ? `Sending ${progress.done + 1} of ${progress.total}`
-                                    : 'Send report email'}
+                                    : 'Send digest'}
                             </Button>
                         </Popconfirm>
                         <Button

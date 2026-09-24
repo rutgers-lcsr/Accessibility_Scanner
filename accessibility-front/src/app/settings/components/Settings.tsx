@@ -201,7 +201,7 @@ function Settings() {
                             ]}
                         />
                         <div className="text-sm text-gray-500">
-                            Should users be notified by email when a scan completes, this can be
+                            Include new websites in the owner digest emails by default; this can be
                             overridden per website.
                         </div>
                         <label className="block mb-2 font-bold" htmlFor="admin_digest_enabled">
@@ -229,6 +229,67 @@ function Settings() {
                             A weekly email to site admins summarising all websites: totals, biggest
                             movers, failing and never-scanned websites. The day and hour are set on
                             the server.
+                        </div>
+                        <div className="my-4" />
+                        <label className="block mb-2 font-bold" htmlFor="owner_digest_enabled">
+                            Owner Digests
+                        </label>
+                        <Select
+                            id="owner_digest_enabled"
+                            value={
+                                settings?.owner_digest_enabled?.toString() === 'false'
+                                    ? 'false'
+                                    : 'true'
+                            }
+                            onChange={(value) =>
+                                handleSave(
+                                    'owner_digest_enabled',
+                                    value === 'true' ? 'true' : 'false'
+                                )
+                            }
+                            options={[
+                                { label: 'Enabled', value: 'true' },
+                                { label: 'Disabled', value: 'false' },
+                            ]}
+                        />
+                        <div className="text-sm text-gray-500">
+                            One daily email per website owner or member covering all their websites,
+                            sent only when something changed for them or a reminder is due. Replaces
+                            the per-scan report email.
+                        </div>
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Remind after (days without activity)"
+                            type="number"
+                            value={settings?.reminder_after_days || ''}
+                            onChange={(value) => handleSave('reminder_after_days', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            A website with open critical or serious issues and no verdicts or fixes
+                            for this many days after its last email gets a firmer reminder, once per
+                            period.
+                        </div>
+                        <div className="my-4" />
+                        <EditableInput
+                            label="Escalate after (days without activity)"
+                            type="number"
+                            value={settings?.escalate_after_days || ''}
+                            onChange={(value) => handleSave('escalate_after_days', value)}
+                        />
+                        <EditableInput
+                            label="Escalation email"
+                            type="text"
+                            value={settings?.escalation_email || ''}
+                            validate={(value) =>
+                                !value || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value))
+                                    ? null
+                                    : 'Enter an email address, or leave it empty'
+                            }
+                            onChange={(value) => handleSave('escalation_email', value)}
+                        />
+                        <div className="text-sm text-gray-500">
+                            After the second period the website admin&apos;s reminder is also sent
+                            to this address. Leave it empty to never escalate.
                         </div>
                         <div className="my-4" />
                         <label className="block mb-2 font-bold" htmlFor="retention_enabled">
