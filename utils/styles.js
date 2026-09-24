@@ -433,7 +433,8 @@ function OpenModal(title, message, extra = null, onClose = null) {
     };
 }
 function makeZindexSafe() {
-    // Make all z-index values within a safe range (0-1000) to avoid conflicts with tooltips
+    // Scale inline z-index values into 0-999 so the tooltips (z-index 1000) stay on top.
+    // Elements without an inline z-index keep their stylesheet value.
     // Find all elements with a z-index value
     const allElements = document.querySelectorAll('*');
     let smallestZindex = 1000;
@@ -464,10 +465,6 @@ function makeZindexSafe() {
                 }
                 element.style.zIndex = newZindex.toString();
             }
-        }
-        else {
-            // set base z-index to 1
-            element.style.zIndex = 'auto';
         }
     });
 }
