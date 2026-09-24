@@ -80,7 +80,7 @@ def test_site_scanning_flag_goes_stale(app, make_user, make_site):
     site.scan_queued_at = _utcnow() - timedelta(minutes=5)
     assert scan_service.site_scan_in_progress(site) is True
 
-    site.scan_queued_at = _utcnow() - scan_service.STALE_AFTER - timedelta(minutes=1)
+    site.scan_queued_at = _utcnow() - scan_service.SITE_STALE_AFTER - timedelta(minutes=1)
     assert scan_service.site_scan_in_progress(site) is False
 
 

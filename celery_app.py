@@ -70,6 +70,14 @@ celery.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,  # Only fetch one task at a time per worker
     worker_max_tasks_per_child=5,  # Each scan holds a Chromium; recycle children often
+    # Single-page scans (verify a fix, quick scan) go to their own queue, served by
+    # a11y-pages-worker, so they never wait behind an hour-long crawl. Crawls and the
+    # beat tasks stay on the default queue; the crawl worker also consumes "pages" as a
+    # fallback, so a page scan is never stranded if that worker is down.
+    task_routes={
+        'scanner.tasks.scan_site': {'queue': 'pages'},
+        'scanner.tasks.quick_scan': {'queue': 'pages'},
+    },
     # Task results live a day: that is how long a quick scan's result can be viewed.
     result_expires=86400,
     beat_schedule={

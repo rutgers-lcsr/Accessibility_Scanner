@@ -324,7 +324,8 @@ async def run_quick_scan(url: str, tags: List[str], ace_config: str) -> Accessib
             await browser.close()
 
 
-async def generate_single_site_report(site_url:str) -> AccessibilityReport:
+async def generate_single_site_report(site_url:str) -> int | None:
+    """Scan one page and store its report; returns the report id (None if nothing was stored)."""
     app = get_app()
     scan_error = None
     report_result = None
@@ -369,7 +370,7 @@ async def generate_single_site_report(site_url:str) -> AccessibilityReport:
                         db.session.add(site)
                         commit_with_retry()
                         _attach_findings(report_obj, site)
-                        report_result = report
+                        report_result = report_obj.id
                         
             log_message(f"Finished report for {site_url}", 'info')
             

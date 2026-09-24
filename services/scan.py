@@ -18,6 +18,9 @@ from scanner.tasks import scan_website as scan_website_task
 # queued longer ago than this that still shows PENDING is treated as lost (a live one
 # reports STARTED/PROGRESS long before then).
 STALE_AFTER = timedelta(hours=24)
+# A page scan has its own lane and a five-minute task limit, so a flag still set an hour
+# after queueing means the task was lost: let the page be queued again.
+SITE_STALE_AFTER = timedelta(hours=1)
 ACTIVE_STATES = ('STARTED', 'PROGRESS', 'RETRY')
 
 
@@ -25,8 +28,8 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _recent(queued_at: datetime | None) -> bool:
-    return queued_at is not None and _utcnow() - queued_at < STALE_AFTER
+def _recent(queued_at: datetime | None, window: timedelta = STALE_AFTER) -> bool:
+    return queued_at is not None and _utcnow() - queued_at < window
 
 
 def scan_in_progress(website: Website) -> bool:
@@ -42,9 +45,10 @@ def scan_in_progress(website: Website) -> bool:
 
 
 def site_scan_in_progress(site: Site) -> bool:
-    """The scanner keeps ``Site.scanning`` set while it works; the flag goes stale after
-    STALE_AFTER so a crashed page scan does not block the page forever."""
-    return bool(site.scanning) and _recent(site.scan_queued_at)
+    """``Site.scanning`` is set when the scan is queued (queue_site_scan) and cleared by
+    the scanner when it finishes; it goes stale after SITE_STALE_AFTER so a lost task
+    does not block the page."""
+    return bool(site.scanning) and _recent(site.scan_queued_at, SITE_STALE_AFTER)
 
 
 def queue_website_scan(website: Website) -> tuple[str, bool]:
@@ -71,6 +75,7 @@ def queue_site_scan(site: Site) -> str:
     task = scan_site_task.delay(site.url)
     site.last_task_id = task.id
     site.scan_queued_at = _utcnow()
+    site.scanning = True  # so a second request while the task is still queued gets 409
     db.session.commit()
     return task.id
 

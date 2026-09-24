@@ -232,6 +232,46 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
+    a11y-pages-worker:
+        container_name: a11y_pages_worker
+        build:
+            context: .
+            target: worker
+        # Single-page scans only (verify a fix, quick scan): one Chromium each, a
+        # five-minute limit, and their own queue so they never wait behind a crawl.
+        command: ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info", "--concurrency=2", "-Q", "pages", "--hostname=pages@%h"]
+        shm_size: 1gb
+        init: true
+        mem_limit: 2g
+        environment:
+            - FLASK_ENV=${FLASK_ENV}
+            - DATABASE_URL=mariadb+mariadbconnector://ally-user:${DB_PASSWORD}@a11y-db:3306/a11y
+            - CELERY_BROKER_URL=redis://a11y-redis:6379/0
+            - CELERY_RESULT_BACKEND=redis://a11y-redis:6379/0
+            - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+            - API_URL=http://a11y-api:5000
+            - CLIENT_URL=${CLIENT_URL}
+            - MAIL_SERVER=${MAIL_SERVER}
+            - MAIL_PORT=${MAIL_PORT}
+            - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}
+            - MAIL_USE_SSL=${MAIL_USE_SSL}
+            - MAIL_USE_TLS=${MAIL_USE_TLS}
+        depends_on:
+            a11y-db:
+                condition: service_healthy
+            a11y-redis:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "celery", "--app", "celery_app.celery", "status"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+        restart: unless-stopped
+        logging:
+            driver: json-file
+            options:
+                max-size: "10m"
+                max-file: "3"
     a11y-beat:
         container_name: a11y_beat
         build:

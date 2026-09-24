@@ -534,6 +534,7 @@ class Website(db.Model):
                         rule_id = rule.get('id')
                         existing_rule = next((r for r in report[key] if r.get('id') == rule_id), None)
                         site_report = {
+                            'site_id': site.id,
                             'url': site.url,
                             'timestamp': current_report.report.get('timestamp'),
                             'report_id': current_report.id,

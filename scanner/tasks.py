@@ -142,7 +142,7 @@ def scan_website(self, website_url: str):
         raise
 
 
-@celery.task(bind=True, name='scanner.tasks.scan_site')
+@celery.task(bind=True, name='scanner.tasks.scan_site', soft_time_limit=300, time_limit=360)
 def scan_site(self, site_url: str):
     """
     Celery task to scan a single site/page.
@@ -163,13 +163,14 @@ def scan_site(self, site_url: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            _run_scan(loop, async_generate_single_site_report(site_url), f"site scan for {site_url}")
+            report_id = _run_scan(loop, async_generate_single_site_report(site_url), f"site scan for {site_url}")
             log_message(f"[Celery Task {self.request.id}] Completed site scan for {site_url}", 'info')
             
             return {
                 'status': 'completed',
                 'site_url': site_url,
-                'report_generated': True
+                'report_generated': True,
+                'report_id': report_id,
             }
         finally:
             loop.close()

@@ -68,7 +68,9 @@ CMD ["/app/init.sh", "gunicorn", "--capture-output", "--log-file=-", "-w", "4", 
 FROM playwright AS worker
 
 # Each process runs one scan with scan_page_concurrency Chromium tabs (Settings, default 3).
-CMD ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info", "--concurrency=2"]
+# It also takes single-page scans (queue "pages") as a fallback; a11y-pages-worker in
+# docker-compose.yml serves that queue alone so they never wait behind a crawl.
+CMD ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info", "--concurrency=2", "-Q", "celery,pages"]
 
 # ==============================================================================
 # Flower stage - Celery monitoring (doesn't need Playwright)

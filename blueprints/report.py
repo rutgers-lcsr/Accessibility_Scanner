@@ -65,6 +65,7 @@ def get_report_by_id(report_id):
         if is_latest else None
     )
     data['can_edit'] = bool(current_user) and report.site.can_edit(current_user)
+    data['can_scan'] = bool(current_user) and report.site.can_scan(current_user)
     return jsonify(data), 200
 
 @report_bp.route('/<int:report_id>/pdf/', methods=['GET'])

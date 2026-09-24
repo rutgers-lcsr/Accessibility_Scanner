@@ -23,7 +23,15 @@ An accessibility website scanner built for auditing and monitoring websites for 
 
 ## Background Task Processing
 
-The scanner uses **Celery** with Redis for background task processing.
+The scanner uses **Celery** with Redis for background task processing. Website crawls and the
+periodic tasks run on the default queue; single-page scans (the "Rescan this page" action and
+quick scans) are routed to the `pages` queue so they never wait behind a crawl. In Docker,
+`a11y-worker` consumes both queues and `a11y-pages-worker` only `pages`. A single local worker
+must consume both:
+
+```bash
+celery -A celery_app.celery worker -Q celery,pages --concurrency=2
+```
 
 ## Deployment
 
