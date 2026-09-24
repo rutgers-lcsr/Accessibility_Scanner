@@ -51,11 +51,13 @@ def test_update_requires_edit_permission(client, make_user, make_api_key, make_w
     website.users.append(member)
     db.session.commit()
 
-    for user in (member, other):
-        _, token = make_api_key(user)
-        resp = _patch(client, token, website.id, {"users": ["carol"]})
-        assert resp.status_code == 403, user.username
-        assert resp.get_json() == {"error": "Unauthorized"}
+    _, token = make_api_key(member)
+    assert _patch(client, token, website.id, {"users": ["carol"]}).status_code == 200
+
+    _, token = make_api_key(other)
+    resp = _patch(client, token, website.id, {"users": ["carol"]})
+    assert resp.status_code == 403
+    assert resp.get_json() == {"error": "Unauthorized"}
 
 
 def test_website_admin_can_set_users_and_extra_start_urls(client, make_user, make_api_key, make_website):

@@ -45,7 +45,7 @@ def test_verdict_requires_login_and_edit_rights(client, make_user, make_website,
     finding = _finding(site, "#a")
 
     assert client.patch(f"/api/findings/{finding.id}/", json={"status": "fixed"}).status_code == 401
-    assert client.patch(f"/api/findings/{finding.id}/", json={"status": "fixed"}, headers=jwt_header(member)).status_code == 403
+    assert client.patch(f"/api/findings/{finding.id}/", json={"status": "fixed"}, headers=jwt_header(member)).status_code == 200
     assert client.patch(f"/api/findings/{finding.id}/", json={"status": "fixed"}, headers=jwt_header(owner)).status_code == 200
     assert client.patch(f"/api/findings/{finding.id}/", json={"status": "open"}, headers=jwt_header(admin)).status_code == 200
     assert client.patch("/api/findings/999/", json={"status": "open"}, headers=jwt_header(admin)).status_code == 404

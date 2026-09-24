@@ -95,7 +95,7 @@ Each report contains details about the accessibility issues found during the sca
 
 ## User Management
 
-Any user can create an account and request a site. They will automatically be assigned to that site as an admin. Website Admins will be able to add other users to the website report but not to change ratelimits or scan the site. Website users will be able to view reports for that website but will not be able to add other users or modify the site settings. These users will also be notified when a scan is finished. Only global admins can add parent domains and websites as well as manage all users. Global admins can change the admin user of a website.
+Any user can create an account and request a site; they become that website's admin. The website admin and the users they add (members) can view its reports, triage findings, scan the website or a single page, and edit the member list and the additional start pages. All of them are emailed about the website unless they opt out. Only site admins (global admins) add parent domains, manage all users, and change a website's admin, rate limit, active and public flags, tags, categories and description.
 
 ## Security
 

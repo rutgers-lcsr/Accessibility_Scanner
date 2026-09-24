@@ -245,3 +245,31 @@ def test_deleting_a_site_removes_its_findings(app, make_user, make_site, add_rep
     db.session.commit()
 
     assert db.session.query(Finding).count() == 0
+
+
+def test_failure_summary_is_stored_normalised_and_refreshed(app, make_user, make_site, add_report):
+    from models import db
+    from services.findings import sync_report_findings
+
+    site = make_site(make_user())
+
+    def rule(summary):
+        return {"id": "image-alt", "impact": "critical", "help": "Images must have alternative text",
+                "helpUrl": "https://x", "nodes": [{"target": ["#img"], "html": "<img>", "failureSummary": summary}]}
+
+    report = add_report(site, violations=[rule("Fix any of the following:\n  Element does not have an alt attribute   ")])
+    sync_report_findings(site.id, report.id, report.timestamp, report.report["violations"])
+    db.session.commit()
+    finding = site.findings.one()
+    assert finding.failure_summary == "Fix any of the following: Element does not have an alt attribute"
+    assert finding.to_dict()["failure_summary"] == finding.failure_summary
+
+    report = add_report(site, violations=[rule("x" * 1500)])
+    sync_report_findings(site.id, report.id, report.timestamp, report.report["violations"])
+    db.session.commit()
+    assert len(site.findings.one().failure_summary) == 1000
+
+    report = add_report(site, violations=[rule(None)])
+    sync_report_findings(site.id, report.id, report.timestamp, report.report["violations"])
+    db.session.commit()
+    assert site.findings.one().failure_summary is None

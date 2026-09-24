@@ -29,6 +29,8 @@ class Finding(db.Model):
     help_url: Mapped[str] = db.Column(db.String(500), nullable=True)
     selector: Mapped[str] = db.Column(db.Text, nullable=True)
     html: Mapped[str] = db.Column(db.Text, nullable=True)
+    # axe's failureSummary for the element: what to fix, in the rule's own words.
+    failure_summary: Mapped[str] = db.Column(db.Text, nullable=True)
     first_seen: Mapped[datetime] = db.Column(db.DateTime, nullable=False)
     last_seen: Mapped[datetime] = db.Column(db.DateTime, nullable=False)
     # The report it was last seen in; a finding is "current" when this is the page's
@@ -66,6 +68,7 @@ class Finding(db.Model):
             'help_url': self.help_url,
             'selector': self.selector,
             'html': self.html,
+            'failure_summary': self.failure_summary,
             'first_seen': iso(self.first_seen),
             'last_seen': iso(self.last_seen),
             'last_report_id': self.last_report_id,

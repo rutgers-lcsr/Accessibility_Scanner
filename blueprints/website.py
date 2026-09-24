@@ -14,7 +14,8 @@ from scanner.utils.service import check_url
 from services.history import daily_history, effective_counts
 from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
 from models.finding import FINDING_STATUSES
-from services.findings import bulk_set_status, changes_for_sites, list_findings
+from services.findings import bulk_set_status, changes_for_sites, fix_first, list_findings
+from services.guides import available_guides
 from utils.export import csv_response
 from utils.limiter import limiter
 from utils.urls import get_netloc, is_valid_url
@@ -338,6 +339,39 @@ def get_website_findings(website_id):
         return jsonify({'error': f"status must be one of {', '.join(FINDING_LISTING_STATUSES)}"}), 400
     site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
     return jsonify(list_findings(site_ids, status, request.args.get('rule'))), 200
+
+
+@website_bp.route('/<int:website_id>/fix-first/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_fix_first(website_id):
+    """
+    The website's open violations as rules ranked by the pages a fix clears.
+    ---
+    tags:
+        - Findings
+    parameters:
+        - in: path
+          name: website_id
+          type: integer
+          required: true
+    responses:
+        200:
+            description: pages_total, pages_audited, open_total, suppressed_rules and rules, each with pages_affected, elements, counts, an example element, its pages and whether a fix guide exists.
+        403:
+            description: The caller may not view this website.
+        404:
+            description: Website not found.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not current_user and not website.public:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if current_user and not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
+    return jsonify(fix_first(site_ids, guide_ids=available_guides())), 200
 
 
 @website_bp.route('/<int:website_id>/preview/', methods=['GET'])

@@ -18,7 +18,7 @@ from sqlalchemy import func
 from models import db
 from models.finding import FINDING_STATUSES, Finding, SUPPRESSED_STATUSES
 from models.report import Report
-from models.website import Site_Website_Assoc
+from models.website import Site, Site_Website_Assoc
 from services.history import effective_counts, sum_counts
 
 IMPACT_KEYS = ('critical', 'serious', 'moderate', 'minor')
@@ -56,6 +56,12 @@ def normalise_selector(target) -> str:
 
 def normalise_html(html) -> str:
     return ' '.join(str(html or '').split())[:2000]
+
+
+def normalise_summary(text) -> str | None:
+    """axe's failureSummary with its whitespace collapsed, capped; None when empty."""
+    summary = ' '.join(str(text or '').split())[:1000]
+    return summary or None
 
 
 def fingerprint(rule_id: str, selector: str) -> str:
@@ -103,6 +109,7 @@ def _refresh(finding: Finding, rule, node, selector, report_id, report_ts, now, 
     finding.help_url = (rule.get('helpUrl') or '')[:500]
     finding.selector = selector
     finding.html = normalise_html(node.get('html'))
+    finding.failure_summary = normalise_summary(node.get('failureSummary'))
     if finding.status == 'fixed':
         # It came back: reopen, keeping any note. Suppressed statuses are sticky.
         finding.status = 'open'
@@ -153,7 +160,9 @@ def sync_report_findings(site_id: int, report_id: int, report_ts: datetime, viol
                 site_id=site_id, rule_id=rule.get('id'), fingerprint=fp,
                 impact=rule.get('impact'), help=(rule.get('help') or '')[:500],
                 help_url=(rule.get('helpUrl') or '')[:500], selector=selector,
-                html=normalise_html(node.get('html')), first_seen=report_ts, last_seen=report_ts,
+                html=normalise_html(node.get('html')),
+                failure_summary=normalise_summary(node.get('failureSummary')),
+                first_seen=report_ts, last_seen=report_ts,
                 last_report_id=report_id, status='open',
             ))
             result.new += 1
@@ -329,6 +338,72 @@ def list_findings(site_ids, status: str = 'current', rule_id: str | None = None)
         rule['pages'] = list(rule['pages'].values())
     ordered = sorted(rules.values(), key=lambda r: (IMPACT_KEYS.index(r['impact']) if r['impact'] in IMPACT_KEYS else len(IMPACT_KEYS), r['rule_id']))
     return {'count': len(findings), 'rules': ordered}
+
+
+def fix_first(site_ids, guide_ids=frozenset()) -> dict:
+    """Rules ranked by the pages a fix clears, over the current findings of the given
+    pages. A page counts for a rule when it has an open current finding of it
+    (suppressed and fixed ones need no fixing); the status counts cover every current
+    finding. Reads the finding table and the latest report ids only."""
+    site_ids = list(site_ids)
+    latest = latest_report_ids(site_ids)
+    result = {'pages_total': len(site_ids), 'pages_audited': len(latest), 'open_total': 0,
+              'suppressed_rules': 0, 'rules': []}
+    if not latest:
+        return result
+    rows = (
+        db.session.query(Finding.id, Finding.site_id, Finding.rule_id, Finding.impact, Finding.help,
+                         Finding.help_url, Finding.status, Finding.selector, Finding.html,
+                         Finding.failure_summary, Site.url)
+        .join(Site, Site.id == Finding.site_id)
+        .filter(Finding.site_id.in_(site_ids), Finding.last_report_id.in_(list(latest.values())))
+        .order_by(Finding.rule_id, Finding.site_id, Finding.id)
+        .all()
+    )
+    rules, first_open = {}, {}
+    for row in rows:
+        rule = rules.setdefault(row.rule_id, {
+            'rule_id': row.rule_id, 'impact': row.impact, 'help': row.help, 'help_url': row.help_url,
+            'counts': {key: 0 for key in FINDING_STATUSES}, 'pages': {},
+        })
+        rule['counts'][row.status] += 1
+        if row.status != 'open':
+            continue
+        page = rule['pages'].setdefault(row.site_id, {
+            'site_id': row.site_id, 'url': row.url, 'report_id': latest[row.site_id], 'count': 0,
+        })
+        page['count'] += 1
+        first_open.setdefault((row.rule_id, row.site_id), row)
+
+    ranked = []
+    for rule in rules.values():
+        pages = sorted(rule['pages'].values(), key=lambda page: (-page['count'], page['url']))
+        if not pages:
+            result['suppressed_rules'] += 1
+            continue
+        example = first_open[(rule['rule_id'], pages[0]['site_id'])]
+        elements = sum(page['count'] for page in pages)
+        result['open_total'] += elements
+        ranked.append({
+            **rule,
+            'pages': pages,
+            'pages_affected': len(pages),
+            'pages_cleared_percent': round(100 * len(pages) / len(latest)),
+            'elements': elements,
+            'example': {
+                'finding_id': example.id, 'site_id': example.site_id, 'url': example.url,
+                'report_id': latest[example.site_id], 'selector': example.selector,
+                'html': example.html, 'failure_summary': example.failure_summary,
+            },
+            'guide': rule['rule_id'] in guide_ids,
+        })
+    ranked.sort(key=lambda rule: (
+        -rule['pages_affected'],
+        IMPACT_KEYS.index(rule['impact']) if rule['impact'] in IMPACT_KEYS else len(IMPACT_KEYS),
+        rule['rule_id'],
+    ))
+    result['rules'] = ranked
+    return result
 
 
 # --- what changed ------------------------------------------------------------------------

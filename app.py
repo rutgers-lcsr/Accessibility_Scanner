@@ -115,6 +115,7 @@ def create_app():
     from blueprints.api_keys import api_keys_bp
     from blueprints.dashboard import dashboard_bp
     from blueprints.findings import findings_bp
+    from blueprints.guides import guides_bp
     
     @app.route('/health', methods=['GET'])
     def health_check():
@@ -133,6 +134,7 @@ def create_app():
     app.register_blueprint(api_keys_bp, url_prefix='/api/users/me/api-keys')
     app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
     app.register_blueprint(findings_bp, url_prefix='/api/findings')
+    app.register_blueprint(guides_bp, url_prefix='/api/guides')
 
     from commands import findings_cli, maintenance_cli
     app.cli.add_command(findings_cli)

@@ -297,11 +297,16 @@ class Website(db.Model):
 
     # Permission checks
     def can_edit(self, user: User) -> bool:
-        if user and self.admin_id == user.id:
+        """The website's admin, its members and site admins: they triage findings, rescan
+        pages and edit the member list and start pages. The fields only a site admin may
+        change are gated separately in blueprints.website (update_website_for)."""
+        if not user:
+            return False
+        if self.admin_id == user.id:
             return True
-        if user and user.profile and user.profile.is_admin:
+        if user.profile and user.profile.is_admin:
             return True
-        return False
+        return user in self.users
     
     def can_view(self, user: User) -> bool:
         if self.public:

@@ -34,6 +34,7 @@ COPY blueprints/ ./blueprints/
 COPY mail/ ./mail/
 COPY models/ ./models/
 COPY templates/ ./templates/
+COPY guides/ ./guides/
 COPY migrations/ ./migrations/
 COPY utils/ ./utils/
 COPY static/ ./static/
