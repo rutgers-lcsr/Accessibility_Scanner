@@ -4,6 +4,7 @@ from flask import Blueprint, Response, g, jsonify, request
 from sqlalchemy import func
 
 from authentication.api_key import api_key_required
+from blueprints.website import create_website_for
 from models import db
 from models.report import Report
 from models.website import Domain, Site, Website
@@ -222,6 +223,73 @@ def list_websites():
         'count': result.total,
         'items': [website.to_dict() for website in result.items],
     }), 200
+
+
+@api_bp.route('/websites', methods=['POST'])
+@limiter.limit("5/minute")
+@api_key_required
+def create_website_endpoint():
+    """Add a website to the scanner.
+
+    Works like adding a website in the app: the host must be under an active
+    allow-listed domain, the URL is probed for reachability, the key's owner becomes
+    the website's admin, and a scan is queued when automatic scanning is enabled.
+    Site admins may also allow-list the host, choose the admin and set categories.
+    Check first with GET /api/v1/websites?host= and GET /api/v1/domains?host=.
+    ---
+    tags:
+      - Websites
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - base_url
+          properties:
+            base_url:
+              type: string
+              example: "https://cs.example.edu"
+              description: The website's root URL, scheme included.
+            should_email:
+              type: boolean
+              default: false
+              description: Also email the website's admin that it was added.
+            admin:
+              type: string
+              description: >
+                Site admins only. Username of the website's admin (created if unknown);
+                defaults to the key's owner.
+            categories:
+              type: array
+              items:
+                type: string
+              description: Site admins only.
+            create_domain:
+              type: boolean
+              description: >
+                Site admins only. When the host is not under an allowed domain,
+                allow-list the host and continue.
+    responses:
+      201:
+        description: The new website (same shape as the search results).
+      400:
+        description: >
+          Invalid input. When the host is not allow-listed the body also carries
+          code "no_parent_domain" and the host in "domain". A duplicate URL or an
+          unreachable site is reported in "error".
+      401:
+        description: Missing, invalid, or revoked API key.
+      429:
+        description: More than 5 requests per minute.
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object body is required'}), 400
+    return create_website_for(g.api_user, data)
 
 
 @api_bp.route('/domains', methods=['GET'])

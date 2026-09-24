@@ -50,6 +50,87 @@ def _csv_list(value) -> list:
     return [str(item).strip() for item in value if str(item).strip()]
 
 
+def create_website_for(user: User, data: dict):
+    """Create a website for ``user`` from a JSON request body.
+
+    Returns a Flask response tuple. Shared by the JWT route below and the API-key
+    route in blueprints.api; ``user`` is the caller, whose admin status gates the
+    admin, categories and create_domain fields.
+    """
+    base_url = data.get('base_url')
+    should_email = data.get('should_email', False)
+    if not base_url:
+        return jsonify({'error': 'Base URL is required'}), 400
+    
+    # Check if valid URL
+    if not is_valid_url(base_url):
+        return jsonify({'error': 'The provided URL is invalid'}), 400
+        
+    is_admin = bool(user.profile and user.profile.is_admin)
+
+    # Allow-list first: only hosts under an admin-added parent domain are ever probed,
+    # so this endpoint cannot be used to test reachability of arbitrary hosts.
+    if not Website.find_parent_domain(base_url):
+        host = get_netloc(base_url).lower()
+        if not (is_admin and data.get('create_domain')):
+            # code/domain let the UI offer a site admin to allow-list the host and retry.
+            return jsonify({
+                'error': f'No active parent domain found for {host}, an administrator must add it first',
+                'code': 'no_parent_domain',
+                'domain': host,
+            }), 400
+        # Allow-list the host together with the website. Nothing is committed until the
+        # website is, so a failed probe leaves no domain behind.
+        domain = db.session.query(Domain).filter_by(domain=host).first()
+        if domain is None:
+            domain = Domain(domain=host)
+        domain.active = True
+        db.session.add(domain)
+
+    admin_user = user
+    if is_admin and data.get('admin'):
+        admin_user, error = _get_or_create_user(str(data['admin']).strip())
+        if error:
+            db.session.rollback()
+            return jsonify({'error': error}), 400
+
+    try:
+        is_accessible = check_url(base_url)
+        if not is_accessible:
+            db.session.rollback()
+            return jsonify({'error': 'The provided URL is not accessible'}), 400
+
+        new_website = Website(url=base_url, user_id=admin_user.id)
+        if is_admin and 'categories' in data:
+            new_website.categories = ",".join(_csv_list(data['categories']))
+
+        db.session.add(new_website)
+        db.session.commit()
+    except ValueError as e:
+        # Website() explains what is wrong (duplicate, no parent domain, ...)
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Error creating website %s", base_url)
+        return jsonify({'error': 'Could not create the website'}), 500
+
+    # The website is committed; a mail problem must not fail (or roll back) the request.
+    try:
+        if should_email:
+            NewWebsiteEmail(new_website).send()
+
+        AdminNewWebsiteEmail(new_website).send()
+    except Exception:
+        current_app.logger.exception("Error sending new-website mail for %s", base_url)
+
+    if Settings.get('default_should_auto_scan', 'true').lower() == 'true':
+        from scanner.tasks import scan_website
+        scan_website.delay(new_website.url)
+
+    return jsonify(new_website.to_dict()), 201
+
+
 @website_bp.route('/', methods=['POST'])
 @limiter.limit("5/minute")
 @jwt_required()
@@ -102,82 +183,10 @@ def create_website():
                         type: string
     """
     data = request.get_json()
-    base_url = data.get('base_url')
-    should_email = data.get('should_email', False)
-    if not base_url:
-        return jsonify({'error': 'Base URL is required'}), 400
-    
-    # Check if valid URL
-    if not is_valid_url(base_url):
-        return jsonify({'error': 'The provided URL is invalid'}), 400
-        
     # check if user exists
     if not current_user:
         return jsonify({'error': 'User is not authenticated'}), 401
-
-    is_admin = bool(current_user.profile and current_user.profile.is_admin)
-
-    # Allow-list first: only hosts under an admin-added parent domain are ever probed,
-    # so this endpoint cannot be used to test reachability of arbitrary hosts.
-    if not Website.find_parent_domain(base_url):
-        host = get_netloc(base_url).lower()
-        if not (is_admin and data.get('create_domain')):
-            # code/domain let the UI offer a site admin to allow-list the host and retry.
-            return jsonify({
-                'error': f'No active parent domain found for {host}, an administrator must add it first',
-                'code': 'no_parent_domain',
-                'domain': host,
-            }), 400
-        # Allow-list the host together with the website. Nothing is committed until the
-        # website is, so a failed probe leaves no domain behind.
-        domain = db.session.query(Domain).filter_by(domain=host).first()
-        if domain is None:
-            domain = Domain(domain=host)
-        domain.active = True
-        db.session.add(domain)
-
-    admin_user = current_user
-    if is_admin and data.get('admin'):
-        admin_user, error = _get_or_create_user(str(data['admin']).strip())
-        if error:
-            db.session.rollback()
-            return jsonify({'error': error}), 400
-
-    try:
-        is_accessible = check_url(base_url)
-        if not is_accessible:
-            db.session.rollback()
-            return jsonify({'error': 'The provided URL is not accessible'}), 400
-
-        new_website = Website(url=base_url, user_id=admin_user.id)
-        if is_admin and 'categories' in data:
-            new_website.categories = ",".join(_csv_list(data['categories']))
-
-        db.session.add(new_website)
-        db.session.commit()
-    except ValueError as e:
-        # Website() explains what is wrong (duplicate, no parent domain, ...)
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 400
-    except Exception:
-        db.session.rollback()
-        current_app.logger.exception("Error creating website %s", base_url)
-        return jsonify({'error': 'Could not create the website'}), 500
-
-    # The website is committed; a mail problem must not fail (or roll back) the request.
-    try:
-        if should_email:
-            NewWebsiteEmail(new_website).send()
-
-        AdminNewWebsiteEmail(new_website).send()
-    except Exception:
-        current_app.logger.exception("Error sending new-website mail for %s", base_url)
-
-    if Settings.get('default_should_auto_scan', 'true').lower() == 'true':
-        from scanner.tasks import scan_website
-        scan_website.delay(new_website.url)
-
-    return jsonify(new_website.to_dict()), 201
+    return create_website_for(current_user, data)
 @website_bp.route('/email/<int:website_id>/', methods=['POST'])
 @admin_required
 def email_website_report(website_id):
