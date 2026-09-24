@@ -1,3 +1,4 @@
+"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -72,8 +73,6 @@ style.innerHTML = `
         display: none;
         max-height: 400px ;
         overflow: auto ;
-        top: 10px ;
-        left: 10px ;
         transition: box-shadow 0.2s ;
         animation: fadeIn 0.3s ease-in-out ;
 
@@ -652,6 +651,40 @@ function makeAiPrompt(injection, element) {
     Please provide a detailed response with code examples where applicable.`;
     return prompt;
 }
+const TOOLTIP_GAP = 6;
+const VIEWPORT_MARGIN = 8;
+const TOOLTIP_MAX_HEIGHT = 400;
+// Show the tooltip under the element, or above it when there is more room there, and
+// never taller than that room. It lives in the body, so no ancestor's overflow can clip
+// it, and it is placed in document coordinates so it stays with the element as the
+// page scrolls.
+function placeTooltip(tooltip, element) {
+    const rect = element.getBoundingClientRect();
+    tooltip.style.display = 'block';
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.maxHeight = '';
+    const offscreen = rect.bottom < 0 || rect.top > window.innerHeight;
+    const spaceBelow = window.innerHeight - rect.bottom - TOOLTIP_GAP - VIEWPORT_MARGIN;
+    const spaceAbove = rect.top - TOOLTIP_GAP - VIEWPORT_MARGIN;
+    const below = offscreen || tooltip.offsetHeight <= spaceBelow || spaceBelow >= spaceAbove;
+    const room = offscreen ? TOOLTIP_MAX_HEIGHT : Math.max(below ? spaceBelow : spaceAbove, 120);
+    tooltip.style.maxHeight = `${Math.min(TOOLTIP_MAX_HEIGHT, room)}px`;
+    const height = tooltip.offsetHeight;
+    const width = tooltip.offsetWidth;
+    const viewportTop = below ? rect.bottom + TOOLTIP_GAP : rect.top - TOOLTIP_GAP - height;
+    const viewportLeft = Math.max(VIEWPORT_MARGIN, Math.min(rect.left, window.innerWidth - width - VIEWPORT_MARGIN));
+    // The tooltip's containing block is the page, unless the body is positioned or
+    // transformed, in which case it is the body's box.
+    const body = document.body;
+    const bodyStyle = window.getComputedStyle(body);
+    const bodyIsOrigin = bodyStyle.position !== 'static' || bodyStyle.transform !== 'none';
+    const bodyRect = body.getBoundingClientRect();
+    const originTop = bodyIsOrigin ? bodyRect.top + body.clientTop : -window.scrollY;
+    const originLeft = bodyIsOrigin ? bodyRect.left + body.clientLeft : -window.scrollX;
+    tooltip.style.top = `${viewportTop - originTop}px`;
+    tooltip.style.left = `${viewportLeft - originLeft}px`;
+    tooltip.style.visibility = '';
+}
 function createToolTip(injections, element, selector) {
     // Create a tooltip element
     const tooltip = document.createElement('div');
@@ -664,7 +697,36 @@ function createToolTip(injections, element, selector) {
     a11yClasses.forEach((cls) => clonedElement.classList.remove(cls));
     tooltip.className = 'a11y-tooltip';
     let tooltipFocused = false;
+    let hideTimer = null;
+    const hide = () => {
+        tooltip.style.display = 'none';
+        element.style.zIndex = ''; // Reset z-index
+        if (currentFocus === tooltip) {
+            currentFocus = null;
+        }
+        currentTooltipFocused = false;
+        tooltipAnimation === null || tooltipAnimation === void 0 ? void 0 : tooltipAnimation.cancel();
+        tooltipAnimation = null;
+    };
+    const cancelHide = () => {
+        if (hideTimer !== null) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
+    };
+    // Leaving the element or the tooltip hides it after a moment, so the pointer can
+    // cross the gap between the two.
+    const scheduleHide = () => {
+        cancelHide();
+        hideTimer = window.setTimeout(() => {
+            hideTimer = null;
+            if (!tooltipFocused) {
+                hide();
+            }
+        }, 300);
+    };
     tooltip.addEventListener('mouseenter', () => {
+        cancelHide();
         tooltipFocused = true;
         currentFocus = tooltip;
         tooltip.style.display = 'block';
@@ -673,6 +735,7 @@ function createToolTip(injections, element, selector) {
     tooltip.addEventListener('mouseleave', () => {
         tooltipFocused = false;
         currentTooltipFocused = false;
+        scheduleHide();
     });
     const numberOfInjections = injections.length;
     // Populate the tooltip with injection messages
@@ -684,27 +747,13 @@ function createToolTip(injections, element, selector) {
             tooltip.appendChild(message);
         }
     });
-    // Append the tooltip to the element
-    // Check if element is a img or input type image, if so, append tooltip to parent
-    if (element.tagName.toLowerCase() === 'img' ||
-        (element.tagName.toLowerCase() === 'input' &&
-            element.type === 'image')) {
-        if (element.parentElement) {
-            element.parentElement.style.position = 'relative';
-            element.parentElement.appendChild(tooltip);
-        }
-        else {
-            element.style.position = 'relative';
-            element.appendChild(tooltip);
-        }
-    }
-    else {
-        element.style.position = 'relative';
-        element.appendChild(tooltip);
-    }
+    // The tooltip lives at the document level (see placeTooltip), not inside the
+    // element, where an ancestor's overflow could clip it.
+    document.body.appendChild(tooltip);
     // Position the tooltip on hover
     element.addEventListener('mouseenter', (event) => {
         event.stopPropagation();
+        cancelHide();
         if (currentTooltipFocused) {
             return;
         }
@@ -720,7 +769,7 @@ function createToolTip(injections, element, selector) {
             }
             currentFocus = null;
         }
-        tooltip.style.display = 'block';
+        placeTooltip(tooltip, element);
         // Log all injections to the console for debugging
         injections.forEach((injection) => {
             //@ts-ignore
@@ -734,9 +783,9 @@ function createToolTip(injections, element, selector) {
         const elementBorderColor = getImpactColor(injections
             .map((inj) => inj.impact)
             .sort((a, b) => {
-                const levels = { critical: 4, serious: 3, moderate: 2, minor: 1, null: 0 };
-                return levels[b] - levels[a];
-            })[0]);
+            const levels = { critical: 4, serious: 3, moderate: 2, minor: 1, null: 0 };
+            return levels[b] - levels[a];
+        })[0]);
         const oldBorder = element.style.border;
         // If the element already has a border, make it dashed
         // add element highlight animation (no rotation)
@@ -754,21 +803,7 @@ function createToolTip(injections, element, selector) {
         };
     });
     element.addEventListener('mouseleave', () => {
-        if (currentFocus === tooltip && tooltipFocused) {
-            return;
-        }
-        if (!tooltipFocused) {
-            tooltip.style.display = 'none';
-            element.style.zIndex = ''; // Reset z-index
-        }
-        if (currentFocus === tooltip) {
-            currentFocus = null;
-            tooltip.style.display = 'none';
-        }
-        // remove element animation
-        // element.style.boxShadow = 'none';
-        tooltipAnimation === null || tooltipAnimation === void 0 ? void 0 : tooltipAnimation.cancel();
-        tooltipAnimation = null;
+        scheduleHide();
     });
     if (injections.length == 1) {
         element.style.position = 'relative';
