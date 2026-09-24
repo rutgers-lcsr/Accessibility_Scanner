@@ -549,6 +549,138 @@ def bulk_update_website_findings(website_id):
     return jsonify({'updated': updated}), 200
 
 
+def update_website_for(editor: User, website: Website, data: dict):
+    """Apply a JSON update body to ``website`` on behalf of ``editor``.
+
+    Returns a Flask response tuple. Shared by the JWT route below and the API-key
+    route in blueprints.api; the caller has already checked ``website.can_edit``.
+    public, active, rate_limit, should_email, admin, tags, categories and
+    description are only applied when ``editor`` is a site admin.
+    """
+    if 'users' in data:
+        users = data['users']
+        if isinstance(users, list):
+            # First remove all existing users
+            current_users = website.users[:]
+            for user in current_users:
+                website.remove_user(user, commit=False)
+            # Now add the new users
+            for username in users:
+                user = db.session.query(User).filter_by(username=username).first()
+                if user:
+                    website.add_user(user, commit=False)
+                else:
+                    # add the user if they dont exist
+                    domain = Settings.get('default_email_domain', '')
+                    email = f"{username}@{domain}" if domain else None
+                    if not email:
+                        return jsonify({'error': f'No email domain set to create user {username}, Please ask an admin to set a default'}), 400
+                    new_user = User(username=username, email=email)
+                    new_user.profile = Profile(user=new_user, is_admin=False)
+                    db.session.add(new_user)
+                    db.session.commit()  # Commit to get the user ID
+                    new_user =  db.session.query(User).filter_by(username=username).first()
+                    website.add_user(new_user, commit=False)
+        else:
+            return jsonify({'error': 'Users must be a list of usernames'}), 400
+
+
+
+    if 'extra_start_urls' in data:
+        urls = data['extra_start_urls']
+        if isinstance(urls, str):
+            urls = urls.splitlines()
+        if not isinstance(urls, list):
+            return jsonify({'error': 'extra_start_urls must be a list of URLs'}), 400
+        try:
+            website.set_extra_start_urls(urls)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+
+    # Admin only fields
+    if editor.profile.is_admin:
+        if 'public' in data:
+            website.public = data['public'] and True
+        if 'active' in data:
+            website.active = data['active'] and True
+        if 'rate_limit' in data:
+            website.rate_limit = data['rate_limit'] 
+        if 'should_email' in data:
+            website.should_email = data['should_email'] and True
+        if 'active' in data:
+            domain = db.session.get(Domain, website.domain_id)
+            # scanner can add websites without a domain. this is because if a manual scan was made its not obvious what the parent domain might be.
+            # some websites will be www.example.com, but some might be org.example.com, and its not always clear what the parent domain is.
+            # if the domain is not found, we just use the website itself
+            if domain and not domain.active and data['active']:
+                return jsonify({'error': 'Cannot activate website because its domain is inactive'}), 400
+            website.active = data['active'] and True
+        
+        if 'admin' in data:
+            admin_username = data['admin']
+            admin_user = db.session.query(User).filter_by(username=admin_username).first()
+            if not admin_user:
+                domain = Settings.get('default_email_domain', '')
+                email = f"{admin_username}@{domain}" if domain else None
+                if not email:
+                    return jsonify({'error': f'No email domain set to create user {admin_username}, Please ask an admin to set a default'}), 400
+                new_user = User(username=admin_username, email=email)
+                new_user.profile = Profile(user=new_user, is_admin=False)
+                db.session.add(new_user)
+                db.session.commit()  # Commit to get the user ID
+                admin_user =  db.session.query(User).filter_by(username=admin_username).first()
+                if not admin_user:
+                    return jsonify({'error': f'Could not create user {admin_username}'}), 500
+            if website.admin_id == admin_user.id:
+                return jsonify({'error': 'The specified user is already the admin of this website'}), 400
+            website.admin = admin_user
+            # if the admin is being changed, make sure to email them
+        if 'tags' in data:
+            tags = data['tags']
+            if isinstance(tags, list):
+                # Clean tags and remove empty strings
+                cleaned_tags = [tag.strip() for tag in tags if tag.strip()]
+                website.tags = ",".join(cleaned_tags)
+            elif isinstance(tags, str):
+                # If a single string is provided, convert it to a list
+                cleaned_tag = tags.strip().split(',')
+                cleaned_tag = [tag.strip() for tag in cleaned_tag if tag.strip()]
+                if cleaned_tag:
+                    website.tags = ",".join(cleaned_tag)
+                else:
+                    website.tags = ""
+            else:
+                return jsonify({'error': 'Tags must be a list of strings or a single string'}), 400
+
+        if 'categories' in data:
+            categories = data['categories']
+            if isinstance(categories, list):
+                # Clean categories and remove empty strings
+                cleaned_categories = [cat.strip() for cat in categories if cat.strip()]
+                website.categories = ",".join(cleaned_categories)
+            elif isinstance(categories, str):
+                # If a single string is provided, convert it to a list
+                cleaned_cat = categories.strip().split(',')
+                cleaned_cat = [cat.strip() for cat in cleaned_cat if cat.strip()]
+                if cleaned_cat:
+                    website.categories = ",".join(cleaned_cat)
+                else:
+                    website.categories = ""
+            else:
+                return jsonify({'error': 'Categories must be a list of strings or a single string'}), 400
+        
+        if 'description' in data:
+            description = data['description']
+            if isinstance(description, str):
+                website.description = description.strip()
+            else:
+                return jsonify({'error': 'Description must be a string'}), 400
+
+    db.session.add(website)
+    db.session.commit()
+    return jsonify(website.to_dict()), 200
+
+
 @website_bp.route('/<int:website_id>/', methods=['PATCH'])
 @jwt_required()
 def update_website(website_id):
@@ -630,130 +762,7 @@ def update_website(website_id):
     if not website.can_edit(current_user):
         return jsonify({'error': 'Unauthorized'}), 403
 
-    
-        
-    if 'users' in data:
-        users = data['users']
-        if isinstance(users, list):
-            # First remove all existing users
-            current_users = website.users[:]
-            for user in current_users:
-                website.remove_user(user, commit=False)
-            # Now add the new users
-            for username in users:
-                user = db.session.query(User).filter_by(username=username).first()
-                if user:
-                    website.add_user(user, commit=False)
-                else:
-                    # add the user if they dont exist
-                    domain = Settings.get('default_email_domain', '')
-                    email = f"{username}@{domain}" if domain else None
-                    if not email:
-                        return jsonify({'error': f'No email domain set to create user {username}, Please ask an admin to set a default'}), 400
-                    new_user = User(username=username, email=email)
-                    new_user.profile = Profile(user=new_user, is_admin=False)
-                    db.session.add(new_user)
-                    db.session.commit()  # Commit to get the user ID
-                    new_user =  db.session.query(User).filter_by(username=username).first()
-                    website.add_user(new_user, commit=False)
-        else:
-            return jsonify({'error': 'Users must be a list of usernames'}), 400
-
-
-
-    if 'extra_start_urls' in data:
-        urls = data['extra_start_urls']
-        if isinstance(urls, str):
-            urls = urls.splitlines()
-        if not isinstance(urls, list):
-            return jsonify({'error': 'extra_start_urls must be a list of URLs'}), 400
-        try:
-            website.set_extra_start_urls(urls)
-        except ValueError as e:
-            return jsonify({'error': str(e)}), 400
-
-    # Admin only fields
-    if current_user.profile.is_admin:
-        if 'public' in data:
-            website.public = data['public'] and True
-        if 'active' in data:
-            website.active = data['active'] and True
-        if 'rate_limit' in data:
-            website.rate_limit = data['rate_limit'] 
-        if 'should_email' in data:
-            website.should_email = data['should_email'] and True
-        if 'active' in data:
-            domain = db.session.get(Domain, website.domain_id)
-            # scanner can add websites without a domain. this is because if a manual scan was made its not obvious what the parent domain might be.
-            # some websites will be www.example.com, but some might be org.example.com, and its not always clear what the parent domain is.
-            # if the domain is not found, we just use the website itself
-            if domain and not domain.active and data['active']:
-                return jsonify({'error': 'Cannot activate website because its domain is inactive'}), 400
-            website.active = data['active'] and True
-        
-        if 'admin' in data:
-            admin_username = data['admin']
-            admin_user = db.session.query(User).filter_by(username=admin_username).first()
-            if not admin_user:
-                domain = Settings.get('default_email_domain', '')
-                email = f"{admin_username}@{domain}" if domain else None
-                if not email:
-                    return jsonify({'error': f'No email domain set to create user {admin_username}, Please ask an admin to set a default'}), 400
-                new_user = User(username=admin_username, email=email)
-                new_user.profile = Profile(user=new_user, is_admin=False)
-                db.session.add(new_user)
-                db.session.commit()  # Commit to get the user ID
-                admin_user =  db.session.query(User).filter_by(username=admin_username).first()
-                if not admin_user:
-                    return jsonify({'error': f'Could not create user {admin_username}'}), 500
-            if website.admin_id == admin_user.id:
-                return jsonify({'error': 'The specified user is already the admin of this website'}), 400
-            website.admin = admin_user
-            # if the admin is being changed, make sure to email them
-        if 'tags' in data:
-            tags = data['tags']
-            if isinstance(tags, list):
-                # Clean tags and remove empty strings
-                cleaned_tags = [tag.strip() for tag in tags if tag.strip()]
-                website.tags = ",".join(cleaned_tags)
-            elif isinstance(tags, str):
-                # If a single string is provided, convert it to a list
-                cleaned_tag = tags.strip().split(',')
-                cleaned_tag = [tag.strip() for tag in cleaned_tag if tag.strip()]
-                if cleaned_tag:
-                    website.tags = ",".join(cleaned_tag)
-                else:
-                    website.tags = ""
-            else:
-                return jsonify({'error': 'Tags must be a list of strings or a single string'}), 400
-
-        if 'categories' in data:
-            categories = data['categories']
-            if isinstance(categories, list):
-                # Clean categories and remove empty strings
-                cleaned_categories = [cat.strip() for cat in categories if cat.strip()]
-                website.categories = ",".join(cleaned_categories)
-            elif isinstance(categories, str):
-                # If a single string is provided, convert it to a list
-                cleaned_cat = categories.strip().split(',')
-                cleaned_cat = [cat.strip() for cat in cleaned_cat if cat.strip()]
-                if cleaned_cat:
-                    website.categories = ",".join(cleaned_cat)
-                else:
-                    website.categories = ""
-            else:
-                return jsonify({'error': 'Categories must be a list of strings or a single string'}), 400
-        
-        if 'description' in data:
-            description = data['description']
-            if isinstance(description, str):
-                website.description = description.strip()
-            else:
-                return jsonify({'error': 'Description must be a string'}), 400
-
-    db.session.add(website)
-    db.session.commit()
-    return jsonify(website.to_dict()), 200
+    return update_website_for(current_user, website, data)
 
 
 @website_bp.route('/activate', methods=['POST'])

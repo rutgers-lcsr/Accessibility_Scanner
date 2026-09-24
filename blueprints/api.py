@@ -4,7 +4,7 @@ from flask import Blueprint, Response, g, jsonify, request
 from sqlalchemy import func
 
 from authentication.api_key import api_key_required
-from blueprints.website import create_website_for
+from blueprints.website import create_website_for, update_website_for
 from models import db
 from models.report import Report
 from models.website import Domain, Site, Website
@@ -290,6 +290,93 @@ def create_website_endpoint():
     if not isinstance(data, dict):
         return jsonify({'error': 'A JSON object body is required'}), 400
     return create_website_for(g.api_user, data)
+
+
+@api_bp.route('/websites/<int:website_id>', methods=['PATCH'])
+@api_key_required
+def update_website_endpoint(website_id):
+    """Update a website's settings.
+
+    Only the fields present in the body change. The key's owner must be the
+    website's admin or a site admin. Website admins may change users and
+    extra_start_urls; every other field is applied only for site admins and is
+    silently ignored otherwise.
+    ---
+    tags:
+      - Websites
+    consumes:
+      - application/json
+    parameters:
+      - name: website_id
+        in: path
+        type: integer
+        required: true
+        description: Numeric website ID (from the search results).
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            users:
+              type: array
+              items:
+                type: string
+              description: Usernames who may view the website; replaces the current list. Unknown users are created.
+            extra_start_urls:
+              type: array
+              items:
+                type: string
+              description: Pages a full scan starts from besides the website URL; must be on the website's host.
+            description:
+              type: string
+              description: Site admins only.
+            categories:
+              type: array
+              items:
+                type: string
+              description: Site admins only. A comma-separated string is also accepted.
+            tags:
+              type: array
+              items:
+                type: string
+              description: Site admins only. axe tags used when scanning. A comma-separated string is also accepted.
+            public:
+              type: boolean
+              description: Site admins only. Whether the reports are visible without logging in.
+            active:
+              type: boolean
+              description: Site admins only. Cannot be set to true while the website's domain is inactive.
+            rate_limit:
+              type: integer
+              description: Site admins only. Days between automatic scans.
+            should_email:
+              type: boolean
+              description: Site admins only. Email the website's users when a scan finishes.
+            admin:
+              type: string
+              description: Site admins only. Username of the new website admin (created if unknown).
+    responses:
+      200:
+        description: The updated website.
+      400:
+        description: Invalid input, or a body that is not a JSON object.
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner cannot edit this website.
+      404:
+        description: Website not found.
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object body is required'}), 400
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not website.can_edit(g.api_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+    return update_website_for(g.api_user, website, data)
 
 
 @api_bp.route('/domains', methods=['GET'])
