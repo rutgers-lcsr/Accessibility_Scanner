@@ -106,7 +106,7 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                         <Field
                             id="users"
                             label="Additional users"
-                            help="They can view this website and receive its scan emails. Leave empty to remove all users."
+                            help="They can view this website, triage findings, rescan pages, edit these settings and receive its scan emails. Leave empty to remove all users."
                         >
                             <Select
                                 mode="tags"

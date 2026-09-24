@@ -12,6 +12,7 @@ import useSWR from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
 import AdminItems from './AdminItems';
+import FixFirst from './FixFirst';
 import NotificationToggle from './NotificationToggle';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
@@ -30,7 +31,7 @@ const Website = ({ websiteId, user }: Props) => {
     const { handlerUserApiRequest } = useUser();
     // The open tab lives in the URL (?tab=) so links from emails and cards land on it.
     const { params, setFilters } = useUrlFilters();
-    const activeTab = params.get('tab') ?? 'urls';
+    const activeTab = params.get('tab') ?? 'fix';
 
     const {
         data: websiteReport,
@@ -46,6 +47,12 @@ const Website = ({ websiteId, user }: Props) => {
         return <PageError status={500} title="Error loading website report" />;
 
     const violations = websiteReport.report_counts.violations;
+    // Site admins, the website's admin and its members triage (Website.can_edit).
+    const canEdit =
+        !!user &&
+        (user.is_admin ||
+            websiteReport.admin === user.user ||
+            websiteReport.users.includes(user.user));
 
     // Mutate both the website report and the sites data when it become stale,
     // this is needed for a full page reload when the website is scanned
@@ -54,6 +61,19 @@ const Website = ({ websiteId, user }: Props) => {
     };
 
     const WebsiteReportItems: TabsProps['items'] = [
+        {
+            key: 'fix',
+            label: 'Fix first',
+            children: (
+                <FixFirst
+                    websiteId={websiteId}
+                    user={user}
+                    canEdit={canEdit}
+                    categories={websiteReport.categories}
+                    onCountsChanged={() => mutateWebsiteReport()}
+                />
+            ),
+        },
         {
             key: 'urls',
             label: `Urls (${websiteReport.sites.length})`,
@@ -77,7 +97,7 @@ const Website = ({ websiteId, user }: Props) => {
                     websiteId={websiteId}
                     report={websiteReport.report}
                     user={user}
-                    canEdit={!!user && (user.is_admin || websiteReport.admin === user.user)}
+                    canEdit={canEdit}
                     onCountsChanged={() => mutateWebsiteReport()}
                 />
             ),
@@ -167,7 +187,7 @@ const Website = ({ websiteId, user }: Props) => {
                         // Give some advice if there are too many violations
                         <div className="mt-6 rounded-md p-4">
                             <Alert
-                                message="Consider prioritizing the most critical issues first to make the biggest impact on your websites accessibility. Take a look a the violations tab to get started. This will show you a list of common issues and how to fix them."
+                                message="Start with the Fix first tab: it ranks the issues by how many pages one fix clears, and links to a guide for each."
                                 type="info"
                                 style={{}}
                                 showIcon
@@ -179,7 +199,7 @@ const Website = ({ websiteId, user }: Props) => {
                 <section aria-labelledby="website-report">
                     <Tabs
                         activeKey={activeTab}
-                        onChange={(key) => setFilters({ tab: key === 'urls' ? null : key })}
+                        onChange={(key) => setFilters({ tab: key === 'fix' ? null : key })}
                         items={WebsiteReportItems}
                     />
                 </section>

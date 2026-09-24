@@ -5,6 +5,9 @@ import { AxeNode, AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { Finding, FindingRuleGroup, FindingStatus } from '@/lib/types/finding';
 import { Button, Card, Collapse, Dropdown, Tag, Tooltip } from 'antd';
 import { useState } from 'react';
+import { useGuides } from '@/hooks/useGuides';
+import { guideHref } from '@/lib/guides';
+import Link from 'next/link';
 import ViolationNode, { findingKey, findingSelector } from './ViolationNode';
 
 type Props = {
@@ -103,14 +106,14 @@ function NodeList({
 }
 
 // Status counts of a rule's current findings across the website, plus a bulk verdict menu.
-function RuleFindingsSummary({
+export function RuleFindingsSummary({
     ruleId,
     group,
     canEdit,
     onBulkStatus,
 }: {
     ruleId: string;
-    group: FindingRuleGroup;
+    group: Pick<FindingRuleGroup, 'counts'>;
     canEdit?: boolean;
     onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
 }) {
@@ -162,6 +165,7 @@ function AuditAccessibilityItem({
     onFindingChanged,
     onBulkStatus,
 }: Props) {
+    const guides = useGuides();
     if (!accessibilityResult) return <div>No accessibility result provided.</div>;
 
     const ruleId = accessibilityResult.id;
@@ -183,7 +187,8 @@ function AuditAccessibilityItem({
                         </Tag>
                     ))}
             </div>
-            <div className="mt-2 flex justify-end-safe">
+            <div className="mt-2 flex justify-end-safe gap-4">
+                {guides.has(ruleId) && <Link href={guideHref(ruleId)}>Fix guide</Link>}
                 <a href={accessibilityResult.helpUrl} target="_blank" rel="noopener noreferrer">
                     Learn more
                 </a>

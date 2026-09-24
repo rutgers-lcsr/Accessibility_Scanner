@@ -1,10 +1,10 @@
 'use client';
 import ViolationsList from '@/components/ViolationsList';
+import { useBulkFindingStatus } from '@/hooks/useBulkFindingStatus';
 import { fetcherApi } from '@/lib/api';
 import { WebsiteAxeReport } from '@/lib/types/axe';
-import { FindingRuleGroup, FindingStatus, WebsiteFindings } from '@/lib/types/finding';
+import { FindingRuleGroup, WebsiteFindings } from '@/lib/types/finding';
 import { PublicUser } from '@/lib/types/user';
-import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
 import { Card } from 'antd';
 import useSWR from 'swr';
@@ -20,7 +20,6 @@ type Props = {
 
 function WebsiteReport({ websiteId, report, user, canEdit, onCountsChanged }: Props) {
     const { handlerUserApiRequest } = useUser();
-    const { addAlert } = useAlerts();
     const { data: findings, mutate } = useSWR<WebsiteFindings>(
         `/api/websites/${websiteId}/findings?status=current`,
         user ? handlerUserApiRequest<WebsiteFindings> : fetcherApi<WebsiteFindings>
@@ -45,23 +44,10 @@ function WebsiteReport({ websiteId, report, user, canEdit, onCountsChanged }: Pr
     const ruleFindings: Record<string, FindingRuleGroup> = {};
     for (const group of findings?.rules ?? []) ruleFindings[group.rule_id] = group;
 
-    const onBulkStatus = async (ruleId: string, status: FindingStatus) => {
-        try {
-            const result = await handlerUserApiRequest<{ updated: number }>(
-                `/api/websites/${websiteId}/findings/bulk`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rule_id: ruleId, status }),
-                }
-            );
-            addAlert(`${result.updated} elements of ${ruleId} marked`, 'success');
-            await mutate();
-            onCountsChanged?.();
-        } catch (error) {
-            addAlert('Could not update the findings: ' + (error as Error).message, 'error');
-        }
-    };
+    const onBulkStatus = useBulkFindingStatus(websiteId, async () => {
+        await mutate();
+        onCountsChanged?.();
+    });
 
     return (
         <div className="mt-2">

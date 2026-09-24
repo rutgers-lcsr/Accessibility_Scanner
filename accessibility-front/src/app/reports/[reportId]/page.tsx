@@ -44,7 +44,6 @@ const getReport = async (reportId: string) => {
 
 async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const { reportId } = await params;
-    const user = await getCurrentUser<User>();
 
     const report = await getReport(reportId);
     if (typeof report === 'string') return <PageError title={report} status={403} />;
@@ -170,7 +169,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 </p>
                             </Card>
                         </section>
-                        {user?.is_admin && <AdminReportItems report={report} />}
+                        {report.can_edit && <AdminReportItems report={report} />}
                     </Card>
 
                     <Card>

@@ -12,6 +12,7 @@ const ALLOWED_PATHS = [
     '/api/dashboard',
     '/api/domains',
     '/api/findings',
+    '/api/guides',
     '/api/reports',
     '/api/sites',
     '/api/users',
