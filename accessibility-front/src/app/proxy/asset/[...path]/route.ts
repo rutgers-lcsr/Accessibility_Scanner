@@ -15,6 +15,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
         return new NextResponse('Invalid asset URL', { status: 400 });
     }
 
+    // A site's `navigator.serviceWorker.register('/sw.js')` would resolve to this origin
+    // and, if served, install its worker on the whole app. Browsers mark that fetch.
+    if (req.headers.get('service-worker')) {
+        return new NextResponse('Service workers are not proxied', { status: 403 });
+    }
+
     const url = `${scheme}://${host}/${rest.join('/')}${req.nextUrl.search}`;
 
     try {

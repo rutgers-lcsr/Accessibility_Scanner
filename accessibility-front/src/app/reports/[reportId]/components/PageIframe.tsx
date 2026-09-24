@@ -95,6 +95,9 @@ function PageIframe({ url, children }: Props) {
                 ref={iframeRef}
                 src={url}
                 title="Page Preview"
+                // Same origin, so "Show in preview" can reach into the frame, but a
+                // frame-busting site cannot take the whole app with it.
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
                 className={isFullscreen ? 'w-full h-full' : 'w-full min-h-[700px]'}
                 style={{ border: 'none' }}
             />

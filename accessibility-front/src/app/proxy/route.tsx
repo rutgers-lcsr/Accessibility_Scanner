@@ -1,5 +1,6 @@
 import ProxyError from '@/components/ProxyError';
 import { Browser, getAxeLink, getCurrentBrowser } from '@/lib/browserServerSide';
+import { decodeBody, isHtml, rewritePage, textPage } from '@/lib/proxyRewrite';
 import { fetchPublicUrl, UnsafeTargetError } from '@/lib/safeTarget';
 import { Report as ReportType } from '@/lib/types/axe';
 import { User } from '@/lib/types/user';
@@ -8,116 +9,6 @@ import { getCurrentUser } from 'next-cas-client/app';
 import { NextRequest, NextResponse } from 'next/server';
 
 const MAX_PAGE_BYTES = 10 * 1024 * 1024;
-function makeHtmlPage(body: string) {
-    if (body.match(/<html/gi)) {
-        return body;
-    }
-    if (body.match(/<body/gi)) {
-        return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Accessibility Report</title>
-        </head>
-        ${body}
-        </html>`;
-    }
-
-    return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Accessibility Report</title>
-        </head>
-        <body>
-            <pre>${body}</pre>
-        </body>
-        </html>
-    `;
-}
-
-function redirectUrl(url: string, link: string) {
-    if (link.startsWith('http') || link.startsWith('https')) {
-        return link; // Don't change absolute URLs
-    }
-    if (link.startsWith('data:')) {
-        return link; // Don't change data URLs
-    }
-    if (link.startsWith('//')) {
-        return link; // Don't change protocol-relative URLs
-    }
-    // this is the hard part, links are usually handled relative to the base URL of the page, but we need to make it an absolute URL
-    let baseUrl = url;
-
-    const urlObj = new URL(baseUrl);
-
-    // if baseUrl ends with a file (e.g. .html, .php, .aspx, etc.), remove the file part
-    const endsWithFile = urlObj.pathname.match(/\/[^/]+\.[^/]+$/);
-    if (endsWithFile) {
-        baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/'));
-    }
-    if (!baseUrl.endsWith('/') && !link.startsWith('/')) {
-        baseUrl = baseUrl + '/';
-    }
-    const newUrl = new URL(link, baseUrl).href;
-    return newUrl;
-}
-
-function assetProxyUrl(absUrl: string) {
-    const urlObj = new URL(absUrl);
-    return `/proxy/asset/${urlObj.protocol.replace(':', '')}/${urlObj.host}${urlObj.pathname}${urlObj.search}`;
-}
-
-function injectScript(body: string, url: string, scriptToken: string) {
-    const reportScript = `<script defer src="${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/script/${scriptToken}/"></script>`;
-    let html = makeHtmlPage(body);
-
-    html = html.replace(/href="([^"]+)"/gi, (match, p1) => {
-        return `href="${redirectUrl(url, p1)}"`;
-    });
-
-    html = html.replace(/src="([^"]+)"/gi, (match, p1) => {
-        return `src="${redirectUrl(url, p1)}"`;
-    });
-
-    // Module scripts are always fetched in CORS mode, so cross-origin absolute URLs
-    // are blocked unless the site sends CORS headers (React/Vite builds break).
-    // Route them through our same-origin asset proxy instead.
-    html = html.replace(/<script([^>]*type=["']module["'][^>]*)>/gi, (match, attrs) => {
-        return `<script${attrs.replace(/src="(https?:\/\/[^"]+)"/i, (m: string, p1: string) => `src="${assetProxyUrl(p1)}"`)}>`;
-    });
-    html = html.replace(/<link([^>]*rel=["']modulepreload["'][^>]*)>/gi, (match, attrs) => {
-        return `<link${attrs.replace(/href="(https?:\/\/[^"]+)"/i, (m: string, p1: string) => `href="${assetProxyUrl(p1)}"`)}>`;
-    });
-
-    // crossorigin forces CORS on stylesheets/scripts too; strip it (and integrity,
-    // which requires CORS to verify) so they load in no-cors mode.
-    html = html.replace(/\s(?:crossorigin|integrity)(?:="[^"]*")?/gi, '');
-
-    // for the single page without a head tag, we need to add one
-    if (!html.match(/<\/head>/i)) {
-        // if there is no head tag, we need to add one
-        html = html.replace(/<html([^>]*)>/, `<html$1><head>${reportScript}</head>`);
-
-        if (!html.match(/<head>/i)) {
-            // if there is no head tag, we need to add one
-            html = html.replace(/<body([^>]*)>/, `<body$1><head>${reportScript}</head>`);
-        }
-        if (!html.match(/<head>/i)) {
-            // if there is still no head tag, we need to add one at the top
-            html = html.replace(/<html([^>]*)>/, `<html$1><head>${reportScript}</head><body>`);
-        }
-
-        return html;
-    }
-    html = html.replace(/<\/head>/i, `${reportScript} </head>`);
-
-    return html;
-}
 
 function proxyError(status: Response['status'], browser?: Browser) {
     switch (status) {
@@ -248,7 +139,7 @@ export async function GET(req: NextRequest) {
     if (report.url !== url) {
         return errorPage(400);
     }
-    const scriptToken = report.script_token;
+    const scriptSrc = `${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/script/${report.script_token}/`;
 
     try {
         const requestHeaders = new Headers();
@@ -262,7 +153,7 @@ export async function GET(req: NextRequest) {
         // Public hosts only, certificate verification on, every redirect hop checked.
         const response = await fetchPublicUrl(url, {
             headers: Object.fromEntries(requestHeaders.entries()),
-            responseType: 'text',
+            responseType: 'arraybuffer',
             maxContentLength: MAX_PAGE_BYTES,
         });
 
@@ -270,50 +161,31 @@ export async function GET(req: NextRequest) {
             return errorPage(response.status);
         }
 
-        let body = await response.data;
-        // Check script tags for any inner html which redirects right away and remove them
-        body = body.replace(
-            /<script[^>]*>[\s\S]*?window\.location[^;]*;?[\s\S]*?<\/script>/gi,
-            '<!-- Removed redirect script -->'
-        );
-        body = body.replace(
-            /<script[^>]*>[\s\S]*?document\.location[^;]*;?[\s\S]*?<\/script>/gi,
-            '<!-- Removed redirect script -->'
-        );
-        body = body.replace(
-            /<script[^>]*>[\s\S]*?location\.href[^;]*;?[\s\S]*?<\/script>/gi,
-            '<!-- Removed redirect script -->'
-        );
-
-        // if body has meta refresh tag, remove it
-        body = body.replace(
-            /<meta[^>]*http-equiv=["']?refresh["']?[^>]*>/gi,
-            '<!-- Removed meta refresh tag -->'
-        );
-
-        // if body has noscript tag with meta refresh, remove it
-        body = body.replace(
-            /<noscript>[\s\S]*?<meta[^>]*http-equiv=["']?refresh["']?[^>]*>[\s\S]*?<\/noscript>/gi,
-            '<!-- Removed noscript meta refresh tag -->'
-        );
-
-        body = body.replace(/<base href="[^"]*">/gi, ''); // Remove any base href tags to prevent issues with relative links
-        body = body.replace(/<link[^>]*rel=["']?icon["']?[^>]*>/gi, ''); // Remove any favicon link tags
-
-        body = injectScript(body, url, scriptToken);
-        if (!body) {
-            body = '<html><body><h1>No content</h1></body></html>';
+        // Only this app may frame the preview.
+        const headers: Record<string, string> = {
+            'Content-Security-Policy': "frame-ancestors 'self'",
+            'X-Content-Type-Options': 'nosniff',
+        };
+        const contentType = String(response.headers?.['content-type'] || '');
+        const bytes = new Uint8Array(response.data);
+        if (contentType && !/^text\/|html|xml|json|javascript/i.test(contentType)) {
+            // A PDF, an image: nothing to inject into, serve it as it is.
+            return new NextResponse(bytes, {
+                headers: { ...headers, 'Content-Type': contentType },
+            });
         }
 
-        return new NextResponse(body, {
-            headers: {
-                'Content-Type': response.headers
-                    ? String(response.headers['content-type'] || '') || 'text/html'
-                    : 'text/html',
-                // Only this app may frame the preview.
-                'Content-Security-Policy': "frame-ancestors 'self'",
-                'X-Content-Type-Options': 'nosniff',
-            },
+        // Links resolve against the page the browser would have ended up on.
+        const finalUrl = String(response.config?.url || url);
+        const text = decodeBody(bytes, contentType);
+        const html = rewritePage(
+            isHtml(contentType, text) ? text : textPage(text),
+            finalUrl,
+            scriptSrc
+        );
+
+        return new NextResponse(html, {
+            headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
         });
     } catch (err) {
         if (err instanceof UnsafeTargetError) {
