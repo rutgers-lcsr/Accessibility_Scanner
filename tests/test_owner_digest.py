@@ -122,6 +122,58 @@ def test_run_sends_one_digest_per_person_and_only_when_something_changed(app, ma
     assert third["sent"] == 1  # alice only: bob is not on that website
 
 
+def test_a_clean_website_does_not_start_a_digest(app, make_user, make_website, add_site, add_report):
+    now = datetime.now(timezone.utc)
+    alice = make_user("alice")
+    website = make_website(alice)
+    site = add_site(website, page="/")
+    _scan(add_report, site, [], when=now)
+    website.last_scanned = _naive(now)
+    db.session.commit()
+
+    assert run_owner_digests(now=_naive(now + timedelta(hours=1)))["sent"] == 0
+    assert alice.last_digest_at is None
+
+    _scan(add_report, site, [], when=now + timedelta(days=2))  # still clean on the next scan
+    website.last_scanned = _naive(now + timedelta(days=2))
+    db.session.commit()
+    assert run_owner_digests(now=_naive(now + timedelta(days=2, hours=1)))["sent"] == 0
+
+
+def test_fixing_everything_still_sends(app, make_user, make_website, add_site, add_report):
+    now = datetime.now(timezone.utc)
+    alice = make_user("alice")
+    website = make_website(alice)
+    site = add_site(website, page="/")
+    _scan(add_report, site, [_rule("region")], when=now)
+    website.last_scanned = _naive(now)
+    db.session.commit()
+    assert run_owner_digests(now=_naive(now + timedelta(hours=1)))["sent"] == 1
+
+    _scan(add_report, site, [], when=now + timedelta(days=2))
+    website.last_scanned = _naive(now + timedelta(days=2))
+    db.session.commit()
+    result = run_owner_digests(now=_naive(now + timedelta(days=2, hours=1)), dry_run=True)
+    assert result["sent"] == 1 and ": update: " in result["details"][0]
+
+
+def test_never_scanned_websites_are_left_out_of_the_email(app, make_user, make_website, add_site, add_report):
+    now = datetime.now(timezone.utc)
+    alice = make_user("alice")
+    scanned = make_website(alice, base="https://one.example.com")
+    make_website(alice, base="https://two.example.com")  # watched, never scanned
+    _scan(add_report, add_site(scanned, page="/"), [_rule("region")], when=now)
+    scanned.last_scanned = _naive(now)
+    db.session.commit()
+
+    digest = build_owner_digest(alice, sorted(alice.admin_websites, key=lambda w: w.url), None)
+
+    shown = [row["host"] for row in digest["websites"] if row["show"]]
+    assert shown == ["one.example.com"] and digest["hidden_websites"] == 0
+    email = OwnerDigestEmail(alice, digest, tone="first")
+    assert email.send() and "two.example.com" not in email.msg.body and "Not scanned yet" not in email.msg.body
+
+
 def test_run_is_idempotent_within_a_day(app, make_user, make_website, add_site, add_report):
     now = datetime.now(timezone.utc)
     website = make_website(make_user("alice"))

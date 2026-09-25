@@ -2,7 +2,8 @@
 
 One email per person covering every website they administer or belong to, sent by the
 daily task only when something changed for them since they were last emailed, or when a
-reminder is due. The change baseline is the person's own ``User.last_digest_at``;
+reminder is due. A website with no issues is news only when something on it got fixed or
+its scan failed, and never-scanned websites are left out of the email. The change baseline is the person's own ``User.last_digest_at``;
 ``Website.last_notified`` keeps being stamped for the Owners page and its CSV.
 """
 from datetime import datetime, timedelta, timezone
@@ -145,6 +146,7 @@ def build_owner_digest(user, websites, since, now=None, guides=None, overview=No
         failing = website.last_scan_status in ('failed', 'unreachable')
         violations = row['violations']
         changed = scanned_since and (previous is None or previous != violations['total'] or moved['fixed'] > 0 or moved['new'] > 0 or failing)
+        newsworthy = failing or violations['total'] > 0 or moved['fixed'] > 0 or (previous or 0) > violations['total']
         pages_with_issues = sum(
             1 for site_id in site_ids
             if site_id in latest and effective_counts(latest[site_id].report_counts, latest[site_id].suppressed_counts)['violations']['total'] > 0
@@ -158,8 +160,9 @@ def build_owner_digest(user, websites, since, now=None, guides=None, overview=No
             'pages_with_issues': pages_with_issues, 'violations': violations, 'previous_violations': previous,
             'new_since': moved['new'], 'fixed_since': moved['fixed'], 'triaged_since': moved['triaged'],
             'viewed_at': iso(viewed), 'scanned_since': scanned_since, 'changed': changed, 'failing': failing,
-            'escalated': escalated,
-            'show': changed or failing or violations['critical'] > 0 or violations['serious'] > 0 or since is None,
+            'escalated': escalated, 'newsworthy': newsworthy,
+            'show': (row['pages_audited'] > 0 or failing) and (
+                changed or failing or violations['critical'] > 0 or violations['serious'] > 0 or since is None),
         })
 
     totals = {
@@ -186,7 +189,7 @@ def build_owner_digest(user, websites, since, now=None, guides=None, overview=No
         'since': iso(since), 'generated_at': iso(now),
         'user': {'username': user.username if user else None, 'last_login': iso(user.last_login) if user else None,
                  'last_viewed': iso(last_viewed)},
-        'websites': rows, 'hidden_websites': sum(1 for r in rows if not r['show']),
+        'websites': rows, 'hidden_websites': hidden_websites(rows),
         'totals': totals,
         'fix_first': _fix_first(websites, overview, guides),
         'failing': [r for r in rows if r['failing']],
@@ -195,12 +198,18 @@ def build_owner_digest(user, websites, since, now=None, guides=None, overview=No
     }
 
 
+def hidden_websites(rows) -> int:
+    """Scanned websites left out of the email ("and N more with no change")."""
+    return sum(1 for row in rows if not row['show'] and row['pages_audited'] > 0)
+
+
 def digest_changed(digest: dict) -> bool:
-    """Whether the person has anything new to hear: the first digest with any audited page,
-    or a website scanned since the last one whose numbers moved or whose scan failed."""
+    """Whether the person has anything new to hear: the first digest with an audited website
+    that has issues, or a website scanned since the last one whose numbers moved or whose
+    scan failed. A clean website counts only when something on it got fixed."""
     if digest['since'] is None:
-        return any(row['pages_audited'] > 0 or row['failing'] for row in digest['websites'])
-    return any(row['changed'] for row in digest['websites'])
+        return any((row['pages_audited'] > 0 or row['failing']) and row['newsworthy'] for row in digest['websites'])
+    return any(row['changed'] and row['newsworthy'] for row in digest['websites'])
 
 
 def reminder_due(website: Website, violations: dict, activity_at, settings: dict, now: datetime):
@@ -291,7 +300,7 @@ def run_owner_digests(now=None, dry_run: bool = False, user_ids=None) -> dict:
         for row in digest['websites']:
             row['escalated'] = due_here.get(row['id']) == 'escalation'
             row['show'] = row['show'] or row['id'] in due_here
-        digest['hidden_websites'] = sum(1 for row in digest['websites'] if not row['show'])
+        digest['hidden_websites'] = hidden_websites(digest['websites'])
         cc = None
         if tone == 'escalation' and settings['email'] and any(
                 due_here.get(website.id) == 'escalation' and website.admin_id == user.id for website in mine):

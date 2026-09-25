@@ -137,7 +137,10 @@ Website owners and members get **one digest per person** covering all their webs
 the daily `send_owner_digests` task only when something changed for them since their last
 email (new or fixed findings, moved counts, a failed scan) or when a reminder is due. It leads
 with the fixes that clear the most pages (linking the Fix first tab and the fix guides) and
-says what the person fixed since last time. Nothing is sent from a scan itself.
+says what the person fixed since last time. Nothing is sent from a scan itself. A website with
+no issues only counts when something on it got fixed or its scan failed, and never-scanned
+websites are left out of the email. Only websites with "Include this website in the owner
+digest emails" switched on are covered.
 
 A website with open critical or serious issues and no activity (a verdict, or something the
 scanner saw fixed) for `reminder_after_days` gets a firmer reminder; after
