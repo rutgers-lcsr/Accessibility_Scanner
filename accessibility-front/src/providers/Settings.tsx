@@ -3,9 +3,10 @@ import { createContext, useContext } from 'react';
 import useSWR from 'swr';
 import { useUser } from './User';
 
+// Every value comes back from the API as a string.
 type Settings = {
     default_tags: string;
-    default_rate_limit: number;
+    default_rate_limit: string;
     default_should_auto_scan: string;
     default_notify_on_completion: string;
     default_email_domain: string;
@@ -27,10 +28,12 @@ type Settings = {
     document_recheck_days: string;
 };
 
+export type SettingKey = keyof Settings;
+
 type SettingsContextType = {
     settings: Settings | undefined;
     all_tags?: string[];
-    updateSettings: (newSettings: Partial<Settings>) => void;
+    updateSettings: (newSettings: Partial<Settings>) => Promise<Settings>;
     mutate?: () => void;
 };
 
