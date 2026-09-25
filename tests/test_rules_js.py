@@ -131,3 +131,72 @@ def test_website_ace_config_is_valid_for_rule_without_matches(app, make_user, ma
     assert "matches" not in rule_props
     assert [e.value for e in rule_props["any"].elements] == ["img-has-alt"]
     assert [_props(c)["id"].value for c in parsed["checks"].elements] == ["img-has-alt"]
+
+
+def _make_check(evaluate, name="my-check"):
+    from models.rules import Check
+
+    check = Check(name=name, evaluate=evaluate, pass_text="ok", fail_text="no")
+    check.save()
+    return check
+
+
+def test_comments_are_removed_from_evaluate(app):
+    check = _make_check("/* doc */ (node) => {\n  // why\n  return true; /* end */\n}")
+    assert "/*" not in check.evaluate and "//" not in check.evaluate
+    assert _parse_object(check.to_js_object())["evaluate"].type == "ArrowFunctionExpression"
+
+
+def test_comment_markers_inside_literals_are_kept(app):
+    # The old regex cut these at the // and rejected the check as invalid JavaScript.
+    evaluate = "(node) => node.href.startsWith('https://') && `/*${node.id}*/` !== '' && !/\\/\\//.test(node.title)"
+    check = _make_check(evaluate)
+    assert check.evaluate == evaluate
+
+
+def test_comment_markers_inside_matches_literals_are_kept(app):
+    matches = "(node) => node.getAttribute('href') !== 'http://example.com' // external"
+    rule = _make_rule(matches=matches)
+    assert rule.matches == "(node) => node.getAttribute('href') !== 'http://example.com'"
+
+
+def test_builtin_axe_rule_names_are_rejected(app):
+    import pytest
+
+    with pytest.raises(ValueError, match="built-in axe-core rule"):
+        _make_rule(name="image-alt")
+
+
+def test_builtin_axe_check_names_are_rejected(app):
+    import pytest
+
+    with pytest.raises(ValueError, match="built-in axe-core check"):
+        _make_check("(node) => true", name="has-alt")
+
+
+def test_axe_id_list_matches_the_bundled_axe():
+    import json
+    import re
+    import shutil
+    import subprocess
+
+    import pytest
+
+    from models.rules import AXE_IDS_PATH
+
+    axe_path = AXE_IDS_PATH.with_name("axe.min.js")
+    ids = json.loads(AXE_IDS_PATH.read_text())
+    header = axe_path.read_text()[:100]
+    assert re.search(r"axe v(\S+)", header).group(1) == ids["version"], (
+        "axe.min.js was upgraded; regenerate axe_ids.json (command in models/rules.py)"
+    )
+
+    if not shutil.which("node"):
+        pytest.skip("node is not installed")
+    script = (
+        "const axe=require(process.argv[1]);"
+        "console.log(JSON.stringify({rules: axe.getRules().map(r=>r.ruleId).sort(),"
+        " checks: Object.keys(axe._audit.checks).sort()}))"
+    )
+    out = subprocess.run(["node", "-e", script, str(axe_path)], capture_output=True, text=True, check=True)
+    assert json.loads(out.stdout) == {"rules": ids["rules"], "checks": ids["checks"]}

@@ -1,15 +1,29 @@
 
-import re
+from functools import lru_cache
+from pathlib import Path
 from models import db
 from sqlalchemy.orm import Mapped
 from datetime import datetime
 from typing import List, Literal
 import json
 
-from utils.javascript import is_single_arrow_function, is_valid_js, is_valid_object
+from utils.javascript import is_single_arrow_function, is_valid_js, is_valid_object, strip_comments
 from utils.urls import is_valid_url
 
 impact_levels = Literal["minor", "moderate", "serious", "critical"]
+
+# Rule and check ids built into the bundled axe-core. Regenerate after upgrading axe.min.js:
+#   cd scanner/accessibility && node -e "const axe=require('./axe.min.js'); require('fs').writeFileSync('axe_ids.json', JSON.stringify({version: axe.version, rules: axe.getRules().map(r=>r.ruleId).sort(), checks: Object.keys(axe._audit.checks).sort()}, null, 2)+'\n')"
+AXE_IDS_PATH = Path(__file__).resolve().parent.parent / 'scanner' / 'accessibility' / 'axe_ids.json'
+
+
+@lru_cache(maxsize=1)
+def axe_builtin_ids() -> dict:
+    """{'rules': ..., 'checks': ...} ids of the bundled axe-core. axe.configure() replaces
+    a built-in rule or check that has the same id as a custom one."""
+    with open(AXE_IDS_PATH) as f:
+        data = json.load(f)
+    return {'rules': frozenset(data['rules']), 'checks': frozenset(data['checks'])}
 
 class Check(db.Model):
     __tablename__ = 'checks'
@@ -49,12 +63,10 @@ class Check(db.Model):
         check_checks = db.session.query(Check).filter_by(name=self.name).first()
         if check_checks and check_checks.id != self.id:
             raise ValueError("Check with this name already exists")
+        if self.name in axe_builtin_ids()['checks']:
+            raise ValueError(f"name '{self.name}' is a built-in axe-core check and would replace it")
         
-        
-        # remove comments from evaluate
-        self.evaluate = re.sub(r'/\*.*?\*/', '', self.evaluate, flags=re.DOTALL)  # remove /* */ comments
-        self.evaluate = re.sub(r'//.*?$', '', self.evaluate, flags=re.MULTILINE)  # remove // comments
-        self.evaluate = self.evaluate.strip()
+        self.evaluate = strip_comments(self.evaluate).strip()
         
         if not is_single_arrow_function(self.evaluate, ["node", "options?", "virtualNode?"], optional_async_function=True):
             raise ValueError("evaluate must be a valid JavaScript function starting with '(node, options?, virtualNode?) => ' and be of type (node: Element, options?: any, virtualNode?: any) => boolean")
@@ -207,6 +219,14 @@ class Rule(db.Model):
         self.json = None  # will be set in save()
 
     def save(self):
+        self.validate()
+
+        db.session.add(self)
+        db.session.commit()
+
+    def validate(self):
+        if self.name in axe_builtin_ids()['rules']:
+            raise ValueError(f"name '{self.name}' is a built-in axe-core rule and would replace it")
         if not self.impact or self.impact not in ["minor", "moderate", "serious", "critical"]:
             raise ValueError("impact must be one of: minor, moderate, serious, critical")
         # expand tags into a comma separated list, replace spaces with underscores, escape special characters
@@ -223,12 +243,7 @@ class Rule(db.Model):
         
         # check this at the end because it can be expensive
         if self.matches:
-            self.matches = self.matches.strip()
-            
-            # remove comments from matches
-            self.matches = re.sub(r'/\*.*?\*/', '', self.matches, flags=re.DOTALL)  # remove /* */ comments
-            self.matches = re.sub(r'//.*?$', '', self.matches, flags=re.MULTILINE)  # remove // comments
-            self.matches = self.matches.strip()
+            self.matches = strip_comments(self.matches).strip()
             
             if not is_single_arrow_function(self.matches, ["node", "virtualNode?"]):
                 raise ValueError("matches must be a valid JavaScript function starting with '(node, virtualNode?) => ' and be of type (node: Element, virtualNode?: any) => boolean")
@@ -238,9 +253,6 @@ class Rule(db.Model):
 
         self.to_js_object(update=True)
 
-        db.session.add(self)
-        db.session.commit()
-    
     def to_dict(self):
         return {
             "id": self.id,

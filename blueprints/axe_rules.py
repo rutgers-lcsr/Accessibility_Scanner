@@ -16,15 +16,6 @@ def _client_error(exc: Exception):
     return jsonify({'error': 'Request failed'}), 400
 
 
-def _client_error(exc: Exception):
-    """400 with the message for validation errors (ValueError); a generic message
-    otherwise, so internal details are logged rather than returned."""
-    if isinstance(exc, ValueError):
-        return jsonify({'error': str(exc)}), 400
-    current_app.logger.exception("Unexpected error in axe rules endpoint")
-    return jsonify({'error': 'Request failed'}), 400
-
-
 default_rule = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice", "wcag2a-obsolete", "wcag***" , "ACT", "section508", "TTv5", "EN-301-549" , "RGAAv4", "experimental", "wcag2aaa", "wcag22aa"]
 
 

@@ -2,12 +2,15 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, Response, g, jsonify, request
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from authentication.api_key import api_key_required
 from blueprints.website import create_website_for, update_website_for
 from models import db
 from models.report import Report
+from models.rules import Rule
 from models.website import Domain, Site, Website
+from services.rules import RuleInputError, active_website_tags, build_rule, serialize_rule
 from services.scan import (
     queue_site_scan,
     queue_website_scan,
@@ -448,6 +451,282 @@ def list_domains():
         'count': result.total,
         'items': [domain.to_dict() for domain in result.items],
     }), 200
+
+
+@api_bp.route('/rules', methods=['GET'])
+@api_key_required
+def list_rules_endpoint():
+    """List the custom axe rules (site admins only).
+
+    Each rule is returned with its checks, in the shape POST /api/v1/rules accepts.
+    ---
+    tags:
+      - Rules
+    parameters:
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Case-insensitive substring of the rule name.
+      - name: page
+        in: query
+        type: integer
+        required: false
+        default: 1
+        description: Page number, starting at 1. A page past the end returns no items.
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 100
+        description: Results per page, capped at 100.
+    responses:
+      200:
+        description: count (total matches) and items (the rules on this page).
+      400:
+        description: page or limit below 1.
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner is not a site admin.
+    """
+    if not (g.api_user.profile is not None and g.api_user.profile.is_admin):
+        return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        page, limit, search, _ = _search_params()
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+    query = db.session.query(Rule)
+    if search:
+        query = query.filter(Rule.name.icontains(search, autoescape=True))
+    result = query.order_by(Rule.name.asc()).paginate(
+        page=page, per_page=limit, max_per_page=100, error_out=False
+    )
+    website_tags = active_website_tags()
+    return jsonify({
+        'count': result.total,
+        'items': [serialize_rule(rule, website_tags) for rule in result.items],
+    }), 200
+
+
+@api_bp.route('/rules/<int:rule_id>', methods=['GET'])
+@api_key_required
+def get_rule_endpoint(rule_id):
+    """Get a custom axe rule with its checks (site admins only).
+    ---
+    tags:
+      - Rules
+    parameters:
+      - name: rule_id
+        in: path
+        type: integer
+        required: true
+        description: Numeric rule ID.
+    responses:
+      200:
+        description: The rule, in the shape POST /api/v1/rules accepts.
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner is not a site admin.
+      404:
+        description: Rule not found.
+    """
+    if not (g.api_user.profile is not None and g.api_user.profile.is_admin):
+        return jsonify({'error': 'Unauthorized'}), 403
+    rule = db.session.get(Rule, rule_id)
+    if not rule:
+        return jsonify({'error': 'Rule not found'}), 404
+    return jsonify(serialize_rule(rule, active_website_tags())), 200
+
+
+@api_bp.route('/rules', methods=['POST'])
+@limiter.limit("30/minute")
+@api_key_required
+def create_rule_endpoint():
+    """Create a custom axe rule together with its checks (site admins only).
+
+    A rule selects elements with selector (narrowed by matches when given) and runs its
+    checks on each of them. An element passes when at least one "any" check returns
+    true, every "all" check returns true, and no "none" check returns true. A check that
+    returns undefined marks the element for manual review (incomplete).
+
+    A website's scans run the rule only when one of the rule's tags is among the
+    website's scan tags. Every website scans with the default tags from Settings
+    (e.g. wcag2a, wcag2aa) plus its own; websites_running in the response is the number
+    of active websites whose scans will run the rule. Scans started after the rule is
+    saved use it.
+
+    Every problem in the body is reported in one response. Add ?dry_run=true to validate
+    without saving. GET /api/v1/rules returns existing rules in the same shape; their
+    id, created_at, updated_at and websites_running fields are ignored here.
+    ---
+    tags:
+      - Rules
+    consumes:
+      - application/json
+    definitions:
+      RuleCheck:
+        type: object
+        required:
+          - name
+          - evaluate
+          - pass_text
+          - fail_text
+        properties:
+          name:
+            type: string
+            example: "alt-is-file-name"
+            description: >
+              Check ID, unique across all custom checks, at most 255 characters, and
+              not an axe-core check ID such as has-alt.
+          evaluate:
+            type: string
+            example: "(node) => ['.png', '.jpg', '.gif'].some((ext) => node.getAttribute('alt').trim().toLowerCase().endsWith(ext))"
+            description: >
+              JavaScript arrow function (node, options, virtualNode) => boolean, run in
+              the scanned page for each selected element. node is the DOM Element and
+              options is this check's options object; the first parameter must be named
+              node. Return true or false, or undefined when the result needs manual
+              review. Arrow functions have no this, so axe's this.data() and
+              this.relatedNodes() are unavailable. Comments are removed when saved.
+          options:
+            type: object
+            description: Passed to evaluate as its second argument.
+          pass_text:
+            type: string
+            example: "Alt text is not a file name"
+            description: >
+              Report message when the check passes the element: evaluate returned
+              true in any or all, false in none.
+          fail_text:
+            type: string
+            example: "Alt text is a file name"
+            description: >
+              Report message when the check fails the element: evaluate returned
+              false in any or all, true in none.
+          incomplete_text:
+            type: string
+            description: Report message when evaluate returns undefined.
+    parameters:
+      - name: dry_run
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: Validate the rule and report websites_running without saving it.
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - name
+            - description
+            - help
+            - impact
+            - tags
+          properties:
+            name:
+              type: string
+              example: "image-alt-not-file-name"
+              description: >
+                Rule ID shown in reports; unique, at most 255 characters, and not an
+                axe-core rule ID such as image-alt.
+            description:
+              type: string
+              example: "Ensures image alt text is not the image's file name"
+              description: What the rule checks.
+            help:
+              type: string
+              example: "Image alt text must describe the image, not name its file"
+              description: Short summary of the problem, shown as the issue title in reports.
+            help_url:
+              type: string
+              description: Page explaining the issue and how to fix it. Must resolve.
+            impact:
+              type: string
+              enum: [minor, moderate, serious, critical]
+            tags:
+              type: array
+              items:
+                type: string
+              example: ["wcag2a", "wcag111"]
+              description: >
+                At least one; no commas. Decides which websites run the rule (see
+                above). Spaces become underscores.
+            selector:
+              type: string
+              default: "*"
+              example: "img[alt]"
+              description: CSS selector of the elements to check. At most 255 characters.
+            matches:
+              type: string
+              example: "(node) => node.getAttribute('alt').trim() !== ''"
+              description: >
+                Optional JavaScript arrow function (node, virtualNode) => boolean that
+                further filters the selected elements; the first parameter must be
+                named node.
+            exclude_hidden:
+              type: boolean
+              default: true
+              description: Skip elements hidden from all users.
+            enabled:
+              type: boolean
+              default: true
+              description: Disabled rules are saved but not run.
+            any:
+              type: array
+              items:
+                $ref: '#/definitions/RuleCheck'
+              description: New checks of which at least one must return true.
+            all:
+              type: array
+              items:
+                $ref: '#/definitions/RuleCheck'
+              description: New checks that must all return true.
+            none:
+              type: array
+              items:
+                $ref: '#/definitions/RuleCheck'
+              description: New checks that must all return false.
+    responses:
+      200:
+        description: dry_run only. The rule as it would be saved, with id null.
+      201:
+        description: The saved rule, in the shape GET /api/v1/rules/{rule_id} returns.
+      400:
+        description: >
+          The rule is not valid. errors lists every problem as {field, message}, with
+          field a path into the body such as "name" or "none[0].evaluate" ("rule" for
+          problems with the rule as a whole).
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner is not a site admin.
+      409:
+        description: A rule or check with the same name was saved at the same time.
+      429:
+        description: More than 30 requests per minute.
+    """
+    if not (g.api_user.profile is not None and g.api_user.profile.is_admin):
+        return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        rule = build_rule(request.get_json(silent=True))
+    except RuleInputError as e:
+        return jsonify({'error': 'The rule is not valid', 'errors': e.errors}), 400
+
+    if request.args.get('dry_run', default='', type=str).lower() in ('1', 'true'):
+        return jsonify(serialize_rule(rule, active_website_tags())), 200
+
+    db.session.add(rule)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'A rule or check with this name already exists'}), 409
+    return jsonify(serialize_rule(rule, active_website_tags())), 201
 
 
 @api_bp.route('/reports/<int:report_id>', methods=['GET'])

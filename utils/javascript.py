@@ -10,6 +10,20 @@ def is_valid_js(s: str) -> bool:
         return False
     
 
+def strip_comments(s: str) -> str:
+    """``s`` with every comment replaced by a space; text inside string, template and
+    regex literals is left alone. ``s`` is returned unchanged when it does not parse, so
+    the caller's own validation reports the syntax error."""
+    try:
+        comments = esprima.parseScript(s, {'comment': True, 'range': True}).comments
+    except esprima.Error:
+        return s
+    for comment in reversed(comments):
+        start, end = comment.range
+        s = s[:start] + ' ' + s[end:]
+    return s
+
+
 def is_single_arrow_function(s: str, args: list, optional_async_function: bool = False) -> bool:
     try:
         parsed = esprima.parseScript(s)
