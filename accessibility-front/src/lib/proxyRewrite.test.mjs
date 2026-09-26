@@ -6,6 +6,7 @@ import {
     decodeBody,
     isHtml,
     pageBase,
+    PREVIEW_URL_GLOBAL,
     previewGuard,
     resolveUrl,
     rewritePage,
@@ -145,7 +146,7 @@ test('what counts as html, and how plain text is shown', () => {
 function runGuard(pageUrl) {
     const calls = { replaced: [], listener: null };
     const context = {
-        location: { origin: 'https://a11y.example' },
+        location: { origin: 'https://a11y.example', href: 'https://a11y.example/proxy?report=1' },
         history: { state: null, replaceState: (_, __, url) => calls.replaced.push(url) },
         navigation: {
             addEventListener: (type, fn) => type === 'navigate' && (calls.listener = fn),
@@ -159,8 +160,12 @@ function runGuard(pageUrl) {
         calls.listener({ cancelable: true, ...event, preventDefault: () => (prevented = true) });
         return prevented;
     };
-    return { replaced: calls.replaced, navigate };
+    return { replaced: calls.replaced, navigate, previewUrl: context[PREVIEW_URL_GLOBAL] };
 }
+
+test('the guard keeps the /proxy address for the report script', () => {
+    assert.equal(runGuard('https://site.edu/x').previewUrl, 'https://a11y.example/proxy?report=1');
+});
 
 test('the guard moves the page to its own path', () => {
     assert.deepEqual(runGuard('https://site.edu/view/cs344/?tab=1#top').replaced, [

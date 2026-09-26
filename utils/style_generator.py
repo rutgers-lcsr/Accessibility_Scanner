@@ -254,7 +254,9 @@ var header = `****** Accessibility Scanner Report Script ******`
 console.log(header)
 
 const wanted = `{safe_url}`;
-const currentUrl = window.location.href;
+// The preview frame moves to the page's own path before this runs; its /proxy address
+// is kept in __a11yPreviewUrl (previewGuard in the frontend's lib/proxyRewrite.ts).
+const currentUrl = window.__a11yPreviewUrl || window.location.href;
 var accesslog = (message, level = "info", ...args) => {{
     console.log(`[Access] [${{level}}]: ${{message}}`, ...args);
 }};

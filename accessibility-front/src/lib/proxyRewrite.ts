@@ -87,6 +87,12 @@ function rewriteSrcset(value: string, base: string): string {
 export const PREVIEW_COOKIE = 'a11y_preview';
 
 /**
+ * Global holding the frame's /proxy address from before previewGuard moved it; the
+ * report script (utils/style_generator.py on the backend) checks it for the report URL.
+ */
+export const PREVIEW_URL_GLOBAL = '__a11yPreviewUrl';
+
+/**
  * A script run before any of the page's own. The preview is served from /proxy on our
  * origin, so without it the page sees the wrong address:
  * - the address moves to the page's own path (same origin, so the frame stays on the
@@ -104,10 +110,11 @@ export function previewGuard(pageUrl: string): string {
     } catch {
         // keep '/'
     }
-    // JSON is a valid JS literal; < keeps a "</script>" in the path from closing the tag.
+    // JSON is a valid JS literal; escaping < keeps a "</script>" in the path from closing the tag.
     const target = JSON.stringify(path).replace(/</g, '\\u003c');
     return (
         '<script>(function () {' +
+        `window.${PREVIEW_URL_GLOBAL} = location.href;` +
         `try { history.replaceState(history.state, '', location.origin + ${target}); } catch (e) {}` +
         "if (window.navigation) navigation.addEventListener('navigate', function (e) {" +
         'if (!e.userInitiated && e.cancelable && !e.destination.sameDocument) e.preventDefault();' +
