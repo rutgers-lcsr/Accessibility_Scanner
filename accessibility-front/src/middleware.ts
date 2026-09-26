@@ -1,61 +1,28 @@
 import { getCurrentUser } from 'next-cas-client/app';
+import { PREVIEW_COOKIE } from '@/lib/proxyRewrite';
+import { proxiedAssetTarget } from '@/lib/proxyTarget';
 import { NextRequest, NextResponse } from 'next/server';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL as string;
 const casUrl = process.env.NEXT_PUBLIC_CAS_URL as string;
 
-const appPaths = [
-    '/help',
-    '/dashboard',
-    '/scan',
-    '/rules',
-    '/proxy',
-    '/settings',
-    '/domains',
-    '/reports',
-    '/websites',
-    '/owners',
-    '/login',
-];
-
-// Proxied pages load assets with absolute paths (e.g. a React bundle preloading
-// /assets/chunk.css) that resolve against our origin instead of the proxied site.
-// Use the Referer to recover the original site and forward to the asset proxy.
+// Stray same-origin requests from a proxied page go to the asset proxy (lib/proxyTarget).
 function proxiedAssetRewrite(request: NextRequest) {
-    const pathname = request.nextUrl.pathname;
-    if (pathname === '/' || appPaths.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    const target = proxiedAssetTarget(
+        request.nextUrl.pathname,
+        request.headers.get('referer'),
+        request.cookies.get(PREVIEW_COOKIE)?.value,
+        baseUrl
+    );
+    if (!target) {
         return null;
     }
-    const referer = request.headers.get('referer');
-    if (!referer) {
-        return null;
-    }
-    try {
-        const refererUrl = new URL(referer);
-        if (refererUrl.origin !== new URL(baseUrl).origin) {
-            return null;
-        }
-        let target: URL | null = null;
-        if (refererUrl.pathname === '/proxy') {
-            target = new URL(refererUrl.searchParams.get('url') || '');
-        } else {
-            const match = refererUrl.pathname.match(/^\/proxy\/asset\/(https?)\/([^/]+)\//);
-            if (match) {
-                target = new URL(`${match[1]}://${match[2]}`);
-            }
-        }
-        if (!target) {
-            return null;
-        }
-        return NextResponse.rewrite(
-            new URL(
-                `/proxy/asset/${target.protocol.replace(':', '')}/${target.host}${pathname}${request.nextUrl.search}`,
-                request.url
-            )
-        );
-    } catch {
-        return null;
-    }
+    return NextResponse.rewrite(
+        new URL(
+            `/proxy/asset/${target.protocol.replace(':', '')}/${target.host}${request.nextUrl.pathname}${request.nextUrl.search}`,
+            request.url
+        )
+    );
 }
 
 export async function middleware(request: NextRequest) {

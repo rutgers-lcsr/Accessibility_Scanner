@@ -1,10 +1,20 @@
 // node --test (Node 22 strips the types of the module under test).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { decodeBody, isHtml, pageBase, resolveUrl, rewritePage, textPage } from './proxyRewrite.ts';
+import vm from 'node:vm';
+import {
+    decodeBody,
+    isHtml,
+    pageBase,
+    previewGuard,
+    resolveUrl,
+    rewritePage,
+    textPage,
+} from './proxyRewrite.ts';
 
 const SCRIPT = 'https://a11y.example/api/reports/script/tok/';
 const page = (body, url = 'https://site.edu/about') => rewritePage(body, url, SCRIPT);
+const INJECT = `<meta charset="utf-8">${previewGuard('https://site.edu/about')}<script defer src="${SCRIPT}"></script>`;
 
 test('relative links resolve like a browser would', () => {
     assert.equal(resolveUrl('img/x.png', 'https://site.edu/about'), 'https://site.edu/img/x.png');
@@ -89,17 +99,11 @@ test('meta refresh, meta CSP and the charset declaration go; ours comes in', () 
             !out.includes('iso-8859-1')
     );
     assert.ok(!out.includes('f.ico'));
-    assert.ok(
-        out.startsWith(`<html><head><meta charset="utf-8"><script defer src="${SCRIPT}"></script>`)
-    );
+    assert.ok(out.startsWith(`<html><head>${INJECT}`));
 });
 
 test('a page without a head, or without html, still gets the script', () => {
-    assert.ok(
-        page('<html><body>x</body></html>').includes(
-            `<html><head><meta charset="utf-8"><script defer src="${SCRIPT}"></script></head><body>`
-        )
-    );
+    assert.ok(page('<html><body>x</body></html>').includes(`<html><head>${INJECT}</head><body>`));
     assert.ok(page('<p>fragment</p>').startsWith('<head><meta charset="utf-8">'));
     assert.ok(!page('<header>site</header>').includes('<header><meta'));
 });
@@ -135,4 +139,72 @@ test('what counts as html, and how plain text is shown', () => {
     assert.ok(isHtml('', '<!DOCTYPE html><html>'));
     assert.ok(!isHtml('application/json', '{"a": "<html>"}'));
     assert.ok(textPage('<b>&').includes('<pre>&lt;b&gt;&amp;</pre>'));
+});
+
+/** Runs the guard's script against a fake window; returns what it did. */
+function runGuard(pageUrl) {
+    const calls = { replaced: [], listener: null };
+    const context = {
+        location: { origin: 'https://a11y.example' },
+        history: { state: null, replaceState: (_, __, url) => calls.replaced.push(url) },
+        navigation: {
+            addEventListener: (type, fn) => type === 'navigate' && (calls.listener = fn),
+        },
+    };
+    context.window = context;
+    const code = /<script>([\s\S]*)<\/script>/.exec(previewGuard(pageUrl))[1];
+    vm.runInNewContext(code, context);
+    const navigate = (event) => {
+        let prevented = false;
+        calls.listener({ cancelable: true, ...event, preventDefault: () => (prevented = true) });
+        return prevented;
+    };
+    return { replaced: calls.replaced, navigate };
+}
+
+test('the guard moves the page to its own path', () => {
+    assert.deepEqual(runGuard('https://site.edu/view/cs344/?tab=1#top').replaced, [
+        'https://a11y.example/view/cs344/?tab=1',
+    ]);
+    assert.deepEqual(runGuard('https://site.edu').replaced, ['https://a11y.example/']);
+});
+
+test('the guard cancels only navigations the page starts itself', () => {
+    const { navigate } = runGuard('https://site.edu/');
+    const away = { destination: { sameDocument: false, url: 'https://site.edu/' } };
+    assert.equal(navigate({ ...away, userInitiated: false }), true);
+    assert.equal(navigate({ ...away, userInitiated: true }), false);
+    assert.equal(navigate({ ...away, userInitiated: false, cancelable: false }), false);
+    // Client-side routing (pushState) stays within the document.
+    assert.equal(
+        navigate({
+            userInitiated: false,
+            destination: { sameDocument: true, url: 'https://a11y.example/x' },
+        }),
+        false
+    );
+});
+
+test('the guard works without the Navigation API', () => {
+    const context = {
+        location: { origin: 'https://a11y.example' },
+        history: { state: null, replaceState: () => {} },
+    };
+    context.window = context;
+    const code = /<script>([\s\S]*)<\/script>/.exec(previewGuard('https://site.edu/'))[1];
+    assert.doesNotThrow(() => vm.runInNewContext(code, context));
+});
+
+test('the guard cannot be closed early by the page URL', () => {
+    const guard = previewGuard('https://site.edu/a?q=</script><script>alert(1)</script>');
+    assert.equal(guard.match(/<\/script>/gi).length, 1);
+    assert.ok(guard.endsWith('</script>'));
+});
+
+test('the guard runs before any of the page scripts and survives the redirect filter', () => {
+    const out = page(
+        '<html><head><script>var early = 1;</script><script src="/app.js"></script></head><body></body></html>'
+    );
+    assert.ok(out.indexOf(previewGuard('https://site.edu/about')) >= 0);
+    assert.ok(out.indexOf('replaceState') < out.indexOf('var early'));
 });

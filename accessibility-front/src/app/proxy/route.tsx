@@ -1,6 +1,6 @@
 import ProxyError from '@/components/ProxyError';
 import { Browser, getAxeLink, getCurrentBrowser } from '@/lib/browserServerSide';
-import { decodeBody, isHtml, rewritePage, textPage } from '@/lib/proxyRewrite';
+import { decodeBody, isHtml, PREVIEW_COOKIE, rewritePage, textPage } from '@/lib/proxyRewrite';
 import { fetchPublicUrl, UnsafeTargetError } from '@/lib/safeTarget';
 import { Report as ReportType } from '@/lib/types/axe';
 import { User } from '@/lib/types/user';
@@ -184,9 +184,18 @@ export async function GET(req: NextRequest) {
             scriptSrc
         );
 
-        return new NextResponse(html, {
+        const page = new NextResponse(html, {
             headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' },
         });
+        // The page moves to its own path (previewGuard), which takes /proxy out of its
+        // Referer; the middleware then finds the site from this cookie.
+        page.cookies.set(PREVIEW_COOKIE, finalUrl, {
+            path: '/',
+            httpOnly: true,
+            sameSite: 'strict',
+            secure: (process.env.NEXT_PUBLIC_BASE_URL || '').startsWith('https:'),
+        });
+        return page;
     } catch (err) {
         if (err instanceof UnsafeTargetError) {
             return errorPage(403);

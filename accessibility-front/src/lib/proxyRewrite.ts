@@ -83,6 +83,39 @@ function rewriteSrcset(value: string, base: string): string {
         .join(', ');
 }
 
+/** Cookie holding the URL of the page last previewed, read by middleware.ts. */
+export const PREVIEW_COOKIE = 'a11y_preview';
+
+/**
+ * A script run before any of the page's own. The preview is served from /proxy on our
+ * origin, so without it the page sees the wrong address:
+ * - the address moves to the page's own path (same origin, so the frame stays on the
+ *   preview), and client-side routers find their route instead of a not-found view;
+ * - navigations the page starts itself that would leave the document are cancelled.
+ *   Some sites send a copy served from another host back to the original from their
+ *   external scripts, which the inline-script check cannot see. Links the user follows
+ *   still work. Browsers without the Navigation API only get the first part.
+ */
+export function previewGuard(pageUrl: string): string {
+    let path = '/';
+    try {
+        const url = new URL(pageUrl);
+        path = url.pathname + url.search;
+    } catch {
+        // keep '/'
+    }
+    // JSON is a valid JS literal; < keeps a "</script>" in the path from closing the tag.
+    const target = JSON.stringify(path).replace(/</g, '\\u003c');
+    return (
+        '<script>(function () {' +
+        `try { history.replaceState(history.state, '', location.origin + ${target}); } catch (e) {}` +
+        "if (window.navigation) navigation.addEventListener('navigate', function (e) {" +
+        'if (!e.userInitiated && e.cancelable && !e.destination.sameDocument) e.preventDefault();' +
+        '});' +
+        '})();</script>'
+    );
+}
+
 /** The proxied page, ready to serve. `scriptSrc` is the report script's URL. */
 export function rewritePage(html: string, pageUrl: string, scriptSrc: string): string {
     const base = pageBase(html, pageUrl);
@@ -131,7 +164,7 @@ export function rewritePage(html: string, pageUrl: string, scriptSrc: string): s
         tag.replace(/\s(?:crossorigin|integrity)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '')
     );
 
-    const inject = `<meta charset="utf-8"><script defer src="${scriptSrc}"></script>`;
+    const inject = `<meta charset="utf-8">${previewGuard(pageUrl)}<script defer src="${scriptSrc}"></script>`;
     if (/<head\b[^>]*>/i.test(html)) {
         return html.replace(/<head\b[^>]*>/i, (tag) => `${tag}${inject}`);
     }

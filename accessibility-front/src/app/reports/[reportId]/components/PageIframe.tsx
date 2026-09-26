@@ -15,6 +15,7 @@ function PageIframe({ url, children }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [frameKey, setFrameKey] = useState(0);
     const { addAlert } = useAlerts();
 
     // "Show in preview" on a violation: scroll the framed page to the element and open
@@ -53,13 +54,10 @@ function PageIframe({ url, children }: Props) {
         return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
     }, []);
 
-    const handleRefresh = () => {
-        if (iframeRef.current) {
-            // Re-assigning src reloads the iframe and returns it to the
-            // original page even if the user navigated away inside it
-            iframeRef.current.src = url;
-        }
-    };
+    // A new iframe returns to the original page even if the user navigated away inside
+    // it. Re-assigning src would not: the preview cancels navigations it did not start
+    // from a click (previewGuard in lib/proxyRewrite).
+    const handleRefresh = () => setFrameKey((key) => key + 1);
 
     const toggleFullscreen = () => {
         if (document.fullscreenElement) {
@@ -91,6 +89,7 @@ function PageIframe({ url, children }: Props) {
                 </Tooltip>
             </div>
             <iframe
+                key={frameKey}
                 onError={(e) => console.error('Iframe error:', e)}
                 ref={iframeRef}
                 src={url}
