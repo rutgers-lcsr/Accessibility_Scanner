@@ -142,3 +142,17 @@ def test_redirects_stay_http_behind_the_proxy(client):
     assert resp.status_code == 308
     assert resp.headers["Location"].startswith("http://")
     assert resp.headers["Location"].endswith("/api/websites/")
+
+
+def test_internal_secret_defaults_to_jwt_key(monkeypatch):
+    import importlib
+    import config
+
+    monkeypatch.delenv("INTERNAL_AUTH_SECRET")
+    try:
+        importlib.reload(config)
+        assert config.INTERNAL_AUTH_SECRET == config.JWT_SECRET_KEY
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+    assert config.INTERNAL_AUTH_SECRET == "test-internal-secret"

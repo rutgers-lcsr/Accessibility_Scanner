@@ -46,9 +46,10 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
     cd Accessibility_Scanner
     ```
 3. Set up environment variables in a `.env` file based on the provided `.env.example` file.
-   `JWT_SECRET_KEY` and `INTERNAL_AUTH_SECRET` are required; the backend refuses to start
-   without them. `INTERNAL_AUTH_SECRET` must also be given to the frontend, which sends it
-   when logging users in so that nothing else can call the login endpoint. `SITE_ADMINS` is
+   `JWT_SECRET_KEY` is required; the backend refuses to start without it. The frontend sends
+   `INTERNAL_AUTH_SECRET` when logging users in so that nothing else can call the login
+   endpoint; it defaults to `JWT_SECRET_KEY`, so set it only if you want the two rotated
+   separately (then give the same value to both containers). `SITE_ADMINS` is
    a comma-separated list of full email addresses. `ADMIN_EMAIL` and `ADMIN_PASSWORD` are
    optional; when either is unset no bootstrap admin user is created.
 4. For local development without Docker, create `accessibility-front/.env` with the frontend
@@ -57,7 +58,7 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
 
     ```bash
      API_URL=http://localhost:5000  # URL of the backend api e.g. http://a11y-api:5000 if using docker
-     INTERNAL_AUTH_SECRET="change-me" # must match the backend value
+     INTERNAL_AUTH_SECRET="change-me" # must match the backend value (its default is JWT_SECRET_KEY)
      NEXT_CAS_CLIENT_SECRET="heA1hsrnQ6mrNe7eaqxsz3i74vAKZhM0" # 32 character random string used for session encryption
      NEXT_PUBLIC_BASE_URL="http://localhost:3000" # Public URL for the frontend e.g. http://a11y.example.com
      NEXT_PUBLIC_CAS_URL="https://localhost:8443/cas" # CAS server URL
