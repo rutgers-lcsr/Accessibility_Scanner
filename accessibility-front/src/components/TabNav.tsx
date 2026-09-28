@@ -96,7 +96,9 @@ export default function TabNav({ user }: Props) {
     items.push(
         user
             ? {
-                  label: 'Logout',
+                  // Who is signed in, so a dev sign-in or a shared machine is never a guess.
+                  label: `Logout (${user.username})`,
+                  title: `Signed in as ${user.email}`,
                   key: '6',
                   icon: <LogoutOutlined />,
                   onClick: () => logout(),

@@ -66,6 +66,10 @@ def cas_login():
         user.profile = Profile(user=user, is_admin=is_site_admin(user_email))
         db.session.add(user)
         db.session.commit()
+    elif not user.profile.is_admin and is_site_admin(user.email):
+        # Added to SITE_ADMINS after the account was created: promote on the next login
+        # (never the reverse; admins made in the UI are not demoted by the list).
+        user.profile.is_admin = True
     user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
 

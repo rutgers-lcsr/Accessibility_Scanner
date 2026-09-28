@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, TypedDict
 from scanner.accessibility.ace import AxeReport, get_accessibility_report
-from scanner.browser.parse import  get_documents, get_imgs, get_links, get_videos
+from scanner.browser.parse import  get_documents, get_imgs, get_link_targets, get_links, get_videos
 from playwright.async_api import Browser
 import time 
 from scanner.browser.tabbable import is_page_tabbable
@@ -48,6 +48,7 @@ class AccessibilityReport(TypedDict, total=False):
     report: AxeReport
     links: List[str]
     documents: List[str]
+    link_targets: List[dict]
     videos: List[str]
     imgs: List[str]
     tabable: bool
@@ -112,6 +113,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
                 return result
             links = await get_links(page)
             documents = await get_documents(page)
+            link_targets = await get_link_targets(page)
             videos = await get_videos(page)
             imgs = await get_imgs(page)
             tabable = await is_page_tabbable(page)
@@ -124,6 +126,7 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
             result['report'] = report
             result['links'] = links
             result['documents'] = documents
+            result['link_targets'] = link_targets
             result['videos'] = videos
             result['imgs'] = imgs
             result['tabable'] = tabable

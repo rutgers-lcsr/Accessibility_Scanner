@@ -1,4 +1,5 @@
 import { getCurrentUser } from 'next-cas-client/app';
+import { devAuthUser } from '@/lib/loadUser';
 import { PREVIEW_COOKIE } from '@/lib/proxyRewrite';
 import { proxiedAssetTarget } from '@/lib/proxyTarget';
 import { NextRequest, NextResponse } from 'next/server';
@@ -29,6 +30,10 @@ export async function middleware(request: NextRequest) {
     const user = await getCurrentUser();
     if (!user) {
         const redirect = `${baseUrl}${request.nextUrl.pathname}`;
+        if (devAuthUser()) {
+            // Local development without a CAS server: api/dev/login signs in as DEV_AUTH_USER.
+            return NextResponse.redirect(new URL(`/api/dev/login?redirect=${encodeURIComponent(redirect)}`, request.url));
+        }
         return NextResponse.redirect(
             new URL(
                 `${casUrl}/login?service=${encodeURIComponent(`${baseUrl}/api/cas/login?redirect=${redirect}`)}`,

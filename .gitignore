@@ -14,3 +14,4 @@ node_modules/
 .venv
 
 instance/*.db
+instance/celerybeat-schedule*

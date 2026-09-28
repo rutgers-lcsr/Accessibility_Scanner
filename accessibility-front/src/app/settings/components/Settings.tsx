@@ -193,6 +193,27 @@ const SECTIONS: Section[] = [
         ],
     },
     {
+        key: 'links',
+        label: 'Link checks',
+        intro: "Whether the links on a website's pages, to its own host or elsewhere, still work.",
+        settings: [
+            {
+                key: 'link_checks_per_scan',
+                label: 'Links checked per scan',
+                kind: 'number',
+                min: 0,
+                help: '0 turns the checks off; the links are still listed. Targets are probed a few hosts at a time, one request at a time per host.',
+            },
+            {
+                key: 'link_recheck_days',
+                label: 'Days between link re-checks',
+                kind: 'number',
+                min: 1,
+                help: 'A link checked more recently than this is skipped; unchecked links go first.',
+            },
+        ],
+    },
+    {
         key: 'users',
         label: 'Users',
         intro: 'How people added to websites get an email address.',

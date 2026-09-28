@@ -75,6 +75,8 @@ VALIDATORS = {
     "document_max_size_mb": _int_at_least(1),
     "document_checks_per_scan": _int_at_least(0),
     "document_recheck_days": _int_at_least(1),
+    "link_checks_per_scan": _int_at_least(0),
+    "link_recheck_days": _int_at_least(1),
 }
 
 

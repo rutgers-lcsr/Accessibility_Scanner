@@ -1,5 +1,6 @@
 import { User } from '@/lib/types/user';
-import { CasUser, ValidatorProtocol } from 'next-cas-client';
+import { loadUser } from '@/lib/loadUser';
+import { ValidatorProtocol } from 'next-cas-client';
 import { getCurrentUser, handleAuth } from 'next-cas-client/app';
 import { NextRequest, NextResponse } from 'next/server';
 const API_URL = process.env.API_URL;
@@ -136,21 +137,6 @@ async function proxyRequest(req: NextRequest, method: string) {
         console.error(`API proxy: ${method} ${url} failed:`, cause);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
-}
-
-async function loadUser(casUser: CasUser) {
-    const api_user = await fetch(`${API_URL}/api/auth/cas`, {
-        method: 'GET',
-        headers: {
-            'x-cas-user': casUser.user,
-            'x-cas-server': process.env.NEXT_PUBLIC_CAS_URL || '',
-            // Proves to the backend that this request comes from the proxy, which has
-            // already validated the CAS ticket. Must match the backend's value.
-            'X-Internal-Secret': process.env.INTERNAL_AUTH_SECRET || '',
-        },
-    });
-
-    return { ...casUser, ...(await api_user.json()) };
 }
 
 const cas_get_route = handleAuth({ loadUser, validator: ValidatorProtocol.CAS30 });

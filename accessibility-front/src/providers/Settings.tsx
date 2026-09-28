@@ -26,6 +26,8 @@ type Settings = {
     document_max_size_mb: string;
     document_checks_per_scan: string;
     document_recheck_days: string;
+    link_checks_per_scan: string;
+    link_recheck_days: string;
 };
 
 export type SettingKey = keyof Settings;

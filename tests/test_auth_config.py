@@ -73,6 +73,23 @@ def test_cas_login_grants_admin_only_for_full_email_match(client, app, monkeypat
     assert resp.status_code == 200 and resp.get_json()["is_admin"] is False
 
 
+def test_cas_login_promotes_existing_account_added_to_site_admins(client, app, make_user, monkeypatch):
+    import authentication.permissions as permissions
+
+    secret = {"X-Internal-Secret": app.config["INTERNAL_AUTH_SECRET"]}
+    headers = {"x-cas-user": "alice", "x-cas-server": "https://cas.rutgers.edu/cas", **secret}
+    monkeypatch.setattr(permissions, "SITE_ADMINS", [])
+    assert client.get("/api/auth/cas", headers=headers).get_json()["is_admin"] is False
+
+    # Listed after the account exists: promoted on the next login.
+    monkeypatch.setattr(permissions, "SITE_ADMINS", ["alice@rutgers.edu"])
+    assert client.get("/api/auth/cas", headers=headers).get_json()["is_admin"] is True
+
+    # Removed from the list again: not demoted.
+    monkeypatch.setattr(permissions, "SITE_ADMINS", [])
+    assert client.get("/api/auth/cas", headers=headers).get_json()["is_admin"] is True
+
+
 def test_is_site_admin_matches_full_email_case_insensitively(monkeypatch):
     import authentication.permissions as permissions
 

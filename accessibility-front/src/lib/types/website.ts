@@ -1,5 +1,6 @@
 import { AxeReportCounts, AxeReportKeys, ReportMinimized, WebsiteAxeReport } from './axe';
 import { DocumentCounts } from './document';
+import { LinkCounts } from './link';
 
 export type Website = {
     id: number;
@@ -17,6 +18,8 @@ export type Website = {
     last_notified: string | null;
     // documents (PDF, Word, ...) linked from the website's pages
     documents: DocumentCounts;
+    // links found on the website's pages (any host), with how many are broken
+    link_counts: LinkCounts;
     tags: string[];
     default_tags: string[];
     categories: string[];

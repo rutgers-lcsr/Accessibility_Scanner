@@ -16,9 +16,11 @@ from scanner.log import log_message
 from scanner.utils.service import check_url
 from services.history import daily_history, effective_counts
 from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
+from models.link import LINK_STATUS_ORDER, LINK_STATUSES, Link
 from models.finding import FINDING_STATUSES
 from services.findings import bulk_set_status, changes_for_sites, fix_first, list_findings
 from services.guides import available_guides
+from services.links import latest_report_ids
 from utils.export import csv_response
 from utils.limiter import limiter
 from utils.urls import get_netloc, is_valid_url
@@ -485,6 +487,68 @@ def get_website_documents(website_id):
     priority = case({name: index for index, name in enumerate(DOCUMENT_STATUS_ORDER)}, value=Document.status, else_=len(DOCUMENT_STATUS_ORDER))
     documents = query.order_by(priority, Document.url).paginate(page=page, per_page=limit)
     return jsonify({'count': documents.total, 'items': [doc.to_dict() for doc in documents.items]}), 200
+
+
+@website_bp.route('/<int:website_id>/links/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_links(website_id):
+    """
+    Links found on the website's pages (any host) and whether their targets respond.
+    ---
+    tags:
+        - Links
+    parameters:
+        - in: path
+          name: website_id
+          type: integer
+          required: true
+        - in: query
+          name: page
+          type: integer
+        - in: query
+          name: limit
+          type: integer
+          default: 20
+        - in: query
+          name: status
+          type: string
+          enum: [pending, ok, broken, blocked, error, skipped]
+        - in: query
+          name: external
+          type: boolean
+          description: true for links to other hosts only, false for the website's own.
+    responses:
+        200:
+            description: count and items, broken links first.
+        403:
+            description: The caller may not view this website.
+        404:
+            description: Website not found.
+    """
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not current_user and not website.public:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if current_user and not website.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    page = request.args.get('page', default=1, type=int)
+    limit = min(max(request.args.get('limit', default=20, type=int), 1), 100)
+    status = request.args.get('status')
+    external = request.args.get('external')
+    if status and status not in LINK_STATUSES:
+        return jsonify({'error': f"status must be one of {', '.join(LINK_STATUSES)}"}), 400
+
+    query = db.session.query(Link).filter(Link.website_id == website_id)
+    if status:
+        query = query.filter(Link.status == status)
+    if external in ('true', 'false'):
+        query = query.filter(Link.external == (external == 'true'))
+    priority = case({name: index for index, name in enumerate(LINK_STATUS_ORDER)}, value=Link.status, else_=len(LINK_STATUS_ORDER))
+    links = query.order_by(priority, Link.url).paginate(page=page, per_page=limit)
+    report_ids = latest_report_ids({source.site_id for link in links.items for source in link.sources})
+    return jsonify({'count': links.total, 'items': [link.to_dict(report_ids) for link in links.items]}), 200
 
 
 @website_bp.route('/<int:website_id>/changes/', methods=['GET'])

@@ -19,6 +19,7 @@ import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
 import WebsiteDocumentsTable from './WebsiteDocumentsTable';
 import WebsiteHistoryChart from './WebsiteHistoryChart';
+import WebsiteLinksTable from './WebsiteLinksTable';
 import WebsiteReport from './WebsiteReport';
 import WebsiteSiteTable from './WebsiteSiteTable';
 const { Content } = Layout;
@@ -143,6 +144,24 @@ const Website = ({ websiteId, user }: Props) => {
                         />
                     )}
                     <WebsiteDocumentsTable websiteId={websiteId} user={user} />
+                </>
+            ),
+        },
+        {
+            key: 'links',
+            label: `Links (${websiteReport.link_counts?.total ?? 0})`,
+            children: (
+                <>
+                    {(websiteReport.link_counts?.broken ?? 0) > 0 && (
+                        <Alert
+                            style={{ margin: '8px 0 16px' }}
+                            type="warning"
+                            showIcon
+                            message={`${websiteReport.link_counts.broken} broken link${websiteReport.link_counts.broken === 1 ? '' : 's'}`}
+                            description="These links lead to a page that no longer exists. Fix or remove them on the pages listed under Linked from."
+                        />
+                    )}
+                    <WebsiteLinksTable websiteId={websiteId} user={user} />
                 </>
             ),
         },

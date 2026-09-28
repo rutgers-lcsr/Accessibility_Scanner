@@ -5,6 +5,7 @@ from models.report import Report
 from models.website import Site, Website
 from models import db
 from services.findings import changes_for_sites, list_findings
+from services.links import site_links
 from services.history import effective_counts
 
 sites_bp = Blueprint('sites', __name__)
@@ -101,6 +102,39 @@ def get_site_changes(site_id):
     if not current_user and site.public == False:
         return jsonify({'error': 'Unauthorized'}), 403
     return jsonify(changes_for_sites([site.id])), 200
+
+
+@sites_bp.route('/<int:site_id>/links/', methods=['GET'])
+@jwt_required(optional=True)
+def get_site_links(site_id):
+    """
+    The links on one page (any host) with whether their targets respond, broken first.
+    ---
+    tags:
+        - Links
+    parameters:
+        - in: path
+          name: site_id
+          type: integer
+          required: true
+    responses:
+        200:
+            description: count and items, each with the text of the link on this page.
+        403:
+            description: The caller may not view this page.
+        404:
+            description: Site not found.
+    """
+    site = db.session.get(Site, site_id)
+    if not site:
+        return jsonify({'error': 'Site not found'}), 404
+    if current_user and not site.can_view(current_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+    if not current_user and site.public == False:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    items = site_links(site_id)
+    return jsonify({'count': len(items), 'items': items}), 200
 
 
 @sites_bp.route('/<int:site_id>/findings/', methods=['GET'])

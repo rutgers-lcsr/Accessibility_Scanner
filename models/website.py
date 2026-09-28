@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped
 from models.assoc import UserWebsiteAssoc
 from models.document import Document, DocumentSiteAssoc  # noqa: F401  (registers the models for create_all)
 from models.finding import Finding  # noqa: F401  (registers the model for create_all)
+from models.link import Link, LinkSource  # noqa: F401  (registers the models for create_all)
 from models.notifications import NotificationOptOut, WebsiteView
 from models.report import AxeReportCounts, Report, ReportMinimized
 from services.history import effective_counts
@@ -259,6 +260,8 @@ class Website(db.Model):
     domain_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('domains.id'), nullable=False)
     sites: Mapped[List['Site']] = db.relationship('Site', secondary=Site_Website_Assoc, back_populates='websites', lazy='dynamic')
     documents: Mapped[List['Document']] = db.relationship('Document', back_populates='website', lazy='dynamic', cascade="all, delete-orphan")
+    # Named links_found: Report.links already means the same-site URLs of one page.
+    links_found: Mapped[List['Link']] = db.relationship('Link', back_populates='website', lazy='dynamic', cascade="all, delete-orphan")
     last_scanned: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
     # Rate limiting the automatic scanning, in days
     rate_limit: Mapped[int] = db.Column(db.Integer, default=30)
@@ -420,6 +423,11 @@ class Website(db.Model):
         """Documents linked from this website: total, PDFs, untagged PDFs, unchecked."""
         from services.documents import document_counts, empty_document_counts  # local import: services import models
         return document_counts([self.id]).get(self.id, empty_document_counts())
+
+    def get_link_counts(self) -> dict:
+        """Links found on this website's pages: total and broken."""
+        from services.links import empty_link_counts, link_counts  # local import: services import models
+        return link_counts([self.id]).get(self.id, empty_link_counts())
 
     def get_extra_start_urls(self) -> List[str]:
         """Pages a full scan starts from besides the website URL itself."""
@@ -602,6 +610,7 @@ class Website(db.Model):
             'categories': [cat.strip() for cat in self.categories.split(",")] if self.categories else [],
             'extra_start_urls': self.get_extra_start_urls(),
             'documents': self.get_document_counts(),
+            'link_counts': self.get_link_counts(),
             'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
             'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
@@ -662,7 +671,7 @@ class Website(db.Model):
         self.tags = Settings.get(key='default_tags')
 
     def delete(self, delete_domain: bool = True, commit: bool = True):
-        """Delete the website, its own pages with their reports and findings, its documents,
+        """Delete the website, its own pages with their reports and findings, its documents and links,
         members, opt-outs and views. Pages shared with another website only lose the
         link. Row deletes are issued in SQL: letting the ORM cascade would load every
         report (its JSON included) and every finding into memory and delete them one at
@@ -683,12 +692,16 @@ class Website(db.Model):
                 db.session.query(Finding).filter(Finding.site_id.in_(chunk)).delete(synchronize_session=False)
                 db.session.query(Report).filter(Report.site_id.in_(chunk)).delete(synchronize_session=False)
                 db.session.execute(DocumentSiteAssoc.delete().where(DocumentSiteAssoc.c.site_id.in_(chunk)))
+                db.session.query(LinkSource).filter(LinkSource.site_id.in_(chunk)).delete(synchronize_session=False)
                 db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id.in_(chunk)))
                 db.session.query(Site).filter(Site.id.in_(chunk)).delete(synchronize_session=False)
             db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id))
             document_ids = db.session.query(Document.id).filter(Document.website_id == self.id)
             db.session.execute(DocumentSiteAssoc.delete().where(DocumentSiteAssoc.c.document_id.in_(document_ids)))
             db.session.query(Document).filter(Document.website_id == self.id).delete(synchronize_session=False)
+            link_ids = db.session.query(Link.id).filter(Link.website_id == self.id)
+            db.session.query(LinkSource).filter(LinkSource.link_id.in_(link_ids)).delete(synchronize_session=False)
+            db.session.query(Link).filter(Link.website_id == self.id).delete(synchronize_session=False)
             db.session.execute(UserWebsiteAssoc.delete().where(UserWebsiteAssoc.c.website_id == self.id))
             db.session.query(NotificationOptOut).filter_by(website_id=self.id).delete(synchronize_session=False)
             db.session.query(WebsiteView).filter_by(website_id=self.id).delete(synchronize_session=False)

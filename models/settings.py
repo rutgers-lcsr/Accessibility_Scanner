@@ -28,6 +28,8 @@ AppSetting = Literal[
     "document_max_size_mb",
     "document_checks_per_scan",
     "document_recheck_days",
+    "link_checks_per_scan",
+    "link_recheck_days",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -60,6 +62,9 @@ DEFAULTS: dict[AppSetting, str] = {
     "document_max_size_mb": "20",
     "document_checks_per_scan": "50",
     "document_recheck_days": "30",
+    # Broken-link check: links on the website's pages (any host) are probed after the crawl.
+    "link_checks_per_scan": "500",
+    "link_recheck_days": "7",
 }
 
 class Settings(db.Model):

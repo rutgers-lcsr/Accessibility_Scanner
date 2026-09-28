@@ -64,6 +64,12 @@ The application can be deployed using Docker. A sample `docker-compose.yml` file
      NEXT_PUBLIC_CAS_URL="https://localhost:8443/cas" # CAS server URL
     ```
 
+    `./start_dev.sh` starts both servers and, unless run with `--cas`, signs you in as
+    `DEV_AUTH_USER` (default: your login name) without a CAS server. Pass `--cas` to test the
+    real CAS flow at `NEXT_PUBLIC_CAS_URL`. The dev sign-in only exists in `next dev`, never in
+    a production build. The backend uses `instance/dev.db` (sqlite, created on start) rather
+    than the Compose database in `.env`; set `DEV_DATABASE_URL` to use another database.
+
     Note: only for local development against a CAS server with a self-signed certificate you may add
     `NODE_TLS_REJECT_UNAUTHORIZED=0`. Never set it in production: it disables TLS verification for
     every outbound request the frontend makes.
@@ -131,6 +137,10 @@ Run inside the API container, for example `docker compose exec a11y-api flask fi
 ## Documents (PDF, Word, PowerPoint, Excel)
 
 A scan records every document a website's pages link to and, for PDFs on the website's own host, downloads up to `document_checks_per_scan` of them (each under `document_max_size_mb`) and checks whether the PDF is tagged, has a title and a language. Untagged PDFs have no reading structure for screen readers. The website page has a Documents tab; the dashboard shows documents found and untagged PDFs per website. Downloads honour `robots.txt` and the crawl delay, and are re-done every `document_recheck_days`. Documents on other hosts are listed but not fetched.
+
+## Links
+
+A scan records every link on a website's pages, to its own host or elsewhere, with the page it is on and its link text. After the crawl up to `link_checks_per_scan` targets are probed (HEAD, then GET when the server rejects HEAD), a few hosts at a time and one request at a time per host, honouring the crawl delay and, on the website's own host, `robots.txt`. A 4xx answer is a broken link; 401, 403, 429 and 999 are shown as blocked (a login wall or bot protection, so the link may work for a person) rather than broken; 5xx, timeouts and DNS failures are errors. The website page has a Links tab, broken links first. Targets are re-checked every `link_recheck_days`.
 
 ## Emails
 

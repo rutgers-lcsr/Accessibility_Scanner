@@ -33,6 +33,25 @@ def get_documents_js():
     """
 
 
+def get_link_targets_js():
+    """JavaScript collecting every http(s) link on the page (any host, fragment dropped,
+    query string kept) with its link text, for the broken-link check."""
+    return """() => {
+        var seen = {};
+        var out = [];
+        for (var a of Array.from(document.querySelectorAll('a[href]'))) {
+            var href = a.href.split('#')[0];
+            if (!/^https?:/i.test(href) || seen[href]) continue;
+            seen[href] = true;
+            var img = a.querySelector('img[alt]');
+            var text = (a.innerText || a.getAttribute('aria-label') || a.getAttribute('title') || (img && img.getAttribute('alt')) || '')
+                .replace(/\\s+/g, ' ').trim().slice(0, 300);
+            out.push({href: href, text: text});
+        }
+        return out;
+    }"""
+
+
 def get_link_js(website):
     """JavaScript function to extract links from the page. 
        It filters out links that are not part of the same website and removes duplicates and certain file types.
@@ -87,6 +106,11 @@ async def get_links(page:  Page) -> List[str]:
     current_page = get_website_url(page.url)
     links = await page.evaluate(get_link_js(current_page))
     return links
+
+async def get_link_targets(page: Page) -> List[dict]:
+    """``[{'href', 'text'}]`` for every http(s) link on the page."""
+    return await page.evaluate(get_link_targets_js())
+
 
 async def get_documents(page: Page) -> List[str]:
     links = await page.evaluate(get_documents_js())

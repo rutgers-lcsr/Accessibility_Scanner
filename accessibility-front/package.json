@@ -20,6 +20,7 @@
         "debounce": "^3.0.0",
         "highlight.js": "^11.11.1",
         "http-proxy": "^1.18.1",
+        "iron-session": "^8.0.4",
         "next-cas-client": "./next-cas-client-1.3.6.tgz",
         "react": "19.2.7",
         "react-dom": "19.2.7",

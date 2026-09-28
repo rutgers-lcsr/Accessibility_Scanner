@@ -1,10 +1,12 @@
 import Console from '@/components/Console';
 import { Report as ReportType } from '@/lib/types/axe';
+import { PageLink } from '@/lib/types/link';
 import { ExclamationCircleOutlined } from '@/lib/icons';
 
 import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
 import ImpactTiles from '@/components/ImpactTiles';
 import PageError from '@/components/PageError';
+import PageLinks from '@/components/PageLinks';
 import PageLoading from '@/components/PageLoading';
 import ViolationsList from '@/components/ViolationsList';
 import { User } from '@/lib/types/user';
@@ -42,6 +44,24 @@ const getReport = async (reportId: string) => {
     return response.json() as Promise<ReportType>;
 };
 
+// The page's links with their check results; an empty list when they cannot be loaded,
+// so the report still renders.
+const getPageLinks = async (siteId: number): Promise<PageLink[]> => {
+    const user = await getCurrentUser<User>();
+    const options = {
+        headers: user && {
+            Authorization: `Bearer ${user.access_token || ''}`,
+        },
+    };
+    try {
+        const response = await fetch(`${process.env.API_URL}/api/sites/${siteId}/links/`, options as RequestInit);
+        if (!response.ok) return [];
+        return ((await response.json()) as { items: PageLink[] }).items;
+    } catch {
+        return [];
+    }
+};
+
 async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const { reportId } = await params;
 
@@ -51,6 +71,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     if (!report) return <PageError status={404} />;
 
     const violations = report.report_counts.violations;
+    const links = await getPageLinks(report.site_id);
 
     // Built from configuration, not the request's Host header, which a client controls.
     const report_script_full_url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/reports/script/${report.script_token}/`;
@@ -250,6 +271,17 @@ document.body.appendChild(accessScriptElement);`}
                                 />
                             </div>
                         </Tooltip>
+                    </Card>
+
+                    <Card>
+                        <h2 className="mb-4 text-2xl font-semibold" id="page-links">
+                            Links on this page
+                        </h2>
+                        <p className="mb-2">
+                            Every link found on the page, on this website or elsewhere, and whether it
+                            still works.
+                        </p>
+                        <PageLinks links={links} />
                     </Card>
 
                     {report.report.violations.length > 0 && (

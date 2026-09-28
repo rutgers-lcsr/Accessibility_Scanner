@@ -111,10 +111,11 @@ def commit_with_retry(max_retries=3, retry_delay=1):
     return False
 
 
-async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None, limits: dict = None, depths: dict = None, robots: robotparser.RobotFileParser = None, documents: dict = None) -> AccessibilityReport:
+async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None, limits: dict = None, depths: dict = None, robots: robotparser.RobotFileParser = None, documents: dict = None, link_targets: dict = None) -> AccessibilityReport:
     """Crawl worker. ``limits`` (see crawl_limits) bounds the crawl, ``depths`` maps each
     queued URL to its link depth from the start page, ``robots`` filters disallowed URLs,
-    ``documents`` collects ``{url: {'type', 'pages'}}`` for the document inventory."""
+    ``documents`` collects ``{url: {'type', 'pages'}}`` for the document inventory and
+    ``link_targets`` collects ``{url: {page: link text}}`` for the broken-link check."""
     while True:
         site = await queue.get()
         if site is None:  # sentinel to shut down
@@ -152,6 +153,11 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
                         doc_type = document_type(doc_url)
                         if doc_type:
                             documents.setdefault(doc_url, {'type': doc_type, 'pages': set()})['pages'].add(site)
+
+                # Every link (any host) is checked after the crawl; only same-site ones are queued.
+                if link_targets is not None:
+                    for target in res.get('link_targets') or []:
+                        link_targets.setdefault(target['href'], {}).setdefault(site, target.get('text') or '')
 
                 # add links to queue if not already processing
                 depth = depths.get(site, 0) if depths is not None else 0
@@ -409,6 +415,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
     sites_done: set[str] = set()
     currently_processing: set[str] = set()
     documents: dict = {}
+    link_targets: dict = {}
     app = get_app()
 
     with app.app_context():
@@ -495,6 +502,7 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                         depths=depths,
                         robots=robots,
                         documents=documents,
+                        link_targets=link_targets,
                     ))
                     for i in range(num_workers)
                 ]
@@ -581,6 +589,15 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                     check_website_documents(website.id, robots=robots, crawl_delay=limits['crawl_delay'])
                 except Exception as e:
                     log_message(f"Document inventory failed for {target_website}: {e}", 'error')
+                    db.session.rollback()
+
+                # Broken-link check: every link the crawl found, on this host or elsewhere.
+                try:
+                    from services.links import check_website_links, sync_links  # local import
+                    sync_links(website.id, link_targets)
+                    check_website_links(website.id, robots=robots, crawl_delay=limits['crawl_delay'])
+                except Exception as e:
+                    log_message(f"Link check failed for {target_website}: {e}", 'error')
                     db.session.rollback()
                 
                 # Queue any websites that need rescanning as their own tasks. (These used
