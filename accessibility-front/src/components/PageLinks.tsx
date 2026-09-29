@@ -1,7 +1,8 @@
 'use client';
+import { LinkCell } from '@/components/LinkCell';
 import { LinkStatusTag } from '@/components/LinkStatusTag';
 import { LinkStatus, PageLink } from '@/lib/types/link';
-import { Alert, Table, TableColumnType, Tag } from 'antd';
+import { Alert, Table, TableColumnType } from 'antd';
 
 type Props = {
     links: PageLink[];
@@ -16,20 +17,8 @@ export default function PageLinks({ links }: Props) {
             dataIndex: 'url',
             key: 'url',
             width: 480,
-            render: (url: string, record: PageLink) => (
-                <>
-                    <a href={url} target="_blank" rel="noopener noreferrer" className="break-all">
-                        {url}
-                    </a>
-                    {record.external && (
-                        <Tag className="ml-2" bordered={false}>
-                            off-site
-                        </Tag>
-                    )}
-                    {record.final_url && (
-                        <div className="text-xs text-gray-500 break-all">Redirects to {record.final_url}</div>
-                    )}
-                </>
+            render: (url: string, record: { external: boolean; final_url: string | null }) => (
+                <LinkCell url={url} external={record.external} final_url={record.final_url} />
             ),
         },
         {

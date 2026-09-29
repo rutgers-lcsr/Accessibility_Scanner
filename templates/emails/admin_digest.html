@@ -5,6 +5,7 @@
     {{ digest.period.since | datetimeformat }} to {{ digest.period.until | datetimeformat }}.
     {{ digest.websites_count }} websites, {{ digest.totals.pages_audited }} of {{ digest.totals.pages }} pages audited,
     {{ digest.scanned_this_period }} websites scanned this period.
+    {% if digest.totals.broken_links %}{{ digest.totals.broken_links }} broken link{{ '' if digest.totals.broken_links == 1 else 's' }} across all websites.{% endif %}
 </p>
 <table cellpadding="6" cellspacing="0" border="0" style="border-collapse: collapse;">
     <tr style="background: #f2f2f2;">

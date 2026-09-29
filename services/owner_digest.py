@@ -160,7 +160,7 @@ def build_owner_digest(user, websites, since, now=None, guides=None, overview=No
             'pages_with_issues': pages_with_issues, 'violations': violations, 'previous_violations': previous,
             'new_since': moved['new'], 'fixed_since': moved['fixed'], 'triaged_since': moved['triaged'],
             'viewed_at': iso(viewed), 'scanned_since': scanned_since, 'changed': changed, 'failing': failing,
-            'escalated': escalated, 'newsworthy': newsworthy,
+            'escalated': escalated, 'newsworthy': newsworthy, 'broken_links': row['broken_links'],
             'show': (row['pages_audited'] > 0 or failing) and (
                 changed or failing or violations['critical'] > 0 or violations['serious'] > 0 or since is None),
         })
@@ -173,6 +173,7 @@ def build_owner_digest(user, websites, since, now=None, guides=None, overview=No
         'fixed_since': sum(r['fixed_since'] for r in rows),
         'new_since': sum(r['new_since'] for r in rows),
         'triaged_since': sum(r['triaged_since'] for r in rows),
+        'broken_links': sum(r['broken_links'] for r in rows),
     }
     seen = [views.get(w.id, {}).get(user.id) for w in websites] if user else []
     last_viewed = max((when for when in seen if when is not None), default=None)

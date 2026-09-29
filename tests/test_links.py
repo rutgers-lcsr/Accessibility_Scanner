@@ -7,6 +7,7 @@ from urllib import robotparser
 import pytest
 
 import models.website as website_models
+from models import db
 import scanner.scan as scan_mod
 import services.links as links_mod
 from models.link import Link, LinkSource
@@ -89,6 +90,27 @@ def test_sync_creates_updates_and_removes_links(app, make_user, make_website, ad
     assert db.session.query(LinkSource).count() == 2
 
 
+def test_sync_skips_overlong_urls_and_folds_case(app, make_user, make_website, add_site):
+    from models import db
+
+    website = make_website(make_user())
+    home = add_site(website, page="/")
+    about = add_site(website, page="/about")
+    result = sync_links(website.id, {
+        "https://example.com/Contact": {home.url: "Contact"},
+        "https://example.com/contact": {about.url: "contact"},
+        "https://example.com/" + "x" * 1000: {home.url: "long"},
+    })
+    assert result == {"new": 1, "updated": 0, "removed": 0}
+    link = db.session.query(Link).one()
+    assert link.url == "https://example.com/Contact"
+    assert sorted(s["url"] for s in link.to_dict()["found_on"]) == [home.url, about.url]
+
+    # a re-sync spelled the other way updates the same row instead of inserting a twin
+    assert sync_links(website.id, {"https://example.com/contact": {home.url: "c"}}) == {"new": 0, "updated": 1, "removed": 0}
+    assert db.session.query(Link).count() == 1
+
+
 # --- probe -------------------------------------------------------------------------------------
 
 
@@ -109,6 +131,7 @@ def test_fetch_link_maps_statuses_falls_back_to_get_and_guards_redirects(monkeyp
         "/ok": _Resp(200), "/missing": _Resp(404), "/login": _Resp(403), "/down": _Resp(503),
         "/moved": _Resp(301, location="/ok"), "/loop": _Resp(302, location="/loop"),
         "/internal": _Resp(302, location="https://10.0.0.1/secret"), "/nowhere": _Resp(302, location=""),
+        "/headless": _Resp(301), "/far": _Resp(302, location="/" + "y" * 1200), "/" + "y" * 1200: _Resp(200),
     }
 
     def fake_head(url, **kwargs):
@@ -141,6 +164,11 @@ def test_fetch_link_maps_statuses_falls_back_to_get_and_guards_redirects(monkeyp
     assert not any(url.startswith("https://10.") for _, url in calls)
     assert fetch_link("https://example.com/nowhere")[0::3] == ("error", "Redirect without a location")
     assert fetch_link("https://nonexistent.invalid/") == ("error", None, None, "DNS lookup failed")
+    # a 3xx with no Location header at all is not a working link either
+    assert fetch_link("https://example.com/headless")[0::3] == ("error", "Redirect without a location")
+    # a redirect target wider than the column is cut to fit
+    status, code, final_url, _ = fetch_link("https://example.com/far")
+    assert (status, code, len(final_url)) == ("ok", 200, 1000)
     # a GET is only sent when HEAD did not answer
     assert calls.count(("GET", "https://example.com/ok")) == 0 and calls.count(("GET", "https://example.com/missing")) == 1
 
@@ -183,6 +211,8 @@ def test_check_respects_cap_robots_recheck_window_and_off(app, make_user, make_w
     assert by_url["https://example.com/private/b"].status == "skipped" and by_url["https://example.com/private/b"].checked_at
     assert by_url["https://elsewhere.org/private/c"].status == "ok"  # robots.txt covers the website's host only
     assert by_url["https://example.com/d"].status == "ok"
+    # off-site targets are queued before same-site ones
+    assert probed[0] == "https://elsewhere.org/private/c"
     assert sorted(probed) == ["https://elsewhere.org/private/c", "https://example.com/a", "https://example.com/d"]
     assert website.get_link_counts() == {"total": 4, "broken": 1}
 
@@ -272,3 +302,47 @@ def test_website_delete_removes_links(app, make_user, make_website, add_site):
     website.delete()
     db.session.commit()
     assert db.session.query(Link).count() == 0 and db.session.query(LinkSource).count() == 0
+
+
+# --- dashboard and emails ----------------------------------------------------------------------
+
+
+def test_broken_link_counts_reach_the_dashboard_and_the_emails(client, make_user, make_website, add_site, add_report, jwt_header):
+    from mail.emails import AdminDigestEmail, OwnerDigestEmail
+    from services.overview import build_digest
+    from services.owner_digest import build_owner_digest
+
+    admin = make_user("root", is_admin=True)
+    website = make_website(admin)
+    home = add_site(website, page="/")
+    add_report(home, violations=[{"id": "region", "impact": "serious", "help": "Fix region", "helpUrl": "https://x/region",
+                                  "nodes": [{"target": ["#a"], "html": "<p>a</p>"}]}])
+    sync_links(website.id, {
+        "https://example.com/a": {home.url: "a"},
+        "https://other.org/b": {home.url: "b"},
+        "https://other.org/c": {home.url: "c"},
+    })
+    for url in ("https://other.org/b", "https://other.org/c"):
+        db.session.query(Link).filter_by(url=url).one().status = "broken"
+    db.session.commit()
+
+    dashboard = client.get("/api/dashboard/", headers=jwt_header(admin)).get_json()
+    assert dashboard["totals"]["broken_links"] == 2 and dashboard["websites"][0]["broken_links"] == 2
+
+    digest = build_owner_digest(admin, [website], None)
+    assert digest["websites"][0]["broken_links"] == 2 and digest["totals"]["broken_links"] == 2
+    email = OwnerDigestEmail(admin, digest, tone="first")
+    assert email.send()
+    assert f"2 broken links (links to pages that no longer exist): http://localhost:3000/websites/{website.id}?tab=links" in email.msg.body
+    assert f"/websites/{website.id}?tab=links" in email.msg.html and "2 broken links" in email.msg.html
+
+    assert build_digest(7)["totals"]["broken_links"] == 2
+    weekly = AdminDigestEmail()
+    assert weekly.send()
+    assert "2 broken links across all websites" in weekly.msg.html
+
+    # nothing about links when none are broken
+    db.session.query(Link).update({"status": "ok"})
+    db.session.commit()
+    email = OwnerDigestEmail(admin, build_owner_digest(admin, [website], None), tone="first")
+    assert email.send() and "broken link" not in email.msg.body and "broken link" not in email.msg.html

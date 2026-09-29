@@ -153,3 +153,18 @@ def test_check_url_gives_up_on_redirect_loops(monkeypatch):
     monkeypatch.setattr(service.requests, "get", fake_get)
     assert service.check_url("http://8.8.8.8/") is False
     assert len(calls) == service.MAX_REDIRECTS + 1
+
+
+def test_transient_dns_failure_is_not_cached(monkeypatch):
+    calls = []
+
+    def flaky(host, port, **kw):
+        calls.append(host)
+        if len(calls) == 1:
+            raise socket.gaierror("temporary failure")
+        return _fake_getaddrinfo("93.184.216.34")(host, port, **kw)
+
+    monkeypatch.setattr(socket, "getaddrinfo", flaky)
+    assert urls.is_safe_target("https://example.com/") is False
+    assert urls.is_safe_target("https://example.com/") is True  # looked up again, not remembered as unsafe
+    assert urls.is_safe_target("https://example.com/") is True and len(calls) == 2  # the success is cached

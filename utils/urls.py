@@ -31,11 +31,11 @@ def _is_public_address(address: str) -> bool:
 
 @lru_cache(maxsize=2048)
 def _resolves_to_public(hostname: str, port: int) -> bool:
-    """True when every address ``hostname`` resolves to is public. Cached per process."""
-    try:
-        infos = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
-    except (socket.gaierror, UnicodeError):
-        return False
+    """True when every address ``hostname`` resolves to is public. Cached per process.
+
+    Lookup errors propagate: lru_cache does not remember exceptions, so a transient DNS
+    failure is retried on the next call instead of being cached as "not public"."""
+    infos = socket.getaddrinfo(hostname, port, proto=socket.IPPROTO_TCP)
     if not infos:
         return False
     return all(_is_public_address(info[4][0]) for info in infos)
@@ -58,7 +58,10 @@ def is_safe_target(url: str) -> bool:
         return False
     if port is None:
         port = 443 if parsed.scheme == "https" else 80
-    return _resolves_to_public(hostname, port)
+    try:
+        return _resolves_to_public(hostname, port)
+    except (socket.gaierror, UnicodeError):
+        return False
 
 
 def is_valid_domain(domain: str) -> bool:

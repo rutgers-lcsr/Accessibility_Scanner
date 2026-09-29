@@ -19,12 +19,15 @@ from models import db
 from models.link import Link, LinkSource
 from models.settings import Settings
 from models.website import Site, Website
+from sqlalchemy.orm import selectinload
 from scanner.browser.report import ACCESSIBILITY_USER_AGENT
 from scanner.log import log_message
 from utils.urls import get_netloc, is_safe_target
 
 MAX_REDIRECTS = 5
 HOST_WORKERS = 8
+# Link.url / Link.final_url column width; longer hrefs are not recorded.
+MAX_URL_LENGTH = 1000
 # Login walls and bot protection: the link may well work for a person.
 BLOCKED_CODES = (401, 403, 429, 999)
 
@@ -63,13 +66,25 @@ def sync_links(website_id: int, found: dict, now: datetime | None = None) -> dic
     if website is None:
         return {'new': 0, 'updated': 0, 'removed': 0}
     host = get_netloc(website.url).lower()
-    existing = {link.url: link for link in db.session.query(Link).filter_by(website_id=website_id).all()}
-    page_urls = {url for pages in found.values() for url in pages}
+    # Keyed case-insensitively: MariaDB's default collation treats /Contact and /contact
+    # as the same unique key, so they must be one row here too (first spelling kept).
+    wanted: dict[str, tuple[str, dict]] = {}
+    for url, pages in found.items():
+        if len(url) > MAX_URL_LENGTH:
+            continue
+        key = url.lower()
+        if key in wanted:
+            wanted[key][1].update(pages)
+        else:
+            wanted[key] = (url, dict(pages))
+    existing = {link.url.lower(): link for link in
+                db.session.query(Link).options(selectinload(Link.sources)).filter_by(website_id=website_id).all()}
+    page_urls = {url for _, pages in wanted.values() for url in pages}
     sites_by_url = {site.url: site for site in db.session.query(Site).filter(Site.url.in_(list(page_urls))).all()} if page_urls else {}
     result = {'new': 0, 'updated': 0, 'removed': 0}
 
-    for url, pages in found.items():
-        link = existing.get(url)
+    for key, (url, pages) in wanted.items():
+        link = existing.get(key)
         if link is None:
             link = Link(website_id=website_id, url=url, first_seen=now, last_seen=now, status='pending',
                         external=get_netloc(url).lower() != host)
@@ -80,17 +95,17 @@ def sync_links(website_id: int, found: dict, now: datetime | None = None) -> dic
             result['updated'] += 1
         # Updated in place: replacing the list would delete and re-insert the same
         # (link, site) key in one flush.
-        wanted = {sites_by_url[page].id: (text or None) for page, text in pages.items() if page in sites_by_url}
+        wanted_sources = {sites_by_url[page].id: (text or None) for page, text in pages.items() if page in sites_by_url}
         for source in list(link.sources):
-            if source.site_id in wanted:
-                source.text = wanted.pop(source.site_id)
+            if source.site_id in wanted_sources:
+                source.text = wanted_sources.pop(source.site_id)
             else:
                 link.sources.remove(source)
-        for site_id, text in wanted.items():
+        for site_id, text in wanted_sources.items():
             link.sources.append(LinkSource(site_id=site_id, text=text))
 
-    for url, link in existing.items():
-        if url not in found:
+    for key, link in existing.items():
+        if key not in wanted:
             db.session.delete(link)
             result['removed'] += 1
     db.session.commit()
@@ -129,8 +144,9 @@ def fetch_link(url: str) -> tuple:
                     return 'error', code, None, 'Redirect without a location'
                 url = urljoin(url, location)
                 continue
-            return _classify(code), code, (url if url != start else None), (None if code < 400 else f'HTTP {code}')
-        return 'error', None, url, 'Too many redirects'
+            final_url = url[:MAX_URL_LENGTH] if url != start else None
+            return _classify(code), code, final_url, (None if code < 400 else f'HTTP {code}')
+        return 'error', None, url[:MAX_URL_LENGTH], 'Too many redirects'
     except Exception as e:
         return 'error', None, None, f'{type(e).__name__}: {e}'[:500]
 
@@ -148,20 +164,25 @@ def _probe(url: str) -> tuple:
     headers = {'User-Agent': ACCESSIBILITY_USER_AGENT}
     response = requests.head(url, timeout=(5, 10), allow_redirects=False, headers=headers)
     try:
-        if response.is_redirect or response.is_permanent_redirect:
-            return response.status_code, response.headers.get('Location') or ''
         if response.status_code < 400:
-            return response.status_code, None
+            return _hop(response)
     finally:
         response.close()
     # Many servers answer HEAD with 405 (or 404, 403); a GET tells whether the link works.
     response = requests.get(url, timeout=(5, 10), allow_redirects=False, stream=True, headers=headers)
     try:
-        if response.is_redirect or response.is_permanent_redirect:
-            return response.status_code, response.headers.get('Location') or ''
-        return response.status_code, None
+        return _hop(response)
     finally:
         response.close()
+
+
+def _hop(response) -> tuple:
+    """``(status code, Location or '' for a redirect, None otherwise)``. Any 3xx counts as
+    a redirect: requests sets is_redirect only when a Location header is present, and a
+    3xx without one must not pass as a working link."""
+    if 300 <= response.status_code < 400:
+        return response.status_code, response.headers.get('Location') or ''
+    return response.status_code, None
 
 
 def check_website_links(website_id: int, robots=None, crawl_delay: float = 0.0, now: datetime | None = None) -> int:
@@ -187,7 +208,9 @@ def check_website_links(website_id: int, robots=None, crawl_delay: float = 0.0, 
     candidates = (
         db.session.query(Link)
         .filter(Link.website_id == website_id)
-        .order_by(Link.checked_at.isnot(None), Link.checked_at.asc(), Link.id.asc())
+        # Never-checked first, then off-site before same-site (the crawl itself already
+        # visited most same-site targets), then the oldest checks.
+        .order_by(Link.checked_at.isnot(None), Link.external.desc(), Link.checked_at.asc(), Link.id.asc())
         .all()
     )
     by_host: dict[str, list] = defaultdict(list)

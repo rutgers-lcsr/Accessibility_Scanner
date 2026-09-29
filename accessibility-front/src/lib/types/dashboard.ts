@@ -17,6 +17,7 @@ export type DashboardWebsite = {
     incomplete: number;
     documents: number;
     untagged_pdfs: number;
+    broken_links: number;
 };
 
 export type DashboardCategory = {
@@ -51,6 +52,7 @@ export type Dashboard = {
         scan_status: Record<string, number>;
         documents: number;
         untagged_pdfs: number;
+        broken_links: number;
     };
     websites: DashboardWebsite[];
     categories: DashboardCategory[];

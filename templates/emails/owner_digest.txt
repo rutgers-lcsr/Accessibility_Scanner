@@ -12,7 +12,8 @@
 {% for w in digest.websites if w.show %}- {{ w.url }}
   {% if w.last_scan_status in ('failed', 'unreachable') %}The last scan {{ 'could not reach this website' if w.last_scan_status == 'unreachable' else 'failed' }}{% if w.last_scan_error %}: {{ w.last_scan_error }}{% endif %}.
   {% endif %}{{ w.violations.total }} issue{{ '' if w.violations.total == 1 else 's' }} on {{ w.pages_with_issues }} page{{ '' if w.pages_with_issues == 1 else 's' }}{% if w.previous_violations is not none %}, {{ w.previous_violations }} -> {{ w.violations.total }} since last email{% endif %}. {% if w.last_scanned %}Scanned {{ w.last_scanned | datetimeformat('%b %d, %Y') }}.{% else %}Not scanned yet.{% endif %}{% if w.escalated %} Copied to {{ digest.escalation_email }}.{% endif %}
-  {{ client_url }}/websites/{{ w.id }}
+  {% if w.broken_links %}{{ w.broken_links }} broken link{{ '' if w.broken_links == 1 else 's' }} (links to pages that no longer exist): {{ client_url }}/websites/{{ w.id }}?tab=links
+  {% endif %}{{ client_url }}/websites/{{ w.id }}
 {% endfor %}{% if digest.hidden_websites %}and {{ digest.hidden_websites }} more website{{ '' if digest.hidden_websites == 1 else 's' }} with no change.
 {% endif %}
 {% include "emails/_policy.txt" %}

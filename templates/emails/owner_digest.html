@@ -48,6 +48,7 @@
     {{ w.violations.total }} issue{{ '' if w.violations.total == 1 else 's' }} on {{ w.pages_with_issues }} page{{ '' if w.pages_with_issues == 1 else 's' }}{% if w.previous_violations is not none %}, {{ w.previous_violations }} → {{ w.violations.total }} since last email{% endif %}.<br>
     {% if w.last_scanned %}Scanned {{ w.last_scanned | datetimeformat('%b %d, %Y') }}.{% else %}Not scanned yet.{% endif %}
     {% if w.escalated %} Copied to {{ digest.escalation_email }}.{% endif %}
+    {% if w.broken_links %}<br><a href="{{ client_url }}/websites/{{ w.id }}?tab=links">{{ w.broken_links }} broken link{{ '' if w.broken_links == 1 else 's' }}</a> (links to pages that no longer exist).{% endif %}
 </p>
 {% endfor %}
 {% if digest.hidden_websites %}

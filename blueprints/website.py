@@ -16,7 +16,8 @@ from scanner.log import log_message
 from scanner.utils.service import check_url
 from services.history import daily_history, effective_counts
 from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
-from models.link import LINK_STATUS_ORDER, LINK_STATUSES, Link
+from models.link import LINK_STATUS_ORDER, LINK_STATUSES, Link, LinkSource
+from sqlalchemy.orm import joinedload, selectinload
 from models.finding import FINDING_STATUSES
 from services.findings import bulk_set_status, changes_for_sites, fix_first, list_findings
 from services.guides import available_guides
@@ -540,7 +541,8 @@ def get_website_links(website_id):
     if status and status not in LINK_STATUSES:
         return jsonify({'error': f"status must be one of {', '.join(LINK_STATUSES)}"}), 400
 
-    query = db.session.query(Link).filter(Link.website_id == website_id)
+    query = (db.session.query(Link).filter(Link.website_id == website_id)
+             .options(selectinload(Link.sources).joinedload(LinkSource.site)))
     if status:
         query = query.filter(Link.status == status)
     if external in ('true', 'false'):
