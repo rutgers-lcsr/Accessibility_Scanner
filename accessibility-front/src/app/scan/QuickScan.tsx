@@ -3,8 +3,8 @@ import PageHeading from '@/components/PageHeading';
 import ScanProgressModal from '@/components/ScanProgressModal';
 import { useScan } from '@/hooks/useScan';
 import { useUrlFilters } from '@/lib/urlFilters';
-import { Button, Card, Form, Input, Select } from 'antd';
-import { Content } from 'antd/es/layout/layout';
+import { Button, Card, Form, Input, Select, Space } from 'antd';
+import Content from '@/components/Content';
 import QuickScanResult from './QuickScanResult';
 
 // Audit one page ad hoc. The finished task's id goes into the URL (?task=) so the
@@ -50,24 +50,27 @@ function QuickScan() {
                         nothing is stored and the result expires after a day.
                     </p>
                     <Form form={form} layout="inline" initialValues={{ protocol: 'https://' }}>
-                        <Form.Item
-                            name="url"
-                            rules={[{ required: true, message: 'Enter the page URL' }]}
-                            style={{ flex: 1, minWidth: 320 }}
-                        >
-                            <Input
-                                addonBefore={
-                                    <Form.Item name="protocol" noStyle>
-                                        <Select style={{ width: 90 }} aria-label="Protocol">
-                                            <Select.Option value="https://">https://</Select.Option>
-                                            <Select.Option value="http://">http://</Select.Option>
-                                        </Select>
-                                    </Form.Item>
-                                }
-                                placeholder="cs.rutgers.edu/people"
-                                aria-label="Page URL"
-                                onPressEnter={submit}
-                            />
+                        {/* noStyle fields inside one item: their errors show under the pair. */}
+                        <Form.Item style={{ flex: 1, minWidth: 320 }}>
+                            <Space.Compact block>
+                                <Form.Item name="protocol" noStyle>
+                                    <Select style={{ width: 90 }} aria-label="Protocol">
+                                        <Select.Option value="https://">https://</Select.Option>
+                                        <Select.Option value="http://">http://</Select.Option>
+                                    </Select>
+                                </Form.Item>
+                                <Form.Item
+                                    name="url"
+                                    noStyle
+                                    rules={[{ required: true, message: 'Enter the page URL' }]}
+                                >
+                                    <Input
+                                        placeholder="cs.rutgers.edu/people"
+                                        aria-label="Page URL"
+                                        onPressEnter={submit}
+                                    />
+                                </Form.Item>
+                            </Space.Compact>
                         </Form.Item>
                         <Form.Item>
                             <Button

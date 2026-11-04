@@ -7,7 +7,7 @@ import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
 import { DownloadOutlined, MailOutlined } from '@ant-design/icons';
 import { Button, Input, Popconfirm } from 'antd';
-import { Content } from 'antd/es/layout/layout';
+import Content from '@/components/Content';
 import { Key, useState } from 'react';
 import useSWR from 'swr';
 import OwnersTable from './OwnersTable';

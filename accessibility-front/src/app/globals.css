@@ -1,26 +1,38 @@
 @import 'tailwindcss';
 
-/* :root {
-    --background: #ffffff;
-    --foreground: #171717;
-} */
-/* 
 @theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
-} */
+    --font-sans:
+        var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'Helvetica Neue', Arial, sans-serif;
+    --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
 
-/* @media (prefers-color-scheme: dark) {
-    :root {
-        --background: #0a0a0a;
-        --foreground: #ededed;
-    }
-} */
-
+/* Unlayered, so it wins over antd's reset.css body rule (also unlayered, imported earlier). */
 body {
-    background: var(--background);
-    color: var(--foreground);
-    font-family: Arial, Helvetica, sans-serif;
+    background: #e8e8e8; /* antd colorBgLayout derived from colorBgBase #f2f2f2 */
+    color: #222222;
+    font-family:
+        var(--font-geist-sans),
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        Roboto,
+        'Helvetica Neue',
+        Arial,
+        sans-serif;
+}
+
+::selection {
+    background-color: rgb(204 0 51 / 0.18);
+}
+
+/* Counts and dates line up in columns. */
+.ant-table,
+.ant-statistic-content {
+    font-variant-numeric: tabular-nums;
+}
+
+/* A wide table scrolls inside its own box instead of widening the whole page on a phone. */
+.ant-table-content {
+    overflow-x: auto;
 }

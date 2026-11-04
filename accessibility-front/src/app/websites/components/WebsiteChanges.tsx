@@ -33,7 +33,7 @@ function WebsiteChanges({ websiteId, user }: Props) {
                 <Alert
                     type="info"
                     showIcon
-                    message="Only one scan so far"
+                    title="Only one scan so far"
                     description="Once this website has been scanned again, this tab shows what is new, what was fixed and what is still open."
                 />
             </Card>
@@ -57,12 +57,10 @@ function WebsiteChanges({ websiteId, user }: Props) {
                     className="mb-4"
                     type="warning"
                     showIcon
-                    message="This scan is worse than the previous one"
+                    title="This scan is worse than the previous one"
                 />
             )}
-            {nothing && (
-                <Alert className="mb-4" type="success" showIcon message="Nothing changed" />
-            )}
+            {nothing && <Alert className="mb-4" type="success" showIcon title="Nothing changed" />}
             <Collapse
                 defaultActiveKey={['new', 'fixed']}
                 items={[

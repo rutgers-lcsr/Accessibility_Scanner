@@ -25,7 +25,8 @@ export default function PageLinks({ links }: Props) {
             title: 'Link text',
             dataIndex: 'text',
             key: 'text',
-            render: (text: string | null) => text ?? <span className="text-gray-400">(no text)</span>,
+            render: (text: string | null) =>
+                text ?? <span className="text-gray-400">(no text)</span>,
         },
         {
             title: 'Status',
@@ -44,7 +45,7 @@ export default function PageLinks({ links }: Props) {
                     style={{ marginBottom: 16 }}
                     type="warning"
                     showIcon
-                    message={`${broken} broken link${broken === 1 ? '' : 's'} on this page`}
+                    title={`${broken} broken link${broken === 1 ? '' : 's'} on this page`}
                     description="These lead to a page that no longer exists. Fix or remove them."
                 />
             )}

@@ -2,6 +2,8 @@
 
 // Functions related to browser detection and page size management
 
+import { useState, useSyncExternalStore } from 'react';
+
 function getInitalPageSize(): PageSize {
     if (typeof window === 'undefined' || !window.localStorage) {
         return 5;
@@ -36,6 +38,22 @@ function savePageSize(size: PageSize): void {
 
 const pageSizeOptions = ['5', '10', '20', '50', '100'];
 export type PageSize = 5 | 10 | 20 | 50 | 100;
+
+const noSubscription = () => () => {};
+
+/**
+ * Page size for a paged table: the user's pick, else getInitalPageSize(). That reads
+ * localStorage and the window width, which the server cannot, so while hydrating this
+ * reports the server's default (5) with ready=false, keeping the server HTML and the first
+ * client render identical; React re-renders with the real size straight after. Callers
+ * should not fetch until ready, or they fetch twice.
+ */
+function usePageSize(): [PageSize, (size: PageSize) => void, boolean] {
+    const preferred = useSyncExternalStore(noSubscription, getInitalPageSize, () => null);
+    const [chosen, setChosen] = useState<PageSize | null>(null);
+    const size = chosen ?? preferred;
+    return [size ?? 5, setChosen, size !== null];
+}
 
 /**
  * Axe Accessibility Tools Links
@@ -73,4 +91,11 @@ function getCurrentBrowser(userAgent: string | undefined): Browser {
     return null;
 }
 
-export { getAxeLink, getCurrentBrowser, getInitalPageSize, pageSizeOptions, savePageSize };
+export {
+    getAxeLink,
+    getCurrentBrowser,
+    getInitalPageSize,
+    pageSizeOptions,
+    savePageSize,
+    usePageSize,
+};

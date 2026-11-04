@@ -16,6 +16,7 @@ export type ImpactMeta = {
     icon: ReactNode;
     text: string;
     bg: string;
+    border: string;
     description: string;
 };
 
@@ -29,6 +30,7 @@ export const IMPACTS: ImpactMeta[] = [
         icon: <ExclamationCircleOutlined />,
         text: 'text-red-700',
         bg: 'bg-red-50',
+        border: 'border-red-200',
         description:
             'Major barriers that prevent access for many users. Immediate attention required.',
     },
@@ -39,6 +41,7 @@ export const IMPACTS: ImpactMeta[] = [
         icon: <AlertOutlined />,
         text: 'text-red-700',
         bg: 'bg-red-100',
+        border: 'border-red-300',
         description:
             'Significant issues that can make content difficult to use. Should be fixed promptly.',
     },
@@ -49,6 +52,7 @@ export const IMPACTS: ImpactMeta[] = [
         icon: <WarningOutlined />,
         text: 'text-orange-700',
         bg: 'bg-orange-50',
+        border: 'border-orange-200',
         description: 'Problems that may inconvenience some users but do not block access.',
     },
     {
@@ -58,6 +62,7 @@ export const IMPACTS: ImpactMeta[] = [
         icon: <InfoCircleOutlined />,
         text: 'text-yellow-700',
         bg: 'bg-yellow-50',
+        border: 'border-yellow-300',
         description: 'Low-impact issues that may affect usability in specific cases.',
     },
 ];

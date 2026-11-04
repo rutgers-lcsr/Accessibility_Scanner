@@ -22,6 +22,11 @@ export default function HeaderLink({ url }: Props) {
                 color: 'inherit',
                 fontSize: 'inherit',
                 textWrap: 'wrap',
+                // A long URL breaks across lines instead of widening the page on a phone.
+                overflowWrap: 'anywhere',
+                textAlign: 'left',
+                height: 'auto',
+                maxWidth: '100%',
                 padding: 0,
                 margin: 0,
                 textDecoration: 'underline',

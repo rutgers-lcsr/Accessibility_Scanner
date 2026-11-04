@@ -10,8 +10,8 @@ import PageLinks from '@/components/PageLinks';
 import PageLoading from '@/components/PageLoading';
 import ViolationsList from '@/components/ViolationsList';
 import { User } from '@/lib/types/user';
-import { Alert, Card, Flex, Image, Space, Tooltip } from 'antd';
-import { Content } from 'antd/es/layout/layout';
+import { Alert, Card, Flex, Image, Space } from 'antd';
+import Content from '@/components/Content';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
 import HeaderLink from './components/HeaderLink';
@@ -54,7 +54,10 @@ const getPageLinks = async (siteId: number): Promise<PageLink[]> => {
         },
     };
     try {
-        const response = await fetch(`${process.env.API_URL}/api/sites/${siteId}/links/`, options as RequestInit);
+        const response = await fetch(
+            `${process.env.API_URL}/api/sites/${siteId}/links/`,
+            options as RequestInit
+        );
         if (!response.ok) return [];
         return ((await response.json()) as { items: PageLink[] }).items;
     } catch {
@@ -81,7 +84,7 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     return (
         <>
             <Content className="mb-8 p-4">
-                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                     <Card>
                         <h2 className="mb-2 text-3xl font-extrabold">
                             Report for <HeaderLink url={report.url} />
@@ -101,17 +104,18 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 >
                                     Accessibility Report
                                 </h2>
+                                {/* No Tooltip: it only repeated the link text, and antd wraps its
+                                    child in a <span> on the server but not the client, which broke
+                                    hydration. */}
                                 <div>
-                                    <Tooltip title="Download Full Report as PDF">
-                                        <a
-                                            href={`/api/reports/${report.id}/pdf/`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                        >
-                                            Download PDF
-                                        </a>
-                                    </Tooltip>
+                                    <a
+                                        href={`/api/reports/${report.id}/pdf/`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    >
+                                        Download PDF
+                                    </a>
                                 </div>
                             </Flex>
 
@@ -222,7 +226,7 @@ document.body.appendChild(accessScriptElement);`}
                         </div>
                         <a href="#report-injection-script">
                             <Alert
-                                message="Note: This is a preview of the page. Some elements may not display correctly. All accessibility issues found are listed in the Report Photo and Detailed Accessibility Issues sections below."
+                                title="Note: This is a preview of the page. Some elements may not display correctly. All accessibility issues found are listed in the Report Photo and Detailed Accessibility Issues sections below."
                                 type="info"
                                 showIcon
                                 className="m-4"
@@ -261,16 +265,21 @@ document.body.appendChild(accessScriptElement);`}
                     </Card>
                     <Card>
                         <h2 className="my-4 text-2xl font-semibold">Report Photo</h2>
-                        <Tooltip title="This is a screenshot of the page at the time of the report, including any detected accessibility issues.">
-                            <div className="max-h-[400px] overflow-auto" id="report-photo">
-                                <Image
-                                    src={report_photo_url}
-                                    alt="Report Photo"
-                                    preview
-                                    className="rounded-lg w-full hover:shadow-lg transition-shadow"
-                                />
-                            </div>
-                        </Tooltip>
+                        {/* Shown as a caption, not a Tooltip: antd wraps a Tooltip's child in a
+                            <span> on the server only (a hydration error), and a hover tooltip on a
+                            div cannot be reached by keyboard. */}
+                        <p className="mb-2">
+                            This is a screenshot of the page at the time of the report, including
+                            any detected accessibility issues.
+                        </p>
+                        <div className="max-h-[400px] overflow-auto" id="report-photo">
+                            <Image
+                                src={report_photo_url}
+                                alt="Report Photo"
+                                preview
+                                className="rounded-lg w-full hover:shadow-lg transition-shadow"
+                            />
+                        </div>
                     </Card>
 
                     <Card>
@@ -278,8 +287,8 @@ document.body.appendChild(accessScriptElement);`}
                             Links on this page
                         </h2>
                         <p className="mb-2">
-                            Every link found on the page, on this website or elsewhere, and whether it
-                            still works.
+                            Every link found on the page, on this website or elsewhere, and whether
+                            it still works.
                         </p>
                         <PageLinks links={links} />
                     </Card>

@@ -1,4 +1,5 @@
 'use client';
+import Content from '@/components/Content';
 import HeaderLink from '@/app/reports/[reportId]/components/HeaderLink';
 import ImpactTiles from '@/components/ImpactTiles';
 import PageHeading from '@/components/PageHeading';
@@ -8,7 +9,7 @@ import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useUrlFilters } from '@/lib/urlFilters';
 import { useUser } from '@/providers/User';
-import { Alert, Layout, Tabs, TabsProps } from 'antd';
+import { Alert, Tabs, TabsProps } from 'antd';
 import useSWR, { useSWRConfig } from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -22,7 +23,6 @@ import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteLinksTable from './WebsiteLinksTable';
 import WebsiteReport from './WebsiteReport';
 import WebsiteSiteTable from './WebsiteSiteTable';
-const { Content } = Layout;
 
 type Props = {
     websiteId: number;
@@ -139,7 +139,7 @@ const Website = ({ websiteId, user }: Props) => {
                             className="mt-2 mb-4"
                             type="warning"
                             showIcon
-                            message={`${websiteReport.documents.untagged_pdf} untagged PDF${websiteReport.documents.untagged_pdf === 1 ? '' : 's'}`}
+                            title={`${websiteReport.documents.untagged_pdf} untagged PDF${websiteReport.documents.untagged_pdf === 1 ? '' : 's'}`}
                             description="Untagged PDFs have no reading structure, so screen readers cannot navigate them. Re-export them with tagging enabled or replace them with web pages."
                         />
                     )}
@@ -157,7 +157,7 @@ const Website = ({ websiteId, user }: Props) => {
                             style={{ margin: '8px 0 16px' }}
                             type="warning"
                             showIcon
-                            message={`${websiteReport.link_counts.broken} broken link${websiteReport.link_counts.broken === 1 ? '' : 's'}`}
+                            title={`${websiteReport.link_counts.broken} broken link${websiteReport.link_counts.broken === 1 ? '' : 's'}`}
                             description="These links lead to a page that no longer exists. Fix or remove them on the pages listed under Linked from."
                         />
                     )}
@@ -177,12 +177,14 @@ const Website = ({ websiteId, user }: Props) => {
 
     return (
         <>
-            <PageHeading title="Website Report" />
+            <PageHeading
+                title={
+                    <>
+                        Website Report for <HeaderLink url={`${websiteReport.url}`} />
+                    </>
+                }
+            />
             <Content className="mb-8 p-4">
-                <h2 className="mb-10 text-3xl font-extrabold">
-                    Website Report for <HeaderLink url={`${websiteReport.url}`} />
-                </h2>
-
                 {user && user.is_admin && <AdminItems website={websiteReport} mutate={mutate} />}
                 {/** Admin items for the website For Regular Users Usually the Owner of the site */}
                 {isUserPartOfUsers && <WebsiteAdminItems website={websiteReport} mutate={mutate} />}
@@ -199,7 +201,7 @@ const Website = ({ websiteId, user }: Props) => {
                             className="mb-6"
                             type="error"
                             showIcon
-                            message={
+                            title={
                                 websiteReport.last_scan_status === 'unreachable'
                                     ? 'The last scan could not reach this website'
                                     : 'The last scan failed'
@@ -225,7 +227,7 @@ const Website = ({ websiteId, user }: Props) => {
                         // Give some advice if there are too many violations
                         <div className="mt-6 rounded-md p-4">
                             <Alert
-                                message="Start with the Fix first tab: it ranks the issues by how many pages one fix clears, and links to a guide for each."
+                                title="Start with the Fix first tab: it ranks the issues by how many pages one fix clears, and links to a guide for each."
                                 type="info"
                                 style={{}}
                                 showIcon

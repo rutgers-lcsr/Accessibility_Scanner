@@ -14,8 +14,10 @@ import {
     Typography,
     message,
 } from 'antd';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import useSWR from 'swr';
+
+const noSubscription = () => () => {};
 
 const KEYS_URL = '/api/users/me/api-keys/';
 // Swagger UI is served by the backend under /api/ so the Next proxy forwards it.
@@ -118,7 +120,13 @@ function ApiKeys() {
         },
     ];
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://<host>';
+    // The server has no window: it and the hydrating render show the placeholder, then React
+    // re-renders with the real origin, so the two never disagree.
+    const origin = useSyncExternalStore(
+        noSubscription,
+        () => window.location.origin,
+        () => 'https://<host>'
+    );
 
     return (
         <div className="w-full">
@@ -151,12 +159,7 @@ function ApiKeys() {
                 title="Using your API key"
                 className="mt-6"
                 extra={
-                    <Button
-                        type="primary"
-                        icon={<ApiOutlined />}
-                        href={DOCS_URL}
-                        target="_blank"
-                    >
+                    <Button type="primary" icon={<ApiOutlined />} href={DOCS_URL} target="_blank">
                         Full API reference
                     </Button>
                 }
@@ -260,7 +263,7 @@ curl -H "X-API-Key: <YOUR_KEY>" \\
                     type="warning"
                     showIcon
                     className="mb-4"
-                    message="Copy your key now"
+                    title="Copy your key now"
                     description="This is the only time the full key will be shown. Store it somewhere safe."
                 />
                 <pre className="overflow-auto rounded bg-gray-100 p-4 text-xs break-all whitespace-pre-wrap">

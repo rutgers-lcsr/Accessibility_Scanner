@@ -7,7 +7,7 @@ import Link from 'next/link';
 function HelpPage() {
     return (
         <>
-            <Flex justify="center" align="center">
+            <Flex justify="center" align="center" wrap="wrap">
                 <Card
                     variant="borderless"
                     style={{ maxWidth: 400, minWidth: 300, margin: 16 }}

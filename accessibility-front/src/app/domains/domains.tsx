@@ -6,7 +6,7 @@ import { Domain } from '@/lib/types/domain';
 import { useDomains } from '@/providers/Domain';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { Button, Flex, Input, Pagination, Table, TableColumnsType, Tag } from 'antd';
-import { Content } from 'antd/es/layout/layout';
+import Content from '@/components/Content';
 import AddDomain from './modals/addDomain';
 import DeleteDomain from './modals/deleteDomain';
 

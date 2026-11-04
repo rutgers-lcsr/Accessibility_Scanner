@@ -14,8 +14,14 @@ function AdminReportItems({ report }: Props) {
             className="mb-4 rounded-md bg-gray-50 p-4 shadow"
             aria-label="Report Overview Information"
         >
-            <Space className="w-full" size={'large'} direction="vertical">
-                <Descriptions size="small" column={3} layout="horizontal" title="Url Info" bordered>
+            <Space className="w-full" size={'large'} orientation="vertical">
+                <Descriptions
+                    size="small"
+                    column={{ xs: 1, md: 2, lg: 3 }}
+                    layout="horizontal"
+                    title="Url Info"
+                    bordered
+                >
                     <Descriptions.Item label="Actions">
                         <RescanPageButton siteId={report.site_id} />
                     </Descriptions.Item>

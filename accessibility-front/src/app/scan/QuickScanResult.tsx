@@ -33,7 +33,7 @@ function QuickScanResult({ taskId }: Props) {
             <Alert
                 type={status === 410 ? 'warning' : 'error'}
                 showIcon
-                message={
+                title={
                     status === 410
                         ? 'This quick scan result has expired'
                         : status === 404
@@ -52,9 +52,7 @@ function QuickScanResult({ taskId }: Props) {
 
     if (!isQuickScanResult(data)) {
         if (data.error) {
-            return (
-                <Alert type="error" showIcon message="The scan failed" description={data.error} />
-            );
+            return <Alert type="error" showIcon title="The scan failed" description={data.error} />;
         }
         return (
             <Card>
@@ -71,7 +69,7 @@ function QuickScanResult({ taskId }: Props) {
             <Alert
                 type="error"
                 showIcon
-                message={`Could not audit ${data.url}`}
+                title={`Could not audit ${data.url}`}
                 description={[data.error, data.response_code ? `HTTP ${data.response_code}` : null]
                     .filter(Boolean)
                     .join('. ')}
@@ -112,7 +110,7 @@ function QuickScanResult({ taskId }: Props) {
                 </Card>
             ) : (
                 data.photo_omitted && (
-                    <Alert type="info" showIcon message="The screenshot was too large to keep." />
+                    <Alert type="info" showIcon title="The screenshot was too large to keep." />
                 )
             )}
             <Card title={`Violations (${violations.length})`}>
@@ -121,7 +119,7 @@ function QuickScanResult({ taskId }: Props) {
                         className="mb-4"
                         type="info"
                         showIcon
-                        message="Only the first 50 elements of each rule are shown for a quick scan."
+                        title="Only the first 50 elements of each rule are shown for a quick scan."
                     />
                 )}
                 {violations.length === 0 ? (

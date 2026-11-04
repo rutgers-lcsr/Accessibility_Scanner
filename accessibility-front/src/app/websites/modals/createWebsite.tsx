@@ -2,7 +2,7 @@
 import { APIError } from '@/lib/api';
 import { PublicUser } from '@/lib/types/user';
 import { NewWebsiteOptions, useWebsites } from '@/providers/Websites';
-import { Button, Form, Input, Modal, Select } from 'antd';
+import { Button, Form, Input, Modal, Select, Space } from 'antd';
 import React, { useState } from 'react';
 
 const CreateWebsite: React.FC<{ user: PublicUser | null }> = ({ user }) => {
@@ -60,22 +60,25 @@ const CreateWebsite: React.FC<{ user: PublicUser | null }> = ({ user }) => {
                 okText={isAdmin ? 'Add' : 'Request'}
             >
                 <Form form={form} layout="vertical" initialValues={{ protocol: 'https://' }}>
-                    <Form.Item
-                        label="Website Url"
-                        name="websiteName"
-                        rules={[{ required: true, message: 'Please enter the website URL' }]}
-                    >
-                        <Input
-                            addonBefore={
-                                <Form.Item name="protocol" noStyle>
-                                    <Select style={{ width: 90 }}>
-                                        <Select.Option value="https://">https://</Select.Option>
-                                    </Select>
-                                </Form.Item>
-                            }
-                            placeholder="cs.rutgers.edu"
-                            onPressEnter={() => submit()}
-                        />
+                    {/* noStyle fields inside one item: their errors show under the pair, and
+                        htmlFor keeps the label tied to the URL input (its id is the field name). */}
+                    <Form.Item label="Website Url" htmlFor="websiteName" required>
+                        <Space.Compact block>
+                            <Form.Item name="protocol" noStyle>
+                                <Select style={{ width: 90 }} aria-label="Protocol">
+                                    <Select.Option value="https://">https://</Select.Option>
+                                </Select>
+                            </Form.Item>
+                            <Form.Item
+                                name="websiteName"
+                                noStyle
+                                rules={[
+                                    { required: true, message: 'Please enter the website URL' },
+                                ]}
+                            >
+                                <Input placeholder="cs.rutgers.edu" onPressEnter={() => submit()} />
+                            </Form.Item>
+                        </Space.Compact>
                     </Form.Item>
                     {isAdmin && (
                         <>

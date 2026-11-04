@@ -1,8 +1,9 @@
 'use client';
 
-import { Card, Flex, Layout, List, Menu, Typography } from 'antd';
+import Content from '@/components/Content';
+import { Card, Flex, Layout, Menu, Typography } from 'antd';
 
-const { Header, Footer, Sider, Content } = Layout;
+const { Header, Footer, Sider } = Layout;
 const { Title, Paragraph, Text } = Typography;
 
 /*
@@ -140,7 +141,9 @@ function LandmarksPage() {
                     />
                 </nav>
                 <Layout>
-                    <main
+                    {/* A div, not <main>: the app layout already provides this page's one main
+                        landmark, and a second, nested <main> is invalid. */}
+                    <div
                         style={{ flex: 1, minHeight: 280 }}
                         onMouseEnter={(e) => highlightLandmark(e, 'main')}
                         onMouseLeave={clearHighlight}
@@ -171,16 +174,17 @@ function LandmarksPage() {
                                             for users, especially those using assistive technologies
                                             like screen readers.
                                         </Paragraph>
-                                        <List
-                                            dataSource={landmarkList}
-                                            renderItem={(item) => (
-                                                <List.Item>
+                                        <ul
+                                            className="divide-y divide-gray-100"
+                                            style={{ margin: 0, padding: 0, listStyle: 'none' }}
+                                        >
+                                            {landmarkList.map((item) => (
+                                                <li key={item.tag} className="py-3">
                                                     <Text strong>{`<${item.tag}>`}</Text>:{' '}
                                                     {item.desc}
-                                                </List.Item>
-                                            )}
-                                            style={{ marginBottom: 0 }}
-                                        />
+                                                </li>
+                                            ))}
+                                        </ul>
                                         <Paragraph>
                                             Note: While HTML5 provides several semantic elements
                                             that serve as landmarks, ARIA roles can also be used to
@@ -245,19 +249,25 @@ function LandmarksPage() {
                                 onMouseLeave={clearHighlight}
                             >
                                 <Card title="Best Practices for Using Landmarks">
-                                    <List
-                                        dataSource={[
+                                    <ul
+                                        className="divide-y divide-gray-100"
+                                        style={{ margin: 0, padding: 0, listStyle: 'none' }}
+                                    >
+                                        {[
                                             'Use landmarks appropriately to define the structure of your page.',
                                             'Ensure that each landmark is used only once per page (e.g., only one <main> element).',
                                             'Provide clear and descriptive labels for landmarks when necessary using ARIA roles or properties.',
                                             'Test your website with screen readers to ensure landmarks are recognized.',
-                                        ]}
-                                        renderItem={(item) => <List.Item>{item}</List.Item>}
-                                    />
+                                        ].map((item) => (
+                                            <li key={item} className="py-3">
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </Card>
                             </section>
                         </Content>
-                    </main>
+                    </div>
                 </Layout>
                 <footer
                     onMouseEnter={(e) => highlightLandmark(e, 'footer')}

@@ -21,7 +21,7 @@ function Rules() {
         <>
             <PageHeading title="Accessibility Rules" />
             <Flex justify="center" align="stretch" style={{ width: '100%' }}>
-                <Space direction="vertical" size="large" style={{ alignContent: 'center' }}>
+                <Space orientation="vertical" size="large" style={{ alignContent: 'center' }}>
                     <div className="text-gray-600 mb-4">
                         Manage your custom accessibility rules here. You can add, edit, or delete
                         rules to tailor the accessibility checks to your needs.

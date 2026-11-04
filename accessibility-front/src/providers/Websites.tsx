@@ -1,12 +1,12 @@
 'use client';
 import { APIError, fetcherApi } from '@/lib/api';
-import { getInitalPageSize, PageSize, savePageSize } from '@/lib/browser';
+import { PageSize, savePageSize, usePageSize } from '@/lib/browser';
 import { pageParam, useUrlFilters } from '@/lib/urlFilters';
 import { Paged } from '@/lib/types/Paged';
 import { PublicUser } from '@/lib/types/user';
 import { Website } from '@/lib/types/website';
 import { useRouter } from 'next/navigation';
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import useSWR from 'swr';
 import { useAlerts } from './Alerts';
 import { useUser } from './User';
@@ -59,7 +59,7 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
     const orderParam = params.get('orderBy');
     const orderBy: WebsiteOrder =
         orderParam === 'violations' || orderParam === 'last_scanned' ? orderParam : 'url';
-    const [limit, setLimitState] = useState(getInitalPageSize);
+    const [limit, setLimitState, limitReady] = usePageSize();
 
     const setPage = (next: number) => setFilters({ page: next > 1 ? String(next) : null });
     // Changing what is listed starts again from the first page.
@@ -77,7 +77,9 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
 
     const { addAlert } = useAlerts();
     const { data, error, isLoading, mutate } = useSWR(
-        `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}${searchCategories.length ? `&category=${searchCategories.join(',')}` : ''}&orderBy=${orderBy}`,
+        limitReady
+            ? `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}${searchCategories.length ? `&category=${searchCategories.join(',')}` : ''}&orderBy=${orderBy}`
+            : null,
         user ? handlerUserApiRequest<Paged<Website>> : fetcherApi<Paged<Website>>
     );
     const { data: categories } = useSWR(
@@ -134,7 +136,8 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
                 websitesTotal: data?.count ?? 0,
 
                 error,
-                isLoading,
+                // Also loading while the page size is settled after hydration (no fetch yet).
+                isLoading: isLoading || !limitReady,
                 openWebsite,
                 categories: categories,
                 WebsitePage: page,

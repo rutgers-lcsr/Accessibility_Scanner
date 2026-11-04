@@ -106,7 +106,7 @@ export default function RuleComponent({ rule }: Props) {
             {collapsed ? (
                 <Space
                     className={rule.enabled ? 'w-full relative' : 'w-full opacity-50'}
-                    direction="vertical"
+                    orientation="vertical"
                     size="large"
                 >
                     <EditableInput

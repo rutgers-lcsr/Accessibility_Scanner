@@ -1,56 +1,38 @@
-import { Flex } from 'antd';
-import { Header } from 'antd/es/layout/layout';
-
 type Props = {
-    title?: string;
+    title?: React.ReactNode;
     subtitle?: string;
     actions?: React.ReactNode;
 };
 
+// Title bar at the top of each page. Wraps rather than truncating, so a long title or the
+// actions never push the page wider than a phone screen.
 const PageHeading = (props: Props) => {
     return (
-        <Header
-            className="shadow-sm"
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'left',
-                padding: '16px',
-                marginBottom: 24,
-                minHeight: 75,
-            }}
-            title={props.title}
-        >
-            <Flex
-                gap={10}
-                style={{
-                    flexGrow: 1,
-                    justifyContent: 'flex-start',
-                    alignItems: 'center',
-                    paddingTop: 10,
-                }}
-            >
-                <div className="mr-4">
+        <header className="mb-6 border-b border-[#e4e4e4] bg-white px-4 py-4 md:px-6 md:py-5">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div className="min-w-0 flex-1 basis-64">
                     {props.title && (
-                        <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 truncate line-clamp-1">
+                        <h1
+                            className="text-2xl leading-tight tracking-tight text-gray-900 md:text-[1.75rem]"
+                            style={{ margin: 0, fontWeight: 600 }}
+                        >
                             {props.title}
                         </h1>
                     )}
-                </div>
-                <div className="mt-2">
                     {props.subtitle && (
-                        <p className="text-gray-500 text-base md:text-lg truncate">
+                        <p
+                            className="mt-1 text-sm text-gray-600 md:text-base"
+                            style={{ marginBottom: 0 }}
+                        >
                             {props.subtitle}
                         </p>
                     )}
                 </div>
-            </Flex>
-            {props.actions && (
-                <div className="flex flex-row gap-2 mt-4 md:mt-0 flex-shrink-0 mr-4">
-                    {props.actions}
-                </div>
-            )}
-        </Header>
+                {props.actions && (
+                    <div className="flex flex-wrap items-center gap-2">{props.actions}</div>
+                )}
+            </div>
+        </header>
     );
 };
 

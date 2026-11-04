@@ -1,5 +1,5 @@
 import PageHeading from '@/components/PageHeading';
-import { Content } from 'antd/es/layout/layout';
+import Content from '@/components/Content';
 import { ReactNode } from 'react';
 
 export default async function Layout({ children }: { children: ReactNode }) {

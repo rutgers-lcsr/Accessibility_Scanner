@@ -1,6 +1,6 @@
 'use client';
 import { APIError } from '@/lib/api';
-import { getInitalPageSize, PageSize } from '@/lib/browser';
+import { PageSize, usePageSize } from '@/lib/browser';
 import { Domain } from '@/lib/types/domain';
 import { Paged } from '@/lib/types/Paged';
 import React, { createContext, useContext } from 'react';
@@ -29,7 +29,7 @@ export const DomainProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
     const [domainPage, setDomainPage] = React.useState<number>(1);
-    const [domainLimit, setDomainLimit] = React.useState<PageSize>(getInitalPageSize);
+    const [domainLimit, setDomainLimit, domainLimitReady] = usePageSize();
     const [domainFilters, setDomainFilters] = React.useState<Record<string, string>>({});
 
     const {
@@ -37,7 +37,9 @@ export const DomainProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isLoading: loadingDomain,
         mutate: mutateDomains,
     } = useSWR<Paged<Domain>>(
-        `/api/domains/?page=${domainPage}&limit=${domainLimit}&${new URLSearchParams(domainFilters).toString()}`,
+        domainLimitReady
+            ? `/api/domains/?page=${domainPage}&limit=${domainLimit}&${new URLSearchParams(domainFilters).toString()}`
+            : null,
         handlerUserApiRequest
     );
 
@@ -96,7 +98,7 @@ export const DomainProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             value={{
                 domains: domains?.items || [],
                 domainCount: domains?.count || 0,
-                loadingDomain,
+                loadingDomain: loadingDomain || !domainLimitReady,
                 domainPage,
                 domainLimit,
                 createDomain,

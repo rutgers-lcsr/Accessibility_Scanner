@@ -21,7 +21,7 @@ export default function PageLoading({ minimal }: Props) {
         <div className="flex h-screen items-center justify-center">
             <Flex align="center" gap="middle">
                 <Spin
-                    tip="Loading..."
+                    description="Loading..."
                     fullscreen
                     indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
                 />

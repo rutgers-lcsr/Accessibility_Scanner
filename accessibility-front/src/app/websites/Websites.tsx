@@ -18,7 +18,7 @@ import {
     Tooltip,
     Typography,
 } from 'antd';
-import { Content } from 'antd/es/layout/layout';
+import Content from '@/components/Content';
 import { formatDate } from 'date-fns';
 import Link from 'next/link';
 import CreateWebsite from './modals/createWebsite';

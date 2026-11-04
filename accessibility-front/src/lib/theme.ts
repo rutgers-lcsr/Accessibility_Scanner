@@ -22,10 +22,17 @@ export const rutgersTheme: ThemeConfig = {
         colorBorderSecondary: '#efefef',
         colorBgContainer: '#ffffff',
 
-        // Other accents
+        // Type: Geist is loaded by the root layout (next/font) and exposed as CSS variables.
+        fontFamily:
+            "var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+        fontFamilyCode:
+            'var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+
+        // Other accents. Hover and active go darker, not lighter, so a hovered link keeps
+        // its contrast (the lighter blues were about 2:1 on white).
         colorLink: '#007fac',
-        colorLinkHover: '#7dbfd6',
-        colorLinkActive: '#92d6e3',
+        colorLinkHover: '#005f80',
+        colorLinkActive: '#004d68',
 
         // Control backgrounds
         controlItemBgActive: '#def0f9',
@@ -41,8 +48,16 @@ export const rutgersTheme: ThemeConfig = {
         Layout: {
             colorPrimary: '#cc0033',
             headerBg: '#ffffff',
-            footerBg: '#f2f2f2',
+            footerBg: '#ffffff',
             siderBg: '#222222',
+        },
+        // Navigation: the current page reads as scarlet on a scarlet tint, not scarlet on blue.
+        Menu: {
+            itemSelectedBg: '#fdecef',
+            itemSelectedColor: '#b3002d',
+            itemHoverBg: '#f3f3f3',
+            itemActiveBg: '#fbdde4',
+            groupTitleColor: '#666666',
         },
     },
 };

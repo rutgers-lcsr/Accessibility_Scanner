@@ -1,12 +1,12 @@
 'use client';
 import { APIError, fetcherApi } from '@/lib/api';
-import { getInitalPageSize, PageSize, savePageSize } from '@/lib/browser';
+import { PageSize, savePageSize, usePageSize } from '@/lib/browser';
 import { pageParam, useUrlFilters } from '@/lib/urlFilters';
 import { Report } from '@/lib/types/axe';
 import { Paged } from '@/lib/types/Paged';
 import { PublicUser } from '@/lib/types/user';
 import { useRouter } from 'next/navigation';
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import useSWR from 'swr';
 import { useUser } from './User';
 
@@ -37,7 +37,7 @@ export const ReportsProvider: React.FC<{ children: React.ReactNode; user: Public
     const { params, setFilters } = useUrlFilters();
     const page = pageParam(params.get('page'));
     const searchUrl = params.get('search') ?? '';
-    const [limit, setLimitState] = useState<PageSize>(getInitalPageSize);
+    const [limit, setLimitState, limitReady] = usePageSize();
 
     const setPage = (next: number) => setFilters({ page: next > 1 ? String(next) : null });
     const setSearchUrl = (query: string) => setFilters({ search: query || null, page: null });
@@ -47,7 +47,9 @@ export const ReportsProvider: React.FC<{ children: React.ReactNode; user: Public
     };
     const { handlerUserApiRequest } = useUser();
     const { data, error, isLoading, mutate } = useSWR<Paged<Report>>(
-        `/api/reports/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`,
+        limitReady
+            ? `/api/reports/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}`
+            : null,
         user ? handlerUserApiRequest : fetcherApi
     );
 
@@ -60,7 +62,7 @@ export const ReportsProvider: React.FC<{ children: React.ReactNode; user: Public
             value={{
                 reports: data?.items,
                 reportsTotal: data?.count || 0,
-                isLoading,
+                isLoading: isLoading || !limitReady,
                 error,
                 ReportPage: page,
                 ReportLimit: limit,

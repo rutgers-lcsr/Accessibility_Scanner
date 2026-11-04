@@ -130,11 +130,11 @@ const ScanProgressModal = ({
             width={600}
             centered
         >
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                 <div style={{ textAlign: 'center' }}>{getStateIcon()}</div>
 
                 <div style={{ textAlign: 'center' }} aria-live="polite">
-                    <Space direction="vertical" size="small">
+                    <Space orientation="vertical" size="small">
                         <div>
                             <strong>Task ID:</strong> <code>{taskId}</code>
                         </div>
@@ -179,7 +179,7 @@ const ScanProgressModal = ({
 
                 {taskStatus?.state === 'PENDING' && (
                     <div style={{ textAlign: 'center' }}>
-                        <Spin tip="Waiting for worker to pick up task..." />
+                        <Spin description="Waiting for worker to pick up task..." />
                         <div style={{ marginTop: 12, color: '#666' }}>
                             {taskStatus.status || 'Task queued...'}
                         </div>
@@ -191,7 +191,7 @@ const ScanProgressModal = ({
                 )}
                 {taskStatus?.state === 'SUCCESS' && taskStatus.result && !renderSuccess && (
                     <Alert
-                        message="Scan Completed Successfully!"
+                        title="Scan Completed Successfully!"
                         description={
                             <div>
                                 <p>
@@ -224,7 +224,7 @@ const ScanProgressModal = ({
 
                 {(taskStatus?.state === 'FAILURE' || error) && (
                     <Alert
-                        message="Scan Failed"
+                        title="Scan Failed"
                         description={error || taskStatus?.status || 'An unknown error occurred'}
                         type="error"
                         showIcon
