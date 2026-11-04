@@ -77,8 +77,13 @@ function ViolationsList({
     const filtering = impacts.length > 0 || !!ruleQuery || !!pageFilter;
 
     // Verdicts made on this page update the findings we were handed.
+    // New findings from the parent replace them (adjusted during render, not in an effect).
     const [findingState, setFindingState] = useState<Finding[] | null | undefined>(findings);
-    useEffect(() => setFindingState(findings), [findings]);
+    const [findingsSeen, setFindingsSeen] = useState(findings);
+    if (findings !== findingsSeen) {
+        setFindingsSeen(findings);
+        setFindingState(findings);
+    }
     const findingsBySelector = new Map<string, Finding>();
     for (const finding of findingState ?? []) {
         if (finding.selector)

@@ -27,14 +27,14 @@ export const UserProvider = ({ children, user }: UserProviderProps) => {
         }
 
         async function doRequest() {
-            options = {
+            const requestOptions: RequestInit = {
                 ...options,
                 headers: {
                     ...options?.headers,
                 },
             };
 
-            const response = await handleRequest<T>(url, options);
+            const response = await handleRequest<T>(url, requestOptions);
             if (!response) {
                 throw new Error('Failed to fetch user data');
             }

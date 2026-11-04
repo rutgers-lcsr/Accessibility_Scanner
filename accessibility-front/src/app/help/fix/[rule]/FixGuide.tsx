@@ -18,6 +18,9 @@ function FixGuide({ ruleId }: { ruleId: string }) {
     useEffect(() => {
         try {
             const value = localStorage.getItem(PLATFORM_STORAGE_KEY);
+            // Read after mount on purpose: localStorage does not exist during SSR, and reading
+            // it in the initial state would make the first client render mismatch the server's.
+            // eslint-disable-next-line react/set-state-in-effect
             if (isPlatformId(value)) setStored(value);
         } catch {
             // private mode or blocked storage: the default applies
