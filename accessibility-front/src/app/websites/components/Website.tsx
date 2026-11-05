@@ -16,6 +16,7 @@ import PageLoading from '../../../components/PageLoading';
 import AdminItems from './AdminItems';
 import FixFirst from './FixFirst';
 import NotificationToggle from './NotificationToggle';
+import ScanWebsiteButton from './ScanWebsiteButton';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
 import WebsiteDocumentsTable from './WebsiteDocumentsTable';
@@ -170,10 +171,26 @@ const Website = ({ websiteId, user }: Props) => {
     // console.log(websiteReport);
     // console.log(user);
 
-    const isUserPartOfUsers =
-        user &&
-        (websiteReport.users.some((u) => u === user.user) || websiteReport.admin === user.user) &&
-        !user.is_admin;
+    // Settings come after the results: the people who can change them (site admins, the
+    // website's admin and its members) open this tab, everyone lands on Fix first.
+    if (user && canEdit) {
+        WebsiteReportItems.push({
+            key: 'settings',
+            label: 'Settings',
+            children: (
+                <div className="space-y-4">
+                    <NotificationToggle website={websiteReport} user={user} />
+                    {user.is_admin ? (
+                        <AdminItems website={websiteReport} mutate={mutate} />
+                    ) : (
+                        <WebsiteAdminItems website={websiteReport} mutate={mutate} />
+                    )}
+                </div>
+            ),
+        });
+    }
+    // A ?tab= this user has no tab for (Settings for a viewer) falls back to Fix first.
+    const shownTab = WebsiteReportItems.some((item) => item.key === activeTab) ? activeTab : 'fix';
 
     return (
         <>
@@ -183,18 +200,18 @@ const Website = ({ websiteId, user }: Props) => {
                         Website Report for <HeaderLink url={`${websiteReport.url}`} />
                     </>
                 }
+                subtitle={`Last scanned: ${
+                    websiteReport.last_scanned
+                        ? new Date(websiteReport.last_scanned).toLocaleString()
+                        : 'Never'
+                }`}
+                actions={
+                    canEdit && (
+                        <ScanWebsiteButton websiteId={websiteId} onComplete={() => mutate()} />
+                    )
+                }
             />
             <Content className="mb-8 p-4">
-                {user && user.is_admin && <AdminItems website={websiteReport} mutate={mutate} />}
-                {/** Admin items for the website For Regular Users Usually the Owner of the site */}
-                {isUserPartOfUsers && <WebsiteAdminItems website={websiteReport} mutate={mutate} />}
-                {user && <NotificationToggle website={websiteReport} user={user} />}
-                <h2 className="mb-4 text-lg text-gray-500">
-                    Last Scanned:{' '}
-                    {websiteReport?.last_scanned
-                        ? new Date(websiteReport.last_scanned).toLocaleString()
-                        : 'Never'}
-                </h2>
                 {websiteReport.last_scan_status &&
                     websiteReport.last_scan_status !== 'completed' && (
                         <Alert
@@ -236,9 +253,9 @@ const Website = ({ websiteId, user }: Props) => {
                     )}
                 </section>
 
-                <section aria-labelledby="website-report">
+                <section aria-label="Report details">
                     <Tabs
-                        activeKey={activeTab}
+                        activeKey={shownTab}
                         onChange={(key) => setFilters({ tab: key === 'fix' ? null : key })}
                         items={WebsiteReportItems}
                     />

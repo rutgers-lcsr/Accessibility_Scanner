@@ -8,11 +8,9 @@
 
 import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
-import ScanProgressModal from '@/components/ScanProgressModal';
 import { useAlerts } from '@/providers/Alerts';
-import { Button, Select } from 'antd';
+import { Select } from 'antd';
 import { useState } from 'react';
-import { useScan } from '@/hooks/useScan';
 import ExtraStartUrls from './ExtraStartUrls';
 import { Field, Legend } from './PanelFields';
 
@@ -26,24 +24,6 @@ function WebsiteAdminItems({ website, mutate }: Props) {
     const [loading, setLoading] = useState(false);
     const { handlerUserApiRequest } = useUser();
 
-    const {
-        loading: loadingScan,
-        taskId: scanTaskId,
-        statusEndpoint: scanStatusEndpoint,
-        showProgress: showScanProgress,
-        startScan,
-        handleScanComplete: onScanComplete,
-        handleScanError,
-        handleCloseProgress,
-    } = useScan({
-        websiteId: website.id,
-        onComplete: () => mutate(),
-    });
-
-    const handleScanComplete = () => {
-        onScanComplete();
-        mutate();
-    };
     const handleUsersChange = async (value: string[] | null) => {
         if (value !== null) {
             setLoading(true);
@@ -69,19 +49,7 @@ function WebsiteAdminItems({ website, mutate }: Props) {
     };
 
     return (
-        <div className="mb-4 rounded-md bg-gray-50 p-4 shadow">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-medium text-gray-800">Website Settings</h2>
-                <Button
-                    type="primary"
-                    loading={loadingScan}
-                    onClick={() => startScan()}
-                    disabled={loadingScan}
-                >
-                    {loadingScan ? 'Scanning...' : 'Scan Website'}
-                </Button>
-            </div>
-
+        <div className="rounded-md bg-gray-50 p-4 shadow">
             <div className="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-x-8 gap-y-5">
                 <fieldset className="min-w-0">
                     <Legend>Scanning</Legend>
@@ -130,16 +98,6 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                     </div>
                 </fieldset>
             </div>
-            {scanTaskId && scanStatusEndpoint && (
-                <ScanProgressModal
-                    taskId={scanTaskId}
-                    statusEndpoint={scanStatusEndpoint}
-                    onComplete={handleScanComplete}
-                    onError={handleScanError}
-                    visible={showScanProgress}
-                    onClose={handleCloseProgress}
-                />
-            )}
         </div>
     );
 }

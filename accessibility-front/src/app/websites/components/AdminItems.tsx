@@ -1,7 +1,6 @@
 'use client';
 import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
-import ScanProgressModal from '@/components/ScanProgressModal';
 import { useAlerts } from '@/providers/Alerts';
 import { useWebsites } from '@/providers/Websites';
 import { Button, Input, InputNumber, Modal, Select, Switch } from 'antd';
@@ -9,7 +8,6 @@ import TextArea from 'antd/es/input/TextArea';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
-import { useScan } from '@/hooks/useScan';
 import ExtraStartUrls from './ExtraStartUrls';
 import { Field, Legend } from './PanelFields';
 
@@ -30,20 +28,6 @@ function AdminItems({ website, mutate }: Props) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const { handlerUserApiRequest } = useUser();
     const { categories } = useWebsites();
-
-    const {
-        loading: loadingScan,
-        taskId: scanTaskId,
-        statusEndpoint: scanStatusEndpoint,
-        showProgress: showScanProgress,
-        startScan,
-        handleScanComplete,
-        handleScanError,
-        handleCloseProgress,
-    } = useScan({
-        websiteId: website.id,
-        onComplete: () => mutate(),
-    });
 
     const handleActivate = async () => {
         setLoadingActivate(true);
@@ -274,19 +258,7 @@ function AdminItems({ website, mutate }: Props) {
     const { data: allTags } = useSWR(`/api/axe/rules/tags/`, handlerUserApiRequest<string[]>);
 
     return (
-        <div className="mb-4 rounded-md bg-gray-50 p-4 shadow">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-medium text-gray-800">Admin Actions</h2>
-                <Button
-                    type="primary"
-                    loading={loadingScan}
-                    onClick={() => startScan()}
-                    disabled={loadingScan}
-                >
-                    {loadingScan ? 'Scanning...' : 'Scan Website'}
-                </Button>
-            </div>
-
+        <div className="rounded-md bg-gray-50 p-4 shadow">
             <div className="grid grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-x-8 gap-y-5">
                 <fieldset className="min-w-0">
                     <Legend>Scanning</Legend>
@@ -487,16 +459,6 @@ function AdminItems({ website, mutate }: Props) {
             >
                 <p>Are you sure you want to delete this website?</p>
             </Modal>
-            {scanTaskId && scanStatusEndpoint && (
-                <ScanProgressModal
-                    taskId={scanTaskId}
-                    statusEndpoint={scanStatusEndpoint}
-                    onComplete={handleScanComplete}
-                    onError={handleScanError}
-                    visible={showScanProgress}
-                    onClose={handleCloseProgress}
-                />
-            )}
         </div>
     );
 }

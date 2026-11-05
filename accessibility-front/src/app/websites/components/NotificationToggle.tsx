@@ -3,8 +3,9 @@ import { Website } from '@/lib/types/website';
 import { PublicUser } from '@/lib/types/user';
 import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
-import { Switch, Tooltip } from 'antd';
+import { Switch } from 'antd';
 import useSWR from 'swr';
+import { Legend } from './PanelFields';
 
 type Props = {
     website: Website;
@@ -51,24 +52,34 @@ function NotificationToggle({ website, user }: Props) {
         }
     };
 
+    // Shown as text, not a hover tooltip, so keyboard and touch users can read it too.
     return (
-        <div className="mb-4 flex items-center gap-3 text-sm text-gray-600">
-            <Tooltip
-                title={
-                    data.website_wide
-                        ? 'This website is part of your digest emails: what to fix first and what changed.'
-                        : 'Email is switched off for this website by a site admin; your setting applies once it is on.'
-                }
-            >
-                <Switch
-                    id="notification-toggle"
-                    checked={data.subscribed}
-                    loading={isLoading}
-                    onChange={change}
-                    aria-label="Email me about this website"
-                />
-            </Tooltip>
-            <label htmlFor="notification-toggle">Email me about this website</label>
+        <div className="rounded-md bg-gray-50 p-4 shadow">
+            <fieldset className="min-w-0">
+                <Legend>Your emails</Legend>
+                <div className="flex items-start gap-3 text-sm text-gray-700">
+                    <Switch
+                        id="notification-toggle"
+                        checked={data.subscribed}
+                        loading={isLoading}
+                        onChange={change}
+                        aria-label="Email me about this website"
+                        aria-describedby="notification-toggle-help"
+                    />
+                    <div>
+                        <label htmlFor="notification-toggle">Email me about this website</label>
+                        <p
+                            id="notification-toggle-help"
+                            className="text-xs text-gray-500"
+                            style={{ margin: '4px 0 0' }}
+                        >
+                            {data.website_wide
+                                ? 'This website is part of your digest emails: what to fix first and what changed.'
+                                : 'Email is switched off for this website by a site admin; your setting applies once it is on.'}
+                        </p>
+                    </div>
+                </div>
+            </fieldset>
         </div>
     );
 }

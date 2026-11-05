@@ -1,4 +1,3 @@
-import PageHeading from '@/components/PageHeading';
 import { User, toPublicUser } from '@/lib/types/user';
 import { ReportsProvider } from '@/providers/Reports';
 import { getCurrentUser } from 'next-cas-client/app';
@@ -9,13 +8,8 @@ export default async function Layout({ children }: { children: ReactNode }) {
 
     return (
         <>
-            <ReportsProvider user={user}>
-                <PageHeading
-                    title="Accessibility Reports"
-                    subtitle="Individual accessibility reports."
-                />
-                {children}
-            </ReportsProvider>
+            {/* No heading here: the list and each report render their own h1. */}
+            <ReportsProvider user={user}>{children}</ReportsProvider>
         </>
     );
 }

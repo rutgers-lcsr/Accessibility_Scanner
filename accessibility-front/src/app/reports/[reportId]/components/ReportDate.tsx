@@ -1,14 +1,17 @@
 'use client';
 
-import React from 'react';
+import { useSyncExternalStore } from 'react';
 
 interface ReportDateProps {
     dateString: string;
 }
 
-const ReportDate: React.FC<ReportDateProps> = ({ dateString }) => {
+const noSubscription = () => () => {};
+
+const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    const formattedDate = date.toLocaleString('en-US', {
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleString('en-US', {
         year: 'numeric',
         month: 'numeric',
         day: 'numeric',
@@ -16,10 +19,17 @@ const ReportDate: React.FC<ReportDateProps> = ({ dateString }) => {
         minute: '2-digit',
         second: '2-digit',
     });
-    if (isNaN(date.getTime())) {
-        return <h3 className="mb-2 text-lg text-gray-500">Report Date: N/A</h3>;
-    }
-    return <h3 className="mb-2 text-lg text-gray-500">Report Date: {formattedDate}</h3>;
 };
+
+// The report's time in the reader's time zone. Formatted in the browser only: the server
+// runs in UTC, so its text would not match the browser's and hydration would fail.
+function ReportDate({ dateString }: ReportDateProps) {
+    const formatted = useSyncExternalStore(
+        noSubscription,
+        () => formatDate(dateString),
+        () => null
+    );
+    return <span>Report date: {formatted}</span>;
+}
 
 export default ReportDate;

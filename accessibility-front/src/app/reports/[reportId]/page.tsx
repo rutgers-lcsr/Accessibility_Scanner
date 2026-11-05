@@ -3,14 +3,15 @@ import { Report as ReportType } from '@/lib/types/axe';
 import { PageLink } from '@/lib/types/link';
 import { ExclamationCircleOutlined } from '@/lib/icons';
 
-import AdminReportItems from '@/app/reports/[reportId]/components/AdminReportItems';
 import ImpactTiles from '@/components/ImpactTiles';
 import PageError from '@/components/PageError';
+import PageHeading from '@/components/PageHeading';
 import PageLinks from '@/components/PageLinks';
 import PageLoading from '@/components/PageLoading';
+import RescanPageButton from '@/components/RescanPageButton';
 import ViolationsList from '@/components/ViolationsList';
 import { User } from '@/lib/types/user';
-import { Alert, Card, Flex, Image, Space } from 'antd';
+import { Alert, Button, Card, Image, Space } from 'antd';
 import Content from '@/components/Content';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
@@ -83,43 +84,51 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
 
     return (
         <>
+            <PageHeading
+                title={
+                    <>
+                        Report for <HeaderLink url={report.url} />
+                    </>
+                }
+                subtitle={
+                    <>
+                        <ReportDate dateString={report.timestamp} /> · Website: {report.base_url}
+                    </>
+                }
+                actions={
+                    <>
+                        {/* The website's admin, its members and site admins. */}
+                        {report.can_scan && <RescanPageButton siteId={report.site_id} />}
+                        <Button
+                            href={`/api/reports/${report.id}/pdf/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Download PDF
+                        </Button>
+                    </>
+                }
+            />
             <Content className="mb-8 p-4">
                 <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                     <Card>
-                        <h2 className="mb-2 text-3xl font-extrabold">
-                            Report for <HeaderLink url={report.url} />
-                        </h2>
-
-                        <ReportDate dateString={report.timestamp} />
-                        <h3 className="mb-4 text-lg text-gray-500">Website: {report.base_url}</h3>
-
                         <section
                             aria-labelledby="accessibility-report"
                             className="rounded-lg bg-gray-50 p-6"
                         >
-                            <Flex justify="space-between" className="mb-4">
-                                <h2
-                                    id="accessibility-report"
-                                    className="mb-6 text-2xl font-semibold text-gray-800"
-                                >
-                                    Accessibility Report
-                                </h2>
-                                {/* No Tooltip: it only repeated the link text, and antd wraps its
-                                    child in a <span> on the server but not the client, which broke
-                                    hydration. */}
-                                <div>
-                                    <a
-                                        href={`/api/reports/${report.id}/pdf/`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                    >
-                                        Download PDF
-                                    </a>
-                                </div>
-                            </Flex>
+                            <h2
+                                id="accessibility-report"
+                                className="mb-6 text-2xl font-semibold text-gray-800"
+                            >
+                                Accessibility Report
+                            </h2>
 
                             <ImpactTiles counts={violations} />
+                            {report.tags.length > 0 && (
+                                <p className="text-sm text-gray-600" style={{ margin: '16px 0 0' }}>
+                                    Rules checked: {report.tags.join(', ')}
+                                </p>
+                            )}
                             {report.videos.length > 0 && (
                                 <div className="mt-4 text-center text-sm text-gray-600">
                                     <ExclamationCircleOutlined className="mr-1 inline" />
@@ -138,14 +147,12 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                 </div>
                             )}
                         </section>
-                        <section className="mt-6 mb-6">
-                            <Card
-                                title={
-                                    <span className="text-2xl font-semibold">
-                                        How to read the Report
-                                    </span>
-                                }
-                            >
+                        {/* Collapsed: the same instructions on every report, read once. */}
+                        <details className="mt-4 rounded-lg bg-gray-50">
+                            <summary className="cursor-pointer px-6 py-3 text-base font-semibold text-gray-800">
+                                How to read this report
+                            </summary>
+                            <div className="px-6 pb-5">
                                 <p className="mb-2 text-base text-gray-700">
                                     The{' '}
                                     <strong>
@@ -163,14 +170,15 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                     context.
                                 </p>
                                 <div className="mb-2 text-base text-gray-700">
-                                    To display all errors with explainations either use the{' '}
+                                    To see every error with its explanation, either:
                                     <ul>
                                         <li className="list-disc ml-6">
-                                            Use the{' '}
-                                            <a href="#report-injection-script">injection script</a>
+                                            use the{' '}
+                                            <a href="#report-injection-script">injection script</a>,
+                                            or
                                         </li>
                                         <li className="list-disc ml-6">
-                                            Install The following{' '}
+                                            install the axe DevTools{' '}
                                             <a href="https://chromewebstore.google.com/detail/axe-devtools-web-accessib/lhdoppojpmngadmnindnejefpokejbdd">
                                                 Chrome extension
                                             </a>{' '}
@@ -178,8 +186,9 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                             <a href="https://addons.mozilla.org/en-US/firefox/addon/axe-devtools/">
                                                 Firefox extension
                                             </a>
+                                            .
                                         </li>
-                                    </ul>{' '}
+                                    </ul>
                                 </div>
                                 <p className="mt-4 text-base text-gray-700">
                                     At the{' '}
@@ -192,13 +201,12 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
                                     , you’ll find a detailed list of all detected accessibility
                                     issues and links to resources for <b>fixing them</b>.
                                 </p>
-                            </Card>
-                        </section>
-                        {report.can_scan && <AdminReportItems report={report} />}
+                            </div>
+                        </details>
                     </Card>
 
                     <Card>
-                        <h1 className="mb-4 text-2xl font-semibold">Url Preview</h1>
+                        <h2 className="mb-4 text-2xl font-semibold">Url Preview</h2>
 
                         <div
                             className="mb-4 rounded-lg border max-h-[700px] overflow-auto w-full hover:shadow-lg transition-shadow relative"
