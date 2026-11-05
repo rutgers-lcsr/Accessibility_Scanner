@@ -1,0 +1,77 @@
+name: CI
+
+# Runs on every push to development and on pull requests. The deploy workflow also calls
+# it (workflow_call) and only deploys when it passes.
+on:
+    push:
+        branches:
+            - development
+    pull_request:
+    workflow_call:
+
+permissions:
+    contents: read
+
+jobs:
+    backend:
+        name: Backend tests
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v7
+
+            - name: Set up Python
+              uses: actions/setup-python@v7
+              with:
+                  python-version: "3.12"
+                  cache: pip
+
+            # Same build libraries as the Dockerfile's base stage (mariadb and pycairo compile).
+            - name: Install system libraries
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends libmariadb-dev libcairo2-dev pkg-config
+
+            - name: Install dependencies
+              run: pip install -r requirements.txt
+
+            # The suite uses a throwaway sqlite database and fakes the browser, so it needs no
+            # services. config.py refuses to start without JWT_SECRET_KEY.
+            - name: Run pytest
+              env:
+                  JWT_SECRET_KEY: ci-only-not-a-real-secret
+              run: pytest
+
+    frontend:
+        name: Frontend checks
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: accessibility-front
+        env:
+            NEXT_TELEMETRY_DISABLED: 1
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v7
+
+            - name: Set up Node
+              uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: npm
+                  cache-dependency-path: accessibility-front/package-lock.json
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Lint
+              run: npm run lint
+
+            - name: Type check
+              run: npx tsc --noEmit
+
+            - name: Unit tests
+              run: npm test
+
+            - name: Build
+              run: npm run build

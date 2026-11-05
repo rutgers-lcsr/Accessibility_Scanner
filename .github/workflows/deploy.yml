@@ -5,8 +5,16 @@ on:
         branches:
             - main
 
+permissions:
+    contents: read
+
 jobs:
+    # Lint, type check, tests and build (ci.yml). Nothing is deployed unless they pass.
+    test:
+        uses: ./.github/workflows/ci.yml
+
     deploy:
+        needs: test
         environment: production
         runs-on: production-a11y
         env:
@@ -19,7 +27,7 @@ jobs:
             NEXT_CAS_CLIENT_SECRET: ${{ secrets.NEXT_CAS_CLIENT_SECRET }}
         steps:
             - name: Checkout Code
-              uses: actions/checkout@v2
+              uses: actions/checkout@v7
 
             - name: Set up Certs
               run: |
@@ -71,6 +79,23 @@ jobs:
                       docker logs a11y_api
                       exit 1
                   fi
+
+            # Same probes as the compose healthchecks, run once instead of waiting for them.
+            - name: check the api and frontend answer /health
+              run: |
+                  for i in 1 2 3 4 5 6; do
+                      if docker exec a11y_api curl -fsS http://localhost:5000/health \
+                          && docker exec a11y_nextjs node -e "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
+                          echo "API and frontend are healthy"
+                          exit 0
+                      fi
+                      echo "Not ready yet, retrying in 10s ($i/6)"
+                      sleep 10
+                  done
+                  echo "API or frontend did not answer /health"
+                  docker logs --tail 100 a11y_api
+                  docker logs --tail 100 a11y_nextjs
+                  exit 1
 
             - name: Remove docker artifacts
               run: |
