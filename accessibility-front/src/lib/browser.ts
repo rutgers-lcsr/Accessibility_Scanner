@@ -5,10 +5,16 @@
 import { useState, useSyncExternalStore } from 'react';
 
 function getInitalPageSize(): PageSize {
-    if (typeof window === 'undefined' || !window.localStorage) {
+    if (typeof window === 'undefined') {
         return 5;
     }
-    const saved = localStorage.getItem('websitePageSize');
+    let saved: string | null = null;
+    try {
+        saved = window.localStorage.getItem('websitePageSize');
+    } catch {
+        // storage unavailable (blocked, or damaged: Firefox throws NS_ERROR_FAILURE). This runs
+        // while rendering, so a throw would crash the page: size by the window width instead.
+    }
     if (saved) {
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed > 0) {
