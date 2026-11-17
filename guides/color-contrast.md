@@ -30,6 +30,8 @@ Low contrast is unreadable for many people with low vision or colour deficiencie
 .banner { color: #ffffff; background: #cc0033; } /* 5.9:1 */
 ```
 
+**Coloured words in code samples** (keywords, `@decorators`, strings in a different colour) come from the code-highlighting theme of the code block or plugin, not from text you typed. Pick a higher-contrast highlighting theme in that block's or plugin's settings: one change fixes every sample on the site.
+
 Use a contrast checker (WebAIM's is free) while picking colours. Darkening the text is usually easier than changing the background. The Rutgers red `#cc0033` on white passes for text of any size.
 
 ## WordPress
@@ -37,6 +39,7 @@ Use a contrast checker (WebAIM's is free) while picking colours. Darkening the t
 - **Block editor.** Select the block, open **Color** in the settings panel and pick a darker text colour or a different background. The editor warns when a combination is hard to read.
 - **Whole site.** Appearance → Editor → **Styles → Colors** sets the palette; changing the theme's light grey there fixes every block that uses it. In `theme.json` the same palette lives under `settings.color.palette`.
 - **Classic theme.** Appearance → Customize → Additional CSS, for example `.entry-content .note { color: #595959; }`. Use the selector from the report page.
+- **Code blocks.** Code-highlighting plugins (for example Prismatic, SyntaxHighlighter, Code Block Pro) have a theme setting; choose a theme with darker colours on a light background, or a light-on-dark one that passes.
 
 ## Canvas
 

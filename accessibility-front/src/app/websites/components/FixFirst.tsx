@@ -49,6 +49,7 @@ function FixFirst({
     return (
         <div className="mt-2">
             <FixFirstList
+                user={user}
                 websiteId={websiteId}
                 data={data}
                 canEdit={canEdit}

@@ -54,7 +54,8 @@ function FixGuide({ ruleId }: { ruleId: string }) {
     if (isLoading || !data) return <PageLoading />;
 
     const fromUrl = params.get('platform');
-    const platform = isPlatformId(fromUrl) ? fromUrl : (stored ?? 'html');
+    // WordPress first: most owners who land here without a choice edit their site there.
+    const platform = isPlatformId(fromUrl) ? fromUrl : (stored ?? 'wordpress');
     const choose = (id: PlatformId) => {
         try {
             localStorage.setItem(PLATFORM_STORAGE_KEY, id);

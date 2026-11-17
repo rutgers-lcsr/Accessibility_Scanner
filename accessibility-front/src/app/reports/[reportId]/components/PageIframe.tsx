@@ -39,7 +39,9 @@ function PageIframe({ url, children, frameClassName = 'w-full min-h-[700px]' }: 
             // look for the element once it is visible.
             window.setTimeout(() => {
                 const box = containerRef.current?.getBoundingClientRect();
-                if (box) {
+                // In the phone sheet the panel is already in front: no page scroll.
+                const inSheet = !!containerRef.current?.closest('[data-sheet-open]');
+                if (box && !inSheet) {
                     // Beside the issue list (wide screens) the list stays put: bring the
                     // preview into view only if needed, and no way back is needed.
                     const beside = box.left > window.innerWidth * 0.4;

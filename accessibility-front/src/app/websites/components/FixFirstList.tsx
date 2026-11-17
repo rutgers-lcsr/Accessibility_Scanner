@@ -1,7 +1,9 @@
 'use client';
 import { RuleFindingsSummary } from '@/components/AuditAccessibilityItem';
 import ViolationNode from '@/components/ViolationNode';
-import { guideHref, reportHref, violationsHref } from '@/lib/guides';
+import { guideHref, reportHref } from '@/lib/guides';
+import { PublicUser } from '@/lib/types/user';
+import RuleElements from './RuleElements';
 import { ImpactTag } from '@/lib/impact';
 import { FindingStatus, FixFirstPage, FixFirstRule, WebsiteFixFirst } from '@/lib/types/finding';
 import { PlatformId } from '@/lib/types/guide';
@@ -19,6 +21,7 @@ type Props = {
     renderPageAction?: (page: FixFirstPage, rule: FixFirstRule) => ReactNode;
     // The rule to scroll to on arrival (?rule=), from an email.
     focusRule?: string | null;
+    user?: PublicUser | null;
 };
 
 // Rules shown in full before "Show all".
@@ -36,7 +39,10 @@ function FixFirstList({
     onBulkStatus,
     renderPageAction,
     focusRule,
+    user = null,
 }: Props) {
+    // The rule whose every element is open in the drawer.
+    const [elementsOf, setElementsOf] = useState<FixFirstRule | null>(null);
     const scrolled = useRef(false);
     // A long list starts with the top of the ranking; the rest is one click away. A rule
     // linked from an email (?rule=) is always shown.
@@ -246,15 +252,30 @@ function FixFirstList({
                                             </Button>
                                         )
                                     )}
-                                    <a href={violationsHref(websiteId, rule.rule_id)}>
-                                        Every element of this rule
-                                    </a>
+                                    <Button
+                                        type="link"
+                                        style={{ padding: 0 }}
+                                        aria-haspopup="dialog"
+                                        onClick={() => setElementsOf(rule)}
+                                    >
+                                        Every element of this rule ({rule.elements})
+                                    </Button>
                                 </Space>
                             </Card>
                         </li>
                     );
                 })}
             </ol>
+            {elementsOf && (
+                <RuleElements
+                    websiteId={websiteId}
+                    ruleId={elementsOf.rule_id}
+                    title={elementsOf.help ?? elementsOf.rule_id}
+                    user={user}
+                    open
+                    onClose={() => setElementsOf(null)}
+                />
+            )}
             {hiddenCount > 0 && (
                 <div className="mt-4 text-center">
                     <Button onClick={() => setShowAll(true)}>

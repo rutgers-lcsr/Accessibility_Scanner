@@ -2,6 +2,7 @@
 import FindingStatusControl from '@/components/FindingStatusControl';
 import { AxeNode } from '@/lib/types/axe';
 import { Finding } from '@/lib/types/finding';
+import { plainContrastFix } from '@/lib/contrast';
 import { useAlerts } from '@/providers/Alerts';
 import { CopyOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
@@ -47,6 +48,8 @@ function ViolationNode({
         window.dispatchEvent(new CustomEvent(PREVIEW_FOCUS_EVENT, { detail: { selector } }));
 
     const summary = plainSummary(node.failureSummary);
+    // For a contrast failure, the fix in one sentence with a colour that passes.
+    const plainFix = plainContrastFix(node.failureSummary);
     const text = visibleText(node.html);
     const { addAlert } = useAlerts();
     const copy = async (value: string, what: string) => {
@@ -62,7 +65,21 @@ function ViolationNode({
         <li className="mb-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
             {/* What is wrong first, in words; then the words on the page, so a non-coder can
                 find it; the selector and HTML are for finding it in code. */}
-            {summary && <div className="mb-2 whitespace-pre-wrap">{summary}</div>}
+            {plainFix ? (
+                <>
+                    <p className="font-medium text-gray-900" style={{ margin: '0 0 6px' }}>
+                        {plainFix}
+                    </p>
+                    {summary && (
+                        <details className="mb-2 text-xs text-gray-700">
+                            <summary className="cursor-pointer">What the check measured</summary>
+                            <div className="mt-1 whitespace-pre-wrap">{summary}</div>
+                        </details>
+                    )}
+                </>
+            ) : (
+                summary && <div className="mb-2 whitespace-pre-wrap">{summary}</div>
+            )}
             {text && (
                 <p className="text-gray-900" style={{ margin: '0 0 8px' }}>
                     On the page it reads: <q className="font-medium">{text}</q>

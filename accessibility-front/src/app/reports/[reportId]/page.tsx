@@ -17,6 +17,7 @@ import { Alert, Button, Card, Space } from 'antd';
 import Content from '@/components/Content';
 import { getCurrentUser } from 'next-cas-client/app';
 import HeaderLink from './components/HeaderLink';
+import PagePanelShell from './components/PagePanelShell';
 import PageViews from './components/PageViews';
 import ReportDate from './components/ReportDate';
 
@@ -481,7 +482,9 @@ document.body.appendChild(accessScriptElement);`;
                         </div>
                         {/* Stretched to the row so the panel inside has room to stay in view. */}
                         <div className="min-w-0 self-stretch">
-                            <div className="xl:sticky xl:top-4">{pagePanel}</div>
+                            <div className="xl:sticky xl:top-4">
+                                <PagePanelShell>{pagePanel}</PagePanelShell>
+                            </div>
                         </div>
                     </div>
 

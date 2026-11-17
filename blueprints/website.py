@@ -1,3 +1,5 @@
+import os
+import re
 from flask import Blueprint, current_app, jsonify, request, Response
 from flask_jwt_extended import jwt_required, current_user
 from authentication.login import  admin_required
@@ -20,6 +22,7 @@ from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
 from models.link import LINK_STATUS_ORDER, LINK_STATUSES, Link, LinkSource
 from sqlalchemy.orm import joinedload, selectinload
 from models.finding import FINDING_STATUSES
+from services.elements import CSV_COLUMNS as ELEMENT_CSV_COLUMNS, csv_rows, website_elements
 from services.findings import bulk_set_status, changes_for_sites, fix_first, list_findings, missing_reason
 from services.guides import available_guides
 from services.links import latest_report_ids
@@ -856,6 +859,38 @@ def get_website_changes(website_id):
         return jsonify({'error': 'Unauthorized'}), 403
     site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
     return jsonify(changes_for_sites(site_ids)), 200
+
+
+@website_bp.route('/<int:website_id>/elements/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_elements(website_id):
+    """
+    Every current failing element, grouped by the markup it shares.
+    ---
+    tags:
+        - Websites
+    parameters:
+        - {in: path, name: website_id, required: true, type: integer}
+        - {in: query, name: rule, type: string, required: false}
+        - {in: query, name: format, type: string, enum: [json, csv], default: json}
+    responses:
+        200:
+            description: Groups of elements (JSON) or one row per element (CSV)
+        403:
+            description: Unauthorized
+        404:
+            description: Website not found
+    """
+    website, error = _viewable_website(website_id)
+    if error:
+        return error
+    site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
+    rule_id = request.args.get('rule') or None
+    data = website_elements(site_ids, rule_id)
+    if request.args.get('format') == 'csv':
+        name = f"elements-{website.id}{'-' + re.sub(r'[^a-z0-9-]', '', rule_id.lower()) if rule_id else ''}.csv"
+        return csv_response(ELEMENT_CSV_COLUMNS, csv_rows(data, os.environ.get('NEXT_PUBLIC_BASE_URL', '')), name)
+    return jsonify(data), 200
 
 
 @website_bp.route('/<int:website_id>/findings/bulk/', methods=['POST'])
