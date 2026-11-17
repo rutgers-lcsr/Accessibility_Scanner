@@ -61,3 +61,27 @@ main :is(p, li, dd, td, label, .ant-alert-description) a:not(.ant-btn):not(.tile
     outline: 3px solid #b3002d;
     outline-offset: -3px;
 }
+
+/* Controls antd draws no usable ring on: dropdowns (the input inside has outline none
+   and the wrapper a near-invisible shadow), segmented switches and disclosure summaries. */
+.ant-select-focused .ant-select-selector,
+.ant-select:has(input:focus-visible) .ant-select-selector {
+    outline: 3px solid #b3002d;
+    outline-offset: 1px;
+}
+.ant-segmented:has(input:focus-visible) {
+    outline: 3px solid #b3002d;
+    outline-offset: 2px;
+}
+summary:focus-visible {
+    outline: 3px solid #b3002d;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* antd's empty-table and empty-state text is #bfbfbf (1.8:1 on white). */
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-placeholder > td,
+.ant-table-wrapper .ant-table-placeholder .ant-empty-description,
+.ant-empty-description {
+    color: #595959;
+}

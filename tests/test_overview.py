@@ -105,3 +105,18 @@ def test_overview_counts_failing_pages_and_stale_scans(app, make_user, make_webs
     row = {r["url"]: r for r in overview["websites"]}
     assert row[fresh.url]["pages_failing"] == 1 and row[fresh.url]["stale"] is False
     assert row[stale.url]["pages_failing"] == 0 and row[stale.url]["stale"] is True
+
+
+def test_overview_discloses_suppressed_rule_failures(app, make_user, make_website, add_site, add_report):
+    from models import db
+
+    website = make_website(make_user())
+    site = add_site(website, page="/")
+    report = add_report(site, violations=[_rule("label", "critical")])
+    report.suppressed_counts = {"total": 1, "critical": 1, "serious": 0, "moderate": 0, "minor": 0}
+    db.session.commit()
+
+    overview = build_overview([website], top=0)
+    assert overview["totals"]["suppressed"] == 1
+    assert overview["totals"]["violations"]["total"] == 0
+    assert overview["websites"][0]["suppressed"] == 1

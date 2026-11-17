@@ -103,6 +103,8 @@ export type Report = {
     websites?: { id: number; url: string }[];
     // the page's newest report; statuses and notes are kept on that one
     latest_report_id?: number;
+    // what that newest scan found, when it is not this report
+    latest_report?: { id: number; timestamp: string; failing_rules: number };
 };
 
 export type CheckTemplate = {

@@ -58,3 +58,18 @@ def test_older_report_points_to_the_latest(client, make_user, make_site, add_rep
     assert body["latest_report_id"] == new.id
     body = client.get(f"/api/reports/{new.id}/", headers=jwt_header(owner)).get_json()
     assert body["latest_report_id"] == new.id
+
+
+def test_older_report_says_what_the_latest_scan_found(client, make_user, make_site, add_report, jwt_header):
+    from datetime import datetime, timedelta, timezone
+
+    owner = make_user("bob")
+    site = make_site(owner)
+    now = datetime.now(timezone.utc)
+    old = add_report(site, when=now - timedelta(days=3))
+    new = add_report(site, when=now, violations=[])
+
+    body = client.get(f"/api/reports/{old.id}/", headers=jwt_header(owner)).get_json()
+    assert body["latest_report"]["id"] == new.id
+    assert body["latest_report"]["failing_rules"] == 0
+    assert "latest_report" not in client.get(f"/api/reports/{new.id}/", headers=jwt_header(owner)).get_json()

@@ -210,3 +210,30 @@ def test_website_report_orders_by_severity_and_counts_nodes_per_page(app, make_u
     assert [v["id"] for v in report["violations"]] == ["image-alt", "color-contrast", "region"]
     contrast = report["violations"][1]
     assert {r["url"]: r["node_count"] for r in contrast["reports"]} == {home.url: 3, about.url: 1}
+
+
+def test_pages_list_pages_through_every_page_once(client, make_user, make_website, add_site, add_report, jwt_header):
+    """Pages with equal counts must not shift between result pages."""
+    owner = make_user("bob")
+    website = make_website(owner)
+    for i in range(7):
+        add_report(add_site(website, page=f"/p{i}"), violations=[])
+    seen = []
+    for page in (1, 2, 3):
+        body = client.get(f"/api/websites/{website.id}/sites/?page={page}&limit=3", headers=jwt_header(owner)).get_json()
+        seen += [item["url"] for item in body["items"]]
+    assert len(seen) == 7 and len(set(seen)) == 7
+
+
+def test_pages_list_counts_a_page_once_when_two_reports_share_a_timestamp(client, make_user, make_website, add_site, add_report, jwt_header):
+    """Two scans stored in the same second used to join the page twice, so a result page
+    held fewer pages than asked for and the total over-counted."""
+    owner = make_user("bob")
+    website = make_website(owner)
+    when = datetime.now(timezone.utc)
+    for i in range(4):
+        site = add_site(website, page=f"/p{i}")
+        add_report(site, when=when, violations=[])
+        add_report(site, when=when, violations=[])
+    body = client.get(f"/api/websites/{website.id}/sites/?page=1&limit=4", headers=jwt_header(owner)).get_json()
+    assert len(body["items"]) == 4 and body["count"] == 4

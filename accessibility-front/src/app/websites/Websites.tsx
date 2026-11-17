@@ -122,7 +122,8 @@ function Websites({ user }: Props) {
             },
         },
         {
-            title: 'Passes',
+            // Rules, page by page: a website's page counts failing elements instead.
+            title: 'Passing rules',
             dataIndex: 'passes',
             key: 'passes',
             render: (text: string, record: WebsiteType) => (
@@ -130,7 +131,7 @@ function Websites({ user }: Props) {
             ),
         },
         {
-            title: 'Violations',
+            title: 'Rule failures',
             dataIndex: 'violations',
             key: 'violations',
             render: (text: string, record: WebsiteType) => (

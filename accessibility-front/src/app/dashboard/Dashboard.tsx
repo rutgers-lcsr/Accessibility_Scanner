@@ -109,7 +109,7 @@ function Dashboard() {
             sorter: numberSorter((r) => r.violations[impact.key]),
         })),
         {
-            title: 'Total',
+            title: 'Rule failures',
             key: 'total',
             align: 'right',
             render: (_, row) => <strong>{row.violations.total}</strong>,
@@ -203,7 +203,7 @@ function Dashboard() {
             render: (_, row) => row.violations[impact.key],
         })),
         {
-            title: 'Total',
+            title: 'Rule failures',
             key: 'total',
             align: 'right',
             render: (_, row) => <strong>{row.violations.total}</strong>,
@@ -316,7 +316,7 @@ function Dashboard() {
 
                         <section aria-labelledby="dash-violations">
                             <SectionTitle id="dash-violations">
-                                Open violations{' '}
+                                Rule failures{' '}
                                 <span className="text-base font-normal text-gray-600">
                                     (latest scan of every page)
                                 </span>
@@ -328,14 +328,23 @@ function Dashboard() {
                                 {totals.pages_audited} audited pages (a rule failing on one page
                                 counts once, however many elements fail)
                                 {totals.incomplete > 0 &&
-                                    `, plus ${totals.incomplete} checks that need a person to decide`}
+                                    `, plus ${totals.incomplete} rule checks on pages that need a person to decide`}
                                 .
+                                {totals.suppressed > 0 && (
+                                    // Nothing leaves the counts unannounced.
+                                    <>
+                                        {' '}
+                                        {totals.suppressed} more rule failure
+                                        {totals.suppressed === 1 ? ' is' : 's are'} marked false
+                                        positive or accepted and not counted.
+                                    </>
+                                )}
                             </p>
                         </section>
 
                         <section aria-labelledby="dash-trend">
                             <SectionTitle id="dash-trend">
-                                Open violations over time{' '}
+                                Rule failures over time{' '}
                                 <span className="text-base font-normal text-gray-600">
                                     (by severity)
                                 </span>

@@ -28,6 +28,8 @@ type Props = {
     idPrefix?: string;
     // What the element list is called ("Elements", "Elements to check").
     nodeLabel?: string;
+    // A line under the description, e.g. that the same rule also failed elsewhere.
+    note?: string;
 };
 
 const NODE_PAGE = 10;
@@ -126,15 +128,24 @@ export function RuleFindingsSummary({
 }) {
     const [busy, setBusy] = useState(false);
     const [open, setOpen] = useState(false);
-    const [choice, setChoice] = useState<FindingStatus>('fixed');
+    // Nothing chosen to start with: a stray Enter must not mark a whole rule fixed.
+    const [choice, setChoice] = useState<FindingStatus | null>(null);
     const [reason, setReason] = useState('');
     const total = Object.values(group.counts).reduce((sum, n) => sum + n, 0);
-    const needsReason = isSuppressed(choice);
-    const reasonOk = reason.trim().length >= REASON_MIN_LENGTH;
+    const needsReason = choice !== null && isSuppressed(choice);
+    const blocked =
+        choice === null
+            ? 'Choose a status.'
+            : needsReason && !reason.trim()
+              ? `Add a reason of at least ${REASON_MIN_LENGTH} characters.`
+              : needsReason && reason.trim().length < REASON_MIN_LENGTH
+                ? `The reason needs at least ${REASON_MIN_LENGTH} characters.`
+                : null;
     const suppressed = group.counts.false_positive + group.counts.accepted;
     const close = () => {
         setOpen(false);
         setReason('');
+        setChoice(null);
     };
     return (
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -167,10 +178,15 @@ export function RuleFindingsSummary({
                     <Modal
                         open={open}
                         title={`Status for all ${total} element${total === 1 ? '' : 's'} of this rule`}
-                        okText={`Mark ${total} as ${STATUS_LABELS[choice].toLowerCase()}`}
-                        okButtonProps={{ disabled: needsReason && !reasonOk }}
+                        okText={
+                            choice
+                                ? `Mark ${total} as ${STATUS_LABELS[choice].toLowerCase()}`
+                                : 'Mark them'
+                        }
+                        okButtonProps={{ disabled: blocked !== null }}
                         onOk={async () => {
                             const status = choice;
+                            if (!status) return;
                             const note = isSuppressed(status) ? reason.trim() : undefined;
                             close();
                             setBusy(true);
@@ -191,6 +207,8 @@ export function RuleFindingsSummary({
                             {(Object.keys(STATUS_LABELS) as FindingStatus[]).map((status) => (
                                 <Radio key={status} value={status}>
                                     {STATUS_LABELS[status]}
+                                    {/* Read as "Open, still to fix", not run together. */}
+                                    <span className="sr-only">, </span>
                                     <span className="ml-2 text-sm text-gray-600">
                                         {STATUS_HINTS[status]}
                                     </span>
@@ -199,7 +217,7 @@ export function RuleFindingsSummary({
                         </Radio.Group>
                         {needsReason && (
                             <div style={{ marginTop: 16 }}>
-                                <p style={{ margin: '0 0 8px' }}>
+                                <p id={`reason-why-${ruleId}`} style={{ margin: '0 0 8px' }}>
                                     They will no longer count in this website&apos;s totals, Fix
                                     first or the dashboard. Reviewers see who marked them and why.
                                 </p>
@@ -212,11 +230,14 @@ export function RuleFindingsSummary({
                                     maxLength={2000}
                                     value={reason}
                                     aria-required
+                                    aria-describedby={`reason-why-${ruleId}`}
                                     onChange={(e) => setReason(e.target.value)}
                                     style={{ marginTop: 4 }}
                                 />
                             </div>
                         )}
+                        {/* Why the confirm button is off, said instead of left to guess. */}
+                        <output className="mt-3 block text-sm text-gray-700">{blocked}</output>
                     </Modal>
                 </>
             )}
@@ -244,6 +265,7 @@ function AuditAccessibilityItem({
     onPageScanned,
     idPrefix = 'violation',
     nodeLabel,
+    note,
 }: Props) {
     const guides = useGuides();
     if (!accessibilityResult) return <div>No accessibility result provided.</div>;
@@ -265,7 +287,12 @@ function AuditAccessibilityItem({
         ) : (
             <ImpactTag impact={accessibilityResult.impact} />
         );
-    const header = <p className="mb-2 text-gray-700">{accessibilityResult.description}</p>;
+    const header = (
+        <>
+            <p className="mb-2 text-gray-700">{accessibilityResult.description}</p>
+            {note && <p className="mb-2 text-sm font-medium text-gray-800">{note}</p>}
+        </>
+    );
     const hasGuide = guides.has(ruleId);
     const footer = (
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">

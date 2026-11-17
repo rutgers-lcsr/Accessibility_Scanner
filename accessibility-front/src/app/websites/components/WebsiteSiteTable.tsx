@@ -63,7 +63,10 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
             key: 'violations',
             render: (text: string, record: Site) => (
                 <span className="tabular-nums">
-                    {record.current_report?.report_counts.violations.total ?? '—'}
+                    {/* A redirected page's counts are another site's: none here. */}
+                    {record.current_report?.scanned_host
+                        ? '—'
+                        : (record.current_report?.report_counts.violations.total ?? '—')}
                 </span>
             ),
             dataIndex: 'violations',
@@ -73,7 +76,9 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
             key: 'passed',
             render: (text: string, record: Site) => (
                 <span className="tabular-nums">
-                    {record.current_report?.report_counts.passes.total ?? '—'}
+                    {record.current_report?.scanned_host
+                        ? '—'
+                        : (record.current_report?.report_counts.passes.total ?? '—')}
                 </span>
             ),
             dataIndex: 'passed',
@@ -101,8 +106,15 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
                         </Tooltip>
                     );
                 }
+                // "OK" said the scan ran; next to a 50-day-old date it read as "page is fine".
+                const stale =
+                    !!record.last_scanned &&
+                    Date.now() - new Date(record.last_scanned).getTime() > 30 * 86_400_000;
+                if (status === 'completed' && stale) {
+                    return <Tag color="gold">Stale (over 30 days)</Tag>;
+                }
                 if (status === 'completed') {
-                    return <Tag color="green">OK</Tag>;
+                    return <Tag color="green">Scanned</Tag>;
                 }
                 return <Tag>Not yet scanned</Tag>;
             },

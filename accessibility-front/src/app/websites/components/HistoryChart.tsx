@@ -53,7 +53,9 @@ function HistoryChart({ data, x, compact = false, series = 'categories' }: Props
     }
 
     const labelFor = (rawX: string) => {
-        const d = new Date(rawX);
+        // A bare date ("2026-09-28") parses as midnight UTC, which is the evening before
+        // in New Jersey: read it as a local date.
+        const d = /^\d{4}-\d{2}-\d{2}$/.test(rawX) ? new Date(`${rawX}T00:00:00`) : new Date(rawX);
         return x === 'date' ? format(d, 'MMM d, yyyy') : format(d, 'MMM d, HH:mm');
     };
 

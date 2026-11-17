@@ -1408,10 +1408,12 @@ def get_website_sites(website_id):
         if not website.public:
             return jsonify({'error': 'Unauthorized'}), 403
 
+    # Each page's newest report by id: two scans can share a timestamp, and joining on
+    # the latest timestamp then listed such a page twice (short result pages, wrong count).
     latest_report_subq = (
         db.session.query(
             Report.site_id,
-            func.max(Report.timestamp).label('max_timestamp')
+            func.max(Report.id).label('max_id')
         )
         .group_by(Report.site_id)
         .subquery()
@@ -1428,12 +1430,14 @@ def get_website_sites(website_id):
         .outerjoin(
             Report,
             (Report.site_id == Site.id) &
-            (Report.timestamp == latest_report_subq.c.max_timestamp)
+            (Report.id == latest_report_subq.c.max_id)
         )
         .order_by((
             func.json_extract(Report.report_counts, '$.violations.total')
             - func.coalesce(func.json_extract(Report.suppressed_counts, '$.total'), 0)
-        ).desc())
+        ).desc(), Site.url, Site.id)
+        # The tiebreak keeps paging stable: pages with the same count came back in any
+        # order, so a page could show on two pages of results, or on none.
     )
 
     sites = sites_query.paginate(page=page, per_page=limit)

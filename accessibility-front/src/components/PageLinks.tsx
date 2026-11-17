@@ -26,7 +26,7 @@ export default function PageLinks({ links }: Props) {
             dataIndex: 'text',
             key: 'text',
             render: (text: string | null) =>
-                text ?? <span className="text-gray-400">(no text)</span>,
+                text ?? <span className="text-gray-600">(no text)</span>,
         },
         {
             title: 'Status',

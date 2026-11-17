@@ -21,7 +21,8 @@ export const rutgersTheme: ThemeConfig = {
 
         // Greys
         colorText: '#222222',
-        colorTextSecondary: '#666666',
+        // #666666 was 4.5:1 on white but 4.47:1 on antd's grey panels (#e3e3e3).
+        colorTextSecondary: '#595959',
         colorBorder: '#d8d8d8',
         colorBorderSecondary: '#efefef',
         colorBgContainer: '#ffffff',

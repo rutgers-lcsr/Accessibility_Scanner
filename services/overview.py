@@ -177,6 +177,11 @@ def _failing(row) -> bool:
     return ((counts.get('violations') or {}).get('total') or 0) > 0
 
 
+def _suppressed(row) -> int:
+    """Rule failures on a page's latest report that suppression takes off the counts."""
+    return int((row.suppressed_counts or {}).get('total') or 0)
+
+
 def website_row(website: Website, site_ids: set, latest_by_site: dict, documents: dict | None = None, links: dict | None = None) -> dict:
     per_site = {
         site_id: effective_counts(latest_by_site[site_id].report_counts, latest_by_site[site_id].suppressed_counts)
@@ -190,6 +195,8 @@ def website_row(website: Website, site_ids: set, latest_by_site: dict, documents
         'pages': len(site_ids),
         'pages_audited': sum(1 for site_id in site_ids if site_id in latest_by_site),
         'pages_failing': sum(1 for site_id in site_ids if site_id in latest_by_site and _failing(latest_by_site[site_id])),
+        # Rule failures hidden by false positive / accepted marks (in no count above).
+        'suppressed': sum(_suppressed(latest_by_site[site_id]) for site_id in site_ids if site_id in latest_by_site),
         'last_scanned': iso(website.last_scanned),
         'stale': is_stale(website.last_scanned),
         'last_scan_status': website.last_scan_status,
@@ -240,6 +247,7 @@ def build_overview(websites, top: int = 10) -> dict:
             # Pages whose latest scan ended on another site: listed, not counted.
             'pages_offsite': len(latest_reports(website_ids, include_offsite=True)) - len(latest_by_site),
             'pages_failing': sum(1 for row in latest_by_site.values() if _failing(row)),
+            'suppressed': sum(_suppressed(row) for row in latest_by_site.values()),
             'stale_scans': sum(1 for website in websites if is_stale(website.last_scanned)),
             'last_scan': iso(last_scan),
             'violations': totals['violations'],

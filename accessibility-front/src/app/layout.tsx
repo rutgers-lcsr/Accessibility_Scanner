@@ -26,7 +26,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: 'A11y',
+    // Each page names itself ("Report for …", "Dashboard"); screen readers and tabs
+    // could not tell pages apart when all were "A11y".
+    title: { template: '%s – A11y', default: 'A11y' },
     description: 'LCSR Accessibility Audit Tool',
     icons: {
         icon: '/favicon.ico',

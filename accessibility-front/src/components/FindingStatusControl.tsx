@@ -15,6 +15,8 @@ import type { TextAreaRef } from 'antd/es/input/TextArea';
 
 type Props = {
     finding: Finding;
+    // The element, for accessible names: one page can hold dozens of these controls.
+    elementName?: string;
     canEdit: boolean;
     onChanged?: (finding: Finding) => void;
 };
@@ -27,7 +29,7 @@ function byLine(finding: Finding): string | null {
 
 // A person's verdict on one finding: a status select plus an optional note. Read-only
 // viewers see the status as a tag.
-function FindingStatusControl({ finding, canEdit, onChanged }: Props) {
+function FindingStatusControl({ finding, canEdit, onChanged, elementName }: Props) {
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
     const [saving, setSaving] = useState(false);
@@ -83,7 +85,7 @@ function FindingStatusControl({ finding, canEdit, onChanged }: Props) {
             <Select
                 size="small"
                 style={{ minWidth: 130 }}
-                aria-label="Finding status"
+                aria-label={elementName ? `Status of ${elementName}` : 'Finding status'}
                 value={finding.status}
                 loading={saving}
                 disabled={saving}
@@ -105,6 +107,11 @@ function FindingStatusControl({ finding, canEdit, onChanged }: Props) {
                 size="small"
                 type={finding.note ? 'default' : 'dashed'}
                 aria-haspopup="dialog"
+                aria-label={
+                    elementName
+                        ? `${finding.note ? 'Note on' : 'Add a note on'} ${elementName}`
+                        : undefined
+                }
                 onClick={openNote}
             >
                 {finding.note ? 'Note' : 'Add note'}

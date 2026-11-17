@@ -15,6 +15,9 @@ type Props = {
     injectCommand: string;
     // After a redirect the screenshot is the faithful view, so it is the one shown first.
     redirected: boolean;
+    // A newer scan of the page exists: the live page may have changed since this report,
+    // so the screenshot from this scan is where its elements are.
+    outdated?: boolean;
 };
 
 // The scanned page beside the issue list: the screenshot taken at scan time, or the page
@@ -26,17 +29,32 @@ export default function PageViews({
     previewUrl,
     injectCommand,
     redirected,
+    outdated = false,
 }: Props) {
-    const [view, setView] = useState<View>(redirected ? 'photo' : 'live');
+    const [view, setView] = useState<View>(redirected || outdated ? 'photo' : 'live');
     // Said to screen readers (and shown) after "Show in preview".
     const [status, setStatus] = useState('');
 
     useEffect(() => {
-        const toLive = () => setView('live');
-        const found = () => setStatus('Highlighted in the live preview.');
+        const toLive = () => {
+            if (outdated) {
+                setView('photo');
+                setStatus(
+                    'This report is from an earlier scan, so its screenshot shows where the element was. The live page may have changed since.'
+                );
+                return;
+            }
+            setView('live');
+        };
+        // Found by its selector: say what is certain (the preview scrolled to it), not that
+        // it still fails, which only a new scan can tell.
+        const found = () => {
+            if (!outdated) setStatus('Scrolled to the element in the live preview.');
+        };
         // Not on the page as it loads now (it changed, or the scan was redirected): the
         // screenshot from the scan shows it, so switch to that rather than show nothing.
         const missing = () => {
+            if (outdated) return;
             setView('photo');
             setStatus(
                 'That element is not on the page as it loads now, so here is the screenshot from the scan, where it is outlined.'
@@ -50,7 +68,7 @@ export default function PageViews({
             window.removeEventListener(PREVIEW_FOUND_EVENT, found);
             window.removeEventListener(PREVIEW_MISSING_EVENT, missing);
         };
-    }, []);
+    }, [outdated]);
 
     return (
         <div>

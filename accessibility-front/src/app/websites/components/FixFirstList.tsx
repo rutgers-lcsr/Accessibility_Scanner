@@ -95,35 +95,39 @@ function FixFirstList({
                     return (
                         <li key={rule.rule_id} id={`fix-${rule.rule_id}`}>
                             <Card
+                                // Badges in the title row, wrapping under the heading on a phone
+                                // (as Card extra they squeezed the title into a narrow column).
                                 title={
-                                    <div className="flex flex-wrap items-baseline gap-2">
-                                        <h3
-                                            className="text-base font-semibold whitespace-normal md:text-lg"
-                                            style={{ margin: 0 }}
-                                        >
-                                            {index + 1}. {rule.help ?? rule.rule_id}
-                                        </h3>
-                                        <span className="text-xs font-normal text-gray-500">
-                                            {rule.rule_id}
+                                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-1">
+                                        <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+                                            <h3
+                                                className="text-base font-semibold whitespace-normal md:text-lg"
+                                                style={{ margin: 0 }}
+                                            >
+                                                {index + 1}. {rule.help ?? rule.rule_id}
+                                            </h3>
+                                            <span className="text-xs font-normal text-gray-600">
+                                                {rule.rule_id}
+                                            </span>
+                                        </div>
+                                        <span className="flex flex-wrap items-center gap-1">
+                                            {rule.overdue > 0 ? (
+                                                <Tag color="red">
+                                                    {plural(rule.overdue, 'issue')} overdue
+                                                </Tag>
+                                            ) : (
+                                                rule.next_due && (
+                                                    <Tag>
+                                                        Due{' '}
+                                                        {new Date(
+                                                            rule.next_due
+                                                        ).toLocaleDateString()}
+                                                    </Tag>
+                                                )
+                                            )}
+                                            <ImpactTag impact={rule.impact} />
                                         </span>
                                     </div>
-                                }
-                                extra={
-                                    <span className="flex items-center gap-1">
-                                        {rule.overdue > 0 ? (
-                                            <Tag color="red">
-                                                {plural(rule.overdue, 'issue')} overdue
-                                            </Tag>
-                                        ) : (
-                                            rule.next_due && (
-                                                <Tag>
-                                                    Due{' '}
-                                                    {new Date(rule.next_due).toLocaleDateString()}
-                                                </Tag>
-                                            )
-                                        )}
-                                        <ImpactTag impact={rule.impact} />
-                                    </span>
                                 }
                             >
                                 <p className="mb-1 font-medium">

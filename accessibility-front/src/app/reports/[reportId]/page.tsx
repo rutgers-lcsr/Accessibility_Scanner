@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Console from '@/components/Console';
 import { AxeReportCounts, AxeResult, Report as ReportType } from '@/lib/types/axe';
 import { Finding } from '@/lib/types/finding';
@@ -102,6 +103,18 @@ function countElements(issues: AxeResult[], findings: Finding[] | null) {
 const IMPACT_RANK: Record<string, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 };
 const impactRank = (impact?: string) => IMPACT_RANK[impact ?? ''] ?? 4;
 
+// The browser tab and screen readers name the page (fetch is memoized with the page's own).
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ reportId: string }>;
+}): Promise<Metadata> {
+    const { reportId } = await params;
+    const report = await getReport(reportId);
+    if (!report || typeof report === 'string') return { title: 'Report' };
+    return { title: `Report for ${report.url.replace(/^https?:\/\//, '')}` };
+}
+
 async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     const { reportId } = await params;
 
@@ -140,6 +153,11 @@ document.body.appendChild(accessScriptElement);`;
             previewEnabled
             idPrefix="review"
             nodeLabel="Elements to check"
+            note={
+                issues.some((v) => v.id === result.id)
+                    ? 'This rule also failed on other elements, listed above. These are different elements the scan could not decide.'
+                    : undefined
+            }
         />
     ));
 
@@ -157,6 +175,7 @@ document.body.appendChild(accessScriptElement);`;
                     previewUrl={`/proxy?report=${report.id}&url=${encodeURIComponent(report.url)}`}
                     injectCommand={injectCommand}
                     redirected={redirected}
+                    outdated={!!report.latest_report_id && report.latest_report_id !== report.id}
                 />
             </section>
         </Card>
@@ -246,7 +265,21 @@ document.body.appendChild(accessScriptElement);`;
                             title="A newer scan of this page exists"
                             description={
                                 <>
-                                    This report is from an earlier scan. Marking elements fixed,
+                                    {report.latest_report && (
+                                        <>
+                                            The latest scan, on{' '}
+                                            {new Date(
+                                                report.latest_report.timestamp
+                                            ).toLocaleDateString(undefined, {
+                                                dateStyle: 'medium',
+                                            })}
+                                            ,{' '}
+                                            {report.latest_report.failing_rules === 0
+                                                ? 'found no automated failures on this page.'
+                                                : `found ${report.latest_report.failing_rules} failing rule${report.latest_report.failing_rules === 1 ? '' : 's'} on this page.`}{' '}
+                                        </>
+                                    )}
+                                    This report is from an earlier scan; marking elements fixed,
                                     false positive or accepted, and notes, are on the{' '}
                                     <a href={`/reports/${report.latest_report_id}`}>
                                         latest report
@@ -381,7 +414,11 @@ document.body.appendChild(accessScriptElement);`;
                                     ) : (
                                         // Styled like the theme's success Alert (lib/theme.ts), with the
                                         // heading and text laid out as a block.
-                                        <div className="mt-3 flex gap-3 rounded-lg border border-[#a7d5cc] bg-[#e8f5f2] p-4">
+                                        // Success teal only when nothing is left; with checks
+                                        // still to decide it is a neutral note.
+                                        <div
+                                            className={`mt-3 flex gap-3 rounded-lg border p-4 ${toCheck.length > 0 ? 'border-gray-300 bg-gray-50' : 'border-[#a7d5cc] bg-[#e8f5f2]'}`}
+                                        >
                                             <CheckCircleFilled
                                                 aria-hidden
                                                 style={{

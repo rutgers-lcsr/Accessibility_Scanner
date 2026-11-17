@@ -56,6 +56,7 @@ function WebsiteReport({
     if (!report) return <div>No report data available.</div>;
 
     const toCheck = report.incomplete ?? [];
+    const failing = new Set((report.violations ?? []).map((v) => v.id));
     const needsReview = toCheck.length > 0 && (
         <section aria-labelledby="needs-review" className="mt-8">
             <h2 id="needs-review" className="mb-1 text-xl font-semibold">
@@ -72,6 +73,11 @@ function WebsiteReport({
                     key={result.id}
                     accessibilityResult={result}
                     idPrefix="review"
+                    note={
+                        failing.has(result.id)
+                            ? 'This rule also failed on other elements, listed above. These are different elements the scan could not decide.'
+                            : undefined
+                    }
                     nodeLabel="Example elements to check (from the first page)"
                 />
             ))}

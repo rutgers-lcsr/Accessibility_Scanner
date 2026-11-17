@@ -2,6 +2,7 @@ from flask import Blueprint, Response, jsonify, request
 from flask_jwt_extended import jwt_required, current_user
 from sqlalchemy import func 
 from models.report import Report
+from services.history import effective_counts
 from models import db
 from sqlalchemy.orm import defer
 
@@ -67,8 +68,20 @@ def get_report_by_id(report_id):
     data['can_edit'] = bool(current_user) and report.site.can_edit(current_user)
     data['can_scan'] = bool(current_user) and report.site.can_scan(current_user)
     # Statuses and notes are kept on the page's latest report; an older report links there.
-    newest = report.site.reports.order_by(Report.timestamp.desc(), Report.id.desc()).with_entities(Report.id).first()
+    newest = (
+        report.site.reports.order_by(Report.timestamp.desc(), Report.id.desc())
+        .with_entities(Report.id, Report.timestamp, Report.report_counts, Report.suppressed_counts)
+        .first()
+    )
     data['latest_report_id'] = newest.id if newest else report.id
+    # What the newest scan found, so an older report can say whether its issues remain.
+    if newest and newest.id != report.id:
+        counts = effective_counts(newest.report_counts, newest.suppressed_counts) or {}
+        data['latest_report'] = {
+            'id': newest.id,
+            'timestamp': newest.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            'failing_rules': (counts.get('violations') or {}).get('total', 0),
+        }
     # For the report page's link back to the website it belongs to.
     data['websites'] = [
         {'id': w.id, 'url': w.url} for w in report.site.websites if w.can_view(current_user)

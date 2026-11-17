@@ -72,7 +72,7 @@ function WebsiteChanges({ websiteId, user }: Props) {
                     style={{ marginBottom: 16 }}
                     type="success"
                     showIcon
-                    title="Nothing changed"
+                    title="Nothing changed between each page's two most recent scans"
                 />
             )}
             <Collapse

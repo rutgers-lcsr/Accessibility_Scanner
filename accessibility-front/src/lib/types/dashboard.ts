@@ -50,6 +50,8 @@ export type Dashboard = {
         pages: number;
         pages_audited: number;
         pages_failing: number;
+        // rule failures hidden by false positive / accepted marks
+        suppressed: number;
         // pages whose latest scan ended on another site: listed apart, not counted
         pages_offsite: number;
         stale_scans: number;

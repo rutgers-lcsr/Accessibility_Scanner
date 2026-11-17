@@ -110,6 +110,7 @@ function ViolationNode({
                 <div className="mt-2">
                     <FindingStatusControl
                         finding={finding}
+                        elementName={text ? `“${text}”` : selector}
                         canEdit={canEdit}
                         onChanged={onFindingChanged}
                     />
@@ -142,6 +143,10 @@ function visibleText(html?: string): string {
 function plainSummary(summary?: string): string {
     if (!summary) return '';
     // One line under a heading is a diagnosis, not a list of choices: say "What failed".
+    // Stored summaries are sometimes flattened onto one line ("Fix any of the following:
+    // Element has …"): one remedy either way.
+    const single = summary.match(/^Fix (?:any|all) of the following:\s*([^\n]+)$/);
+    if (single) return `What failed: ${single[1].trim()}`;
     return summary
         .replace(/Fix any of the following:\n(\s*[^\n]+)\s*$/g, 'What failed:\n$1')
         .replace(/Fix all of the following:\n(\s*[^\n]+)\s*$/g, 'What failed:\n$1')
