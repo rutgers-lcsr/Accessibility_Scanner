@@ -64,7 +64,7 @@ function WebsiteMedia({ websiteId, user, canEdit, onChanged }: Props) {
     return (
         <>
             <Alert
-                className="mt-2 mb-4"
+                style={{ marginTop: 8, marginBottom: 16 }}
                 type="info"
                 showIcon
                 title="Videos need captions, and audio needs a transcript."
@@ -109,7 +109,7 @@ function WebsiteMedia({ websiteId, user, canEdit, onChanged }: Props) {
                                         >
                                             {url}
                                         </a>
-                                        <div className="text-xs text-gray-500">
+                                        <div className="text-xs text-gray-600">
                                             {item.kind}
                                             {item.provider &&
                                                 item.provider !== 'html5' &&
@@ -128,7 +128,7 @@ function WebsiteMedia({ websiteId, user, canEdit, onChanged }: Props) {
                                             {STATUS_TAG[item.caption_status].label}
                                         </Tag>
                                         {item.override_by && (
-                                            <div className="text-xs text-gray-500">
+                                            <div className="text-xs text-gray-600">
                                                 confirmed by {item.override_by}
                                             </div>
                                         )}
@@ -148,7 +148,7 @@ function WebsiteMedia({ websiteId, user, canEdit, onChanged }: Props) {
                                             </div>
                                         ))}
                                         {pages.length > 3 && (
-                                            <div className="text-xs text-gray-500">
+                                            <div className="text-xs text-gray-600">
                                                 and {pages.length - 3} more
                                             </div>
                                         )}

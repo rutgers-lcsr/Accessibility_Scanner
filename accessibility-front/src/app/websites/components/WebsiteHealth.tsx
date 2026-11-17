@@ -32,7 +32,9 @@ const when = (value: string | null) => (value ? new Date(value).toLocaleString()
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section className="mb-8" aria-label={title}>
-            <h3 className="mb-3 text-lg font-semibold text-gray-800">{title}</h3>
+            <h3 style={{ marginBottom: 12 }} className="text-lg font-semibold text-gray-800">
+                {title}
+            </h3>
             {children}
         </section>
     );
@@ -105,7 +107,7 @@ function WebsiteHealth({ websiteId, user, canEdit }: Props) {
                     {health.response_ms !== null && <> · responded in {health.response_ms} ms</>}
                     {health.error && <> · {health.error}</>}
                 </span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-600">
                     Last checked {when(health.checked_at)}
                 </span>
                 <span className="ml-auto">{action}</span>
@@ -124,7 +126,7 @@ function WebsiteHealth({ websiteId, user, canEdit }: Props) {
                 />
                 {recent.length > 0 && (
                     <div className="mt-3">
-                        <div className="mb-1 text-xs text-gray-500">
+                        <div className="mb-1 text-xs text-gray-600">
                             Last {recent.length} checks, oldest first
                         </div>
                         <ol className="flex h-6 items-stretch gap-px" aria-label="Recent checks">
@@ -171,7 +173,7 @@ function WebsiteHealth({ websiteId, user, canEdit }: Props) {
                                         {health.tls_error}
                                     </>
                                 ) : (
-                                    <span className="text-gray-500">
+                                    <span className="text-gray-600">
                                         Could not check: {health.tls_error}
                                     </span>
                                 ),
@@ -181,7 +183,7 @@ function WebsiteHealth({ websiteId, user, canEdit }: Props) {
                             label: 'http:// redirects to https://',
                             children:
                                 health.https_redirect === null ? (
-                                    <span className="text-gray-500">Could not check</span>
+                                    <span className="text-gray-600">Could not check</span>
                                 ) : health.https_redirect ? (
                                     <Tag color="green">Yes</Tag>
                                 ) : (
@@ -238,7 +240,7 @@ function WebsiteHealth({ websiteId, user, canEdit }: Props) {
                             children: health.platform ? (
                                 `${health.platform}${health.platform_version ? ` ${health.platform_version}` : ''}`
                             ) : (
-                                <span className="text-gray-500">Not recognised</span>
+                                <span className="text-gray-600">Not recognised</span>
                             ),
                         },
                         { key: 'server', label: 'Web server', children: health.server ?? '—' },
@@ -263,7 +265,7 @@ function WebsiteHealth({ websiteId, user, canEdit }: Props) {
                                 )}
                                 <span className="font-medium">{result.name}</span>
                                 {result.detail && (
-                                    <span className="text-xs text-gray-500">{result.detail}</span>
+                                    <span className="text-xs text-gray-600">{result.detail}</span>
                                 )}
                             </li>
                         ))}

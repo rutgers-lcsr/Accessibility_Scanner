@@ -41,7 +41,7 @@ function Scorecards() {
                 <>
                     {c.websites}
                     {c.audited < c.websites && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-600">
                             {c.websites - c.audited} not scanned
                         </div>
                     )}
@@ -125,7 +125,7 @@ function Scorecards() {
                     <PageLoading />
                 ) : (
                     <>
-                        <p className="mb-4 text-sm text-gray-600">
+                        <p style={{ marginBottom: 16 }} className="text-sm text-gray-600">
                             Set a website&apos;s department in its Settings tab. Retired websites
                             are left out.
                         </p>

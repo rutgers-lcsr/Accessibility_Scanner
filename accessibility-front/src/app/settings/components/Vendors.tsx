@@ -80,10 +80,14 @@ function Vendors() {
     return (
         <div className="max-w-6xl space-y-8">
             <section aria-labelledby="vendor-register">
-                <h2 id="vendor-register" className="mb-2 text-xl font-semibold">
+                <h2
+                    id="vendor-register"
+                    style={{ marginBottom: 8 }}
+                    className="text-xl font-semibold"
+                >
                     Vendor register
                 </h2>
-                <p className="mb-4 text-sm text-gray-600">
+                <p style={{ marginBottom: 16 }} className="text-sm text-gray-600">
                     A host matches a vendor when it is one of the vendor&apos;s hosts or a subdomain
                     of one.
                 </p>
@@ -103,7 +107,7 @@ function Vendors() {
                             render: (name: string, row) => (
                                 <>
                                     <div className="font-medium">{name}</div>
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-gray-600">
                                         {row.hosts.join(', ')}
                                     </div>
                                 </>
@@ -183,10 +187,14 @@ function Vendors() {
             </section>
 
             <section aria-labelledby="unassigned-hosts">
-                <h2 id="unassigned-hosts" className="mb-2 text-xl font-semibold">
+                <h2
+                    id="unassigned-hosts"
+                    style={{ marginBottom: 8 }}
+                    className="text-xl font-semibold"
+                >
                     Hosts not in the register
                 </h2>
-                <p className="mb-4 text-sm text-gray-600">
+                <p style={{ marginBottom: 16 }} className="text-sm text-gray-600">
                     Hosts the websites load scripts, frames or styles from, or send forms to, that
                     match no vendor. Most used first.
                 </p>

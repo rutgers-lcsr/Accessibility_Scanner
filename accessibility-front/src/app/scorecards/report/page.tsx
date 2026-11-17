@@ -3,7 +3,10 @@ import PageLoading from '@/components/PageLoading';
 import { User } from '@/lib/types/user';
 import { getCurrentUser } from 'next-cas-client/app';
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import ComplianceReport from './ComplianceReport';
+
+export const metadata: Metadata = { title: 'Compliance report' };
 
 export default async function Page() {
     const user = await getCurrentUser<User>();

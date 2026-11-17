@@ -64,7 +64,11 @@ function Section({
 }) {
     return (
         <section className="mb-10" aria-labelledby={id}>
-            <h3 id={id} className="mb-3 text-lg font-semibold text-gray-800">
+            <h3
+                id={id}
+                style={{ marginBottom: 12 }}
+                className="text-lg font-semibold text-gray-800"
+            >
                 {title}
             </h3>
             {children}
@@ -191,14 +195,14 @@ function WebsiteCompliance({ website, user, canEdit, onChanged }: Props) {
                         },
                     ]}
                 />
-                <p className="mt-2 text-xs text-gray-500">
+                <p style={{ marginTop: 8 }} className="text-xs text-gray-600">
                     Each open issue is due a set number of days after it was first found, by impact.
                     The Fix first tab shows the deadlines per rule.
                 </p>
             </Section>
 
             <Section id="exceptions" title="Exceptions">
-                <p className="mb-3 text-sm text-gray-600">
+                <p style={{ marginBottom: 12 }} className="text-sm text-gray-600">
                     When content cannot be fixed by its deadline (archived pages, third-party
                     content, undue burden), record why. An approved exception stops the deadline for
                     the issues it covers until it expires; the issues still count.
@@ -234,7 +238,7 @@ function WebsiteCompliance({ website, user, canEdit, onChanged }: Props) {
             </Section>
 
             <Section id="reviews" title="Manual reviews">
-                <p className="mb-3 text-sm text-gray-600">
+                <p style={{ marginBottom: 12 }} className="text-sm text-gray-600">
                     Automated scans catch about a third of accessibility problems. A manual review
                     checks the rest: keyboard use, focus, screen readers, zoom, captions and forms.
                     Record one here, or hand the prompt to an agent that can drive a browser; it
@@ -494,7 +498,7 @@ function WebsiteCompliance({ website, user, canEdit, onChanged }: Props) {
                                                 </Tag>
                                             )}
                                             {item.title}
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-xs text-gray-600">
                                                 WCAG {item.wcag}
                                             </span>
                                         </span>
@@ -574,7 +578,7 @@ function WebsiteCompliance({ website, user, canEdit, onChanged }: Props) {
                     </Button>,
                 ]}
             >
-                <p className="mb-2 text-sm text-gray-600">
+                <p style={{ marginBottom: 8 }} className="text-sm text-gray-600">
                     Give this to an agent that can drive a real browser, together with an API key
                     from Settings, API Keys (the key&apos;s owner must be able to edit this
                     website). The agent records its review here when it finishes.

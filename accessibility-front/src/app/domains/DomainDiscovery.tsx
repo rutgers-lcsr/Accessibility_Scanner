@@ -105,10 +105,14 @@ function DomainDiscovery({ domainId }: { domainId: string }) {
             aria-labelledby="discovery-heading"
             className="mt-8 rounded-lg bg-white p-4 shadow"
         >
-            <h2 id="discovery-heading" className="mb-1 text-xl font-semibold">
+            <h2
+                id="discovery-heading"
+                style={{ marginBottom: 4 }}
+                className="text-xl font-semibold"
+            >
                 Find sites under {domain?.domain ?? '…'}
             </h2>
-            <p className="mb-4 text-sm text-gray-600">
+            <p style={{ marginBottom: 16 }} className="text-sm text-gray-600">
                 Hosts named in public certificate transparency logs (looked up at crt.sh, which
                 receives only the domain name) and hosts our crawled websites link to. Live ones are
                 listed first.
@@ -129,7 +133,7 @@ function DomainDiscovery({ domainId }: { domainId: string }) {
                         />
                         <label htmlFor="discovery-weekly">Run every week</label>
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-600">
                         Last run:{' '}
                         {domain.discovered_at
                             ? new Date(domain.discovered_at).toLocaleString()
@@ -154,7 +158,7 @@ function DomainDiscovery({ domainId }: { domainId: string }) {
             )}
             {domain?.discovery_error && (
                 <Alert
-                    className="mb-4"
+                    style={{ marginBottom: 16 }}
                     type="warning"
                     showIcon
                     title="The certificate transparency lookup failed on the last run"
@@ -186,7 +190,7 @@ function DomainDiscovery({ domainId }: { domainId: string }) {
                                     {host}
                                 </a>
                                 {row.title && (
-                                    <div className="text-xs text-gray-500">{row.title}</div>
+                                    <div className="text-xs text-gray-600">{row.title}</div>
                                 )}
                             </>
                         ),
@@ -196,7 +200,7 @@ function DomainDiscovery({ domainId }: { domainId: string }) {
                         key: 'live',
                         render: (_, row) =>
                             row.checked_at === null ? (
-                                <span className="text-gray-500">Not checked</span>
+                                <span className="text-gray-600">Not checked</span>
                             ) : row.http_status ? (
                                 <Tag color={row.http_status < 400 ? 'green' : 'orange'}>
                                     HTTP {row.http_status}

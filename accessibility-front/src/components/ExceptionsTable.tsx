@@ -101,7 +101,7 @@ function ExceptionsTable({ exceptions, isAdmin, canEdit, showWebsite, onChanged 
                         render: (_, row) => (
                             <>
                                 <div>{row.rule_id ? <code>{row.rule_id}</code> : 'Every rule'}</div>
-                                <div className="text-xs break-all text-gray-500">
+                                <div className="text-xs break-all text-gray-600">
                                     {row.url_prefix
                                         ? `Pages under ${row.url_prefix}`
                                         : 'Every page'}
@@ -117,7 +117,7 @@ function ExceptionsTable({ exceptions, isAdmin, canEdit, showWebsite, onChanged 
                             <>
                                 <Tag>{EXCEPTION_KIND_LABELS[row.kind]}</Tag>
                                 <div className="mt-1 text-sm whitespace-pre-line">{row.reason}</div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-600">
                                     Requested by {row.requested_by ?? 'unknown'} on{' '}
                                     {new Date(row.requested_at).toLocaleDateString()}
                                 </div>
@@ -134,7 +134,7 @@ function ExceptionsTable({ exceptions, isAdmin, canEdit, showWebsite, onChanged 
                                     <div className="text-xs">until {row.expires_on}</div>
                                 )}
                                 {row.decided_by && (
-                                    <div className="text-xs text-gray-500">by {row.decided_by}</div>
+                                    <div className="text-xs text-gray-600">by {row.decided_by}</div>
                                 )}
                                 {row.decision_note && (
                                     <div className="text-xs">{row.decision_note}</div>

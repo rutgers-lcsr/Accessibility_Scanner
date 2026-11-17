@@ -69,7 +69,11 @@ function ComplianceReport() {
                     <>
                         {s && (
                             <section aria-labelledby="report-summary" className="mb-8">
-                                <h2 id="report-summary" className="mb-3 text-xl font-semibold">
+                                <h2
+                                    id="report-summary"
+                                    style={{ marginBottom: 12 }}
+                                    className="text-xl font-semibold"
+                                >
                                     Summary
                                 </h2>
                                 <Descriptions
@@ -135,7 +139,7 @@ function ComplianceReport() {
                                         },
                                     ]}
                                 />
-                                <p className="mt-2 text-xs text-gray-500">
+                                <p style={{ marginTop: 8 }} className="text-xs text-gray-600">
                                     Issues are counted per rule per page from the latest scan, as on
                                     the website pages. Automated scans find about a third of
                                     accessibility problems; manual reviews cover the rest.
@@ -143,7 +147,11 @@ function ComplianceReport() {
                             </section>
                         )}
                         <section aria-labelledby="report-websites">
-                            <h2 id="report-websites" className="mb-3 text-xl font-semibold">
+                            <h2
+                                id="report-websites"
+                                style={{ marginBottom: 12 }}
+                                className="text-xl font-semibold"
+                            >
                                 Websites
                             </h2>
                             <Table<ComplianceRow>
@@ -161,7 +169,7 @@ function ComplianceReport() {
                                                 <a href={`/websites/${r.id}`} className="break-all">
                                                     {r.url}
                                                 </a>
-                                                <div className="text-xs text-gray-500">
+                                                <div className="text-xs text-gray-600">
                                                     {[
                                                         r.department,
                                                         r.business_owner ?? r.admin,

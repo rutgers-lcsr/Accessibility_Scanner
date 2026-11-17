@@ -29,7 +29,7 @@ function WebsiteThirdParties({ websiteId, user }: Props) {
         <>
             {unassigned > 0 && (
                 <Alert
-                    className="mt-2 mb-4"
+                    style={{ marginTop: 8, marginBottom: 16 }}
                     type="info"
                     showIcon
                     title={`${unassigned} host${unassigned === 1 ? ' is' : 's are'} not in the vendor register`}
@@ -50,7 +50,7 @@ function WebsiteThirdParties({ websiteId, user }: Props) {
                             <>
                                 <div className="font-medium break-all">{host}</div>
                                 {row.example_url && (
-                                    <div className="text-xs break-all text-gray-500">
+                                    <div className="text-xs break-all text-gray-600">
                                         {row.example_url}
                                     </div>
                                 )}
@@ -96,7 +96,7 @@ function WebsiteThirdParties({ websiteId, user }: Props) {
                                     </div>
                                 </>
                             ) : (
-                                <span className="text-gray-500">Not registered</span>
+                                <span className="text-gray-600">Not registered</span>
                             ),
                     },
                 ]}

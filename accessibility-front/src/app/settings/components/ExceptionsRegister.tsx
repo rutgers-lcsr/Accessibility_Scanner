@@ -18,7 +18,7 @@ function ExceptionsRegister() {
     );
     return (
         <div className="max-w-6xl">
-            <p className="mb-4 text-sm text-gray-600">
+            <p style={{ marginBottom: 16 }} className="text-sm text-gray-600">
                 Exceptions document why content will not meet its deadline. Approve them with an
                 expiry date so they are reconsidered; expired ones no longer stop deadlines.
             </p>

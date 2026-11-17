@@ -79,7 +79,7 @@ function InventoryFields({ website, mutate, isAdmin }: Props) {
                     ) : (
                         <div id="lifecycle" className="text-sm text-gray-700">
                             {LIFECYCLE_LABELS[website.lifecycle_status]}
-                            <span className="ml-2 text-xs text-gray-500">Set by a site admin.</span>
+                            <span className="ml-2 text-xs text-gray-600">Set by a site admin.</span>
                         </div>
                     )}
                 </Field>

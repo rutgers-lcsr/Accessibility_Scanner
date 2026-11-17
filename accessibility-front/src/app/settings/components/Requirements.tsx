@@ -79,7 +79,7 @@ function Requirements() {
 
     return (
         <div className="max-w-5xl">
-            <p className="mb-4 text-sm text-gray-600">
+            <p style={{ marginBottom: 16 }} className="text-sm text-gray-600">
                 What a website&apos;s home page must carry, such as a link to the accessibility
                 statement or a privacy notice. A requirement applies only to the websites you pick
                 for it.
@@ -103,7 +103,7 @@ function Requirements() {
                                     {name} {!row.enabled && <Tag>Off</Tag>}
                                 </div>
                                 {row.description && (
-                                    <div className="text-xs text-gray-500">{row.description}</div>
+                                    <div className="text-xs text-gray-600">{row.description}</div>
                                 )}
                             </>
                         ),

@@ -34,7 +34,7 @@ function WebsiteContent({ websiteId, user }: Props) {
 
     return (
         <>
-            <p className="mt-2 mb-4 text-sm text-gray-600">
+            <p style={{ marginTop: 8, marginBottom: 16 }} className="text-sm text-gray-600">
                 A page is stale when its main text has not changed in{' '}
                 {data ? `${data.stale_after_days} days` : 'a long time'}. The date is the
                 server&apos;s Last-Modified header when it sends one, otherwise the first scan that
@@ -100,7 +100,7 @@ function WebsiteContent({ websiteId, user }: Props) {
                                 width: 360,
                                 render: (mixed: PageContent['mixed_content']) =>
                                     mixed.length === 0 ? (
-                                        <span className="text-gray-500">None</span>
+                                        <span className="text-gray-600">None</span>
                                     ) : (
                                         <>
                                             <Tag color="red">
