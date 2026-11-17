@@ -76,7 +76,8 @@ function ViolationNode({
                             {plainFix}
                         </p>
                     )}
-                    {summary && (
+                    {/* In a group the header gives the numbers: the measurement goes under More. */}
+                    {summary && !grouped && (
                         <details className="mb-2 text-xs text-gray-700">
                             <summary className="cursor-pointer">What the check measured</summary>
                             <div className="mt-1 whitespace-pre-wrap">{summary}</div>
@@ -122,11 +123,17 @@ function ViolationNode({
             {(node.html || finding) && (
                 <details className="mt-2">
                     <summary className="cursor-pointer text-xs text-gray-700">
-                        More: HTML{finding ? ', status and note' : ''}
+                        More: {grouped && summary ? 'what the check measured, ' : ''}HTML
+                        {finding ? ', status and note' : ''}
                         {finding && finding.status !== 'open' && (
                             <Tag style={{ marginLeft: 8 }}>{STATUS_LABELS[finding.status]}</Tag>
                         )}
                     </summary>
+                    {grouped && summary && (
+                        <div className="mt-2 whitespace-pre-wrap text-xs text-gray-700">
+                            {summary}
+                        </div>
+                    )}
                     {node.html && (
                         // Focusable: a keyboard user can scroll a long snippet.
                         <section

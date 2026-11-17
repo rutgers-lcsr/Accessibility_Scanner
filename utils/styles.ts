@@ -150,8 +150,8 @@ style.innerHTML = `
     }
     .a11y-alert {
         position: fixed;
-        top: 18px;
-        right: 18px;
+        bottom: 18px;
+        left: 18px; /* the preview's own buttons sit top-right */
         background: #222222; /* a note, not an error: neutral, not red */
         color: #fff;
         padding: 13px 18px;
@@ -493,7 +493,7 @@ function addAlert(message: string, timeout = 15000) {
         alerts.forEach((a) => {
             offset += a.offsetHeight + 10; // 10px margin
         });
-        alert.style.top = `${10 + offset}px`;
+        alert.style.bottom = `${10 + offset}px`;
     }
 
     document.body.firstChild?.before(alert);
@@ -514,7 +514,7 @@ function addAlert(message: string, timeout = 15000) {
             if (alerts.length > 0) {
                 let offset = 0;
                 alerts.forEach((a) => {
-                    a.style.top = `${10 + offset}px`;
+                    a.style.bottom = `${10 + offset}px`;
                     offset += a.offsetHeight + 10; // 10px margin
                 });
             }

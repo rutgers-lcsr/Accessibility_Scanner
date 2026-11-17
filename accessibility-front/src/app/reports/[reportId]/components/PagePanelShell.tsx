@@ -64,7 +64,7 @@ export default function PagePanelShell({ children }: { children: ReactNode }) {
             >
                 {sheet && (
                     // Pinned: the preview scrolls the sheet to the element.
-                    <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-2 flex justify-end bg-white p-3">
+                    <div className="sticky -top-3 z-10 -mx-3 -mt-3 mb-2 flex justify-end bg-white p-3">
                         <Button ref={closeRef} icon={<CloseOutlined />} onClick={close}>
                             Back to the list
                         </Button>

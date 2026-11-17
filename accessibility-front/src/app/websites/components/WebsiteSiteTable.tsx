@@ -50,6 +50,7 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
         },
         {
             title: 'Last scanned',
+            width: 180,
             dataIndex: 'last_scanned',
             key: 'last_scanned',
             render: (date: string) => {
@@ -60,6 +61,7 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
         {
             // Rules, not elements: the same unit as the website's severity tiles.
             title: 'Failing rules',
+            width: 90,
             key: 'violations',
             render: (text: string, record: Site) => (
                 <span className="tabular-nums">
@@ -73,6 +75,7 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
         },
         {
             title: 'Passing rules',
+            width: 90,
             key: 'passed',
             render: (text: string, record: Site) => (
                 <span className="tabular-nums">
@@ -85,6 +88,7 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
         },
         {
             title: 'Last scan',
+            width: 180,
             key: 'last_scan_status',
             dataIndex: 'last_scan_status',
             render: (status: Site['last_scan_status'], record: Site) => {
@@ -150,7 +154,9 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
             <Table<Site>
                 className="min-h-[400px]"
                 style={{ width: '100%', minHeight: 400, maxWidth: '100%' }}
-                scroll={{ y: '45em' }}
+                // x: the sum of the column widths. Narrower screens scroll the table sideways
+                // instead of crushing dates to one letter per line.
+                scroll={{ x: 1060, y: '45em' }}
                 pagination={false}
                 columns={sites_columns}
                 dataSource={sites?.items}

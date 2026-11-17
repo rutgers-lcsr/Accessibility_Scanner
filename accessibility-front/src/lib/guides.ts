@@ -28,12 +28,6 @@ export function guideHref(ruleId: string, platform?: PlatformId | null): string 
     return platform ? `${base}?platform=${platform}` : base;
 }
 
-/** The website's Violations tab, filtered to and scrolled to one rule. */
-export function violationsHref(websiteId: number, ruleId: string): string {
-    const id = encodeURIComponent(ruleId);
-    return `/websites/${websiteId}?tab=violations&rule=${id}#violation-${id}`;
-}
-
 /** One page's report, scrolled to the rule; null when the page has no report. */
 export function reportHref(reportId: number | null, ruleId: string): string | null {
     if (reportId === null) return null;
