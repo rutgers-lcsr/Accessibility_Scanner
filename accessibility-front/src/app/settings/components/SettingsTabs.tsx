@@ -74,7 +74,7 @@ function SettingsTabs({ isAdmin }: { isAdmin: boolean }) {
     return (
         <>
             <PageHeading title="Settings" />
-            <div className="mt-13 w-full p-6">
+            <div className="w-full p-6">
                 <Tabs items={items} />
             </div>
         </>
