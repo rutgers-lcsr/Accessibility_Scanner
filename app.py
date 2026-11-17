@@ -105,6 +105,7 @@ def create_app():
     from blueprints.requirements import requirements_bp
     from blueprints.vendors import vendors_bp
     from blueprints.compliance import compliance_bp
+    from blueprints.scorecards import scorecards_bp
 
     @app.route('/health', methods=['GET'])
     def health_check():
@@ -127,6 +128,7 @@ def create_app():
     app.register_blueprint(requirements_bp, url_prefix='/api/requirements')
     app.register_blueprint(vendors_bp, url_prefix='/api/vendors')
     app.register_blueprint(compliance_bp, url_prefix='/api')
+    app.register_blueprint(scorecards_bp, url_prefix='/api')
 
     from commands import findings_cli, mail_cli, maintenance_cli
     app.cli.add_command(findings_cli)

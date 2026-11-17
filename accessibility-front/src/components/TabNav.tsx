@@ -8,6 +8,7 @@
 import { NAV_COLLAPSED_COOKIE } from '@/lib/nav';
 import { PublicUser } from '@/lib/types/user';
 import {
+    BarChartOutlined,
     CloudOutlined,
     CloudServerOutlined,
     DashboardOutlined,
@@ -39,6 +40,7 @@ const MAIN: NavLink[] = [
     { path: '/websites', label: 'Websites', icon: <CloudServerOutlined /> },
     { path: '/scan', label: 'Quick scan', icon: <ThunderboltOutlined /> },
     { path: '/reports', label: 'Reports', icon: <SolutionOutlined /> },
+    { path: '/scorecards', label: 'Scorecards', icon: <BarChartOutlined /> },
 ];
 
 const ADMIN: NavLink[] = [
@@ -110,7 +112,7 @@ export default function TabNav({ user, defaultCollapsed = false }: Props) {
     return (
         // The column, not the sticky sider, carries the background and edge, so the sidebar
         // reads as one panel down the whole page (the sider itself is only 100vh tall).
-        <div className="hidden shrink-0 border-r border-[#e4e4e4] bg-white md:block">
+        <div className="hidden shrink-0 border-r border-[#e4e4e4] bg-white md:block print:hidden">
             <Layout.Sider
                 theme="light"
                 width={208}
@@ -166,7 +168,7 @@ export function MobileNav({ user }: { user: PublicUser | null }) {
     const [open, setOpen] = useState(false);
 
     return (
-        <div className="sticky top-0 z-20 flex items-center gap-1 border-b border-gray-200 bg-white px-2 py-2 md:hidden">
+        <div className="sticky top-0 z-20 flex items-center gap-1 border-b border-gray-200 bg-white px-2 py-2 md:hidden print:hidden">
             <Button
                 type="text"
                 size="large"
