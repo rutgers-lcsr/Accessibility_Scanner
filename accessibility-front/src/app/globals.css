@@ -1,3 +1,8 @@
+/* Layer order: antd above Tailwind's base (its reset keeps buttons and inputs styled)
+   and below Tailwind's utilities, so a class like mb-4 on an antd component applies.
+   Unlayered rules further down in this file still beat both. */
+@layer theme, base, antd, components, utilities;
+@import 'antd/dist/reset.css' layer(antd);
 @import 'tailwindcss';
 
 @theme inline {

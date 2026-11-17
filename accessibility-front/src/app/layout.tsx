@@ -4,7 +4,6 @@ import { User, toPublicUser } from '@/lib/types/user';
 import { AlertsProvider } from '@/providers/Alerts';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { ConfigProvider, Layout } from 'antd';
-import 'antd/dist/reset.css';
 import { Footer } from 'antd/es/layout/layout';
 import type { Metadata } from 'next';
 import { getCurrentUser } from 'next-cas-client/app';
@@ -55,7 +54,10 @@ export default async function RootLayout({
                 >
                     Skip to main content
                 </a>
-                <AntdRegistry>
+                {/* antd's styles in @layer antd, below Tailwind's utilities (globals.css):
+                    unlayered, they beat every Tailwind class on an antd component, so
+                    margins like mb-4 silently did nothing. */}
+                <AntdRegistry layer>
                     <ConfigProvider theme={rutgersTheme}>
                         <Layout hasSider>
                             <AlertsProvider>
