@@ -76,11 +76,84 @@ def update_domain(domain_id):
 
     if 'active' in data:
         domain.active = data['active']
-    
+
+    if 'discovery_enabled' in data:
+        domain.discovery_enabled = bool(data['discovery_enabled'])
+
     
     db.session.add(domain)
     db.session.commit()
     return jsonify(domain.to_dict()), 200
+
+@domain_bp.route('/<int:domain_id>/discover/', methods=['POST'])
+@admin_required
+def discover_domain(domain_id):
+    """
+    Look for hosts under this domain now (certificate transparency and the crawled
+    websites' links), in the background.
+    ---
+    tags:
+        - Discovery
+    responses:
+        202:
+            description: Queued; the list fills in when the task finishes.
+    """
+    domain = db.session.get(Domain, domain_id)
+    if not domain:
+        return jsonify({'error': 'Domain not found'}), 404
+    from scanner.tasks import discover_hosts  # local import: the task module imports the app
+    task = discover_hosts.delay(domain.id)
+    return jsonify({'task_id': task.id}), 202
+
+
+@domain_bp.route('/<int:domain_id>/discovered/', methods=['GET'])
+@admin_required
+def list_discovered(domain_id):
+    """
+    Hosts found under the domain, live ones first, each marked tracked when a website
+    covers it.
+    ---
+    tags:
+        - Discovery
+    parameters:
+        - in: query
+          name: status
+          type: string
+          enum: [new, ignored, tracked]
+    """
+    from services.discovery import discovered_rows  # local import: services import models
+    domain = db.session.get(Domain, domain_id)
+    if not domain:
+        return jsonify({'error': 'Domain not found'}), 404
+    status = request.args.get('status')
+    if status and status not in ('new', 'ignored', 'tracked'):
+        return jsonify({'error': 'status must be new, ignored or tracked'}), 400
+    return jsonify({'domain': domain.to_dict(), 'items': discovered_rows(domain.id, status)}), 200
+
+
+@domain_bp.route('/discovered/<int:host_id>/', methods=['PATCH'])
+@admin_required
+def update_discovered(host_id):
+    """
+    Ignore a discovered host (or bring it back) and keep a note on it.
+    ---
+    tags:
+        - Discovery
+    """
+    from models.discovery import DISCOVERED_STATUSES, DiscoveredHost
+    row = db.session.get(DiscoveredHost, host_id)
+    if row is None:
+        return jsonify({'error': 'Host not found'}), 404
+    data = request.get_json(silent=True) or {}
+    if 'status' in data:
+        if data['status'] not in DISCOVERED_STATUSES:
+            return jsonify({'error': 'status must be new or ignored'}), 400
+        row.status = data['status']
+    if 'note' in data:
+        row.note = (data.get('note') or '').strip() or None
+    db.session.commit()
+    return jsonify(row.to_dict()), 200
+
 
 @domain_bp.route('/<int:domain_id>/', methods=['DELETE'])
 @admin_required

@@ -12,6 +12,7 @@ from models.finding import Finding  # noqa: F401  (registers the model for creat
 from models.health import HealthCheck, WebsiteHealth, WebsiteRequirementAssoc  # noqa: F401  (registers the models for create_all)
 from models.inventory import MediaItem, MediaSource, ThirdPartyHost, Vendor  # noqa: F401  (registers the models for create_all)
 from models.compliance import ComplianceException, ManualReview  # noqa: F401  (registers the models for create_all)
+from models.discovery import DiscoveredHost  # noqa: F401  (registers the model for create_all)
 from models.link import Link, LinkSource  # noqa: F401  (registers the models for create_all)
 from models.notifications import NotificationOptOut, WebsiteView
 from models.report import AxeReportCounts, Report, ReportMinimized
@@ -807,6 +808,11 @@ class Domain(db.Model):
     domain: Mapped[str] = db.Column(db.String(200), nullable=False)
     websites: Mapped[List['Website']] = db.relationship('Website', backref='domain', lazy=True, cascade="all, delete-orphan")
     active: Mapped[bool] = db.Column(db.Boolean, default=True)
+    # Site discovery (services.discovery) runs weekly under domains with this switched on;
+    # a site admin can also run it by hand for any domain.
+    discovery_enabled: Mapped[bool] = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    discovered_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    discovery_error: Mapped[str] = db.Column(db.String(300), nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -849,6 +855,7 @@ class Domain(db.Model):
             if website in db.session.deleted:
                 continue
             website.delete(delete_domain=False, commit=False)
+        db.session.query(DiscoveredHost).filter_by(domain_id=self.id).delete(synchronize_session=False)
         db.session.delete(self)
         if commit:
             db.session.commit()
@@ -871,6 +878,9 @@ class Domain(db.Model):
             'parent': self.parent.to_dict() if self.parent else None,
             'websites': [website.id for website in self.websites],
             'active': self.active,
+            'discovery_enabled': bool(self.discovery_enabled),
+            'discovered_at': self.discovered_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.discovered_at else None,
+            'discovery_error': self.discovery_error,
             'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ")
         }

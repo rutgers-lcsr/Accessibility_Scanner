@@ -256,6 +256,27 @@ def run_health_checks():
     return run()
 
 
+@celery.task(name='scanner.tasks.discover_hosts', soft_time_limit=900, time_limit=960)
+def discover_hosts(domain_id: int):
+    """Site discovery under one domain (services.discovery), on request or from
+    discover_all_domains."""
+    from services.discovery import run_discovery  # local import: services import models
+
+    return run_discovery(domain_id)
+
+
+@celery.task(name='scanner.tasks.discover_all_domains')
+def discover_all_domains():
+    """Weekly: queue discovery for every active domain with discovery switched on."""
+    from models.website import Domain
+
+    domains = (db.session.query(Domain)
+               .filter(Domain.discovery_enabled == True, Domain.active == True).all())
+    for domain in domains:
+        discover_hosts.delay(domain.id)
+    return {'queued': len(domains)}
+
+
 @celery.task(name='scanner.tasks.prune_reports')
 def prune_reports():
     """Nightly report retention (scheduled by beat). Always logs the plan; applies it

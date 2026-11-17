@@ -7,6 +7,8 @@ import { useDomains } from '@/providers/Domain';
 import { CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { Button, Flex, Input, Pagination, Table, TableColumnsType, Tag } from 'antd';
 import Content from '@/components/Content';
+import { useState } from 'react';
+import DomainDiscovery from './DomainDiscovery';
 import AddDomain from './modals/addDomain';
 import DeleteDomain from './modals/deleteDomain';
 
@@ -22,6 +24,8 @@ export default function Domains() {
         setDomainFilters,
         patchDomain,
     } = useDomains();
+    // The domain whose discovered hosts are shown below the table.
+    const [discoveryDomain, setDiscoveryDomain] = useState<string | null>(null);
 
     // Table columns
     const columns: TableColumnsType<Domain> = [
@@ -66,6 +70,12 @@ export default function Domains() {
                             type={record.active ? 'primary' : 'default'}
                         >
                             {record.active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                            onClick={() => setDiscoveryDomain(record.id)}
+                            aria-pressed={discoveryDomain === record.id}
+                        >
+                            Find sites
                         </Button>
                         <DeleteDomain domainId={record.id} />
                     </div>
@@ -128,6 +138,9 @@ export default function Domains() {
                         />
                     </Flex>
                 </div>
+                {discoveryDomain && (
+                    <DomainDiscovery key={discoveryDomain} domainId={discoveryDomain} />
+                )}
             </Content>
         </>
     );

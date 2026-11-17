@@ -79,6 +79,7 @@ celery.conf.update(
         'scanner.tasks.quick_scan': {'queue': 'pages'},
         # A few HTTP requests per website; must not wait behind a crawl either.
         'scanner.tasks.run_health_checks': {'queue': 'pages'},
+        'scanner.tasks.discover_hosts': {'queue': 'pages'},
     },
     # Task results live a day: that is how long a quick scan's result can be viewed.
     result_expires=86400,
@@ -104,6 +105,11 @@ celery.conf.update(
         'health-checks': {
             'task': 'scanner.tasks.run_health_checks',
             'schedule': 300.0,
+        },
+        # Weekly site discovery under the domains that have it switched on.
+        'discover-hosts': {
+            'task': 'scanner.tasks.discover_all_domains',
+            'schedule': crontab(day_of_week='sun', hour=4, minute=0),
         },
         # Nightly report retention; a no-op (with a logged plan) until enabled in Settings.
         'prune-reports': {
