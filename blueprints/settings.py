@@ -82,6 +82,11 @@ VALIDATORS = {
     "health_history_days": _int_at_least(1),
     "tls_warning_days": _int_at_least(1),
     "stale_after_days": _int_at_least(1),
+    "sla_critical_days": _int_at_least(0),
+    "sla_serious_days": _int_at_least(0),
+    "sla_moderate_days": _int_at_least(0),
+    "sla_minor_days": _int_at_least(0),
+    "review_interval_days": _int_at_least(1),
 }
 
 

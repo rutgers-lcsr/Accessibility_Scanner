@@ -1,5 +1,6 @@
 import { AxeReportCounts, AxeReportKeys, ReportMinimized, WebsiteAxeReport } from './axe';
 import { DocumentCounts } from './document';
+import { WebsiteCompliance } from './compliance';
 import { ContentCounts, MediaCounts } from './inventory';
 import { LinkCounts } from './link';
 
@@ -33,6 +34,8 @@ export type Website = {
     sites: number[];
     rate_limit: number;
     active: boolean;
+    // Deadlines, exceptions and manual reviews
+    compliance: WebsiteCompliance;
     // Crawl inventories
     media_counts: MediaCounts;
     third_party_count: number;

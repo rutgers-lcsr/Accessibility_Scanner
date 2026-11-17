@@ -35,6 +35,11 @@ AppSetting = Literal[
     "health_history_days",
     "tls_warning_days",
     "stale_after_days",
+    "sla_critical_days",
+    "sla_serious_days",
+    "sla_moderate_days",
+    "sla_minor_days",
+    "review_interval_days",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -79,6 +84,14 @@ DEFAULTS: dict[AppSetting, str] = {
     "tls_warning_days": "30",
     # A page whose main text has not changed in this many days is stale (services.inventory).
     "stale_after_days": "365",
+    # Deadlines (services.compliance): an open finding is due this many days after it was
+    # first seen, by impact; 0 means no deadline.
+    "sla_critical_days": "30",
+    "sla_serious_days": "60",
+    "sla_moderate_days": "90",
+    "sla_minor_days": "180",
+    # A website's manual review is due again this many days after the last one.
+    "review_interval_days": "365",
 }
 
 class Settings(db.Model):

@@ -214,6 +214,29 @@ const SECTIONS: Section[] = [
         ],
     },
     {
+        key: 'deadlines',
+        label: 'Deadlines and reviews',
+        intro: 'How long an issue may stay open, by impact, counted from when it was first found, and how often websites need a manual review.',
+        settings: [
+            {
+                key: 'sla_critical_days',
+                label: 'Critical issues (days)',
+                kind: 'number',
+                min: 0,
+                help: '0 means no deadline.',
+            },
+            { key: 'sla_serious_days', label: 'Serious issues (days)', kind: 'number', min: 0 },
+            { key: 'sla_moderate_days', label: 'Moderate issues (days)', kind: 'number', min: 0 },
+            { key: 'sla_minor_days', label: 'Minor issues (days)', kind: 'number', min: 0 },
+            {
+                key: 'review_interval_days',
+                label: 'Manual review due every (days)',
+                kind: 'number',
+                min: 1,
+            },
+        ],
+    },
+    {
         key: 'health',
         label: 'Site health',
         intro: "Regular checks of each website's home page: whether it is up, its certificate, its security headers, what it runs on and its required content.",

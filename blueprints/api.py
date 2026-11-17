@@ -382,6 +382,82 @@ def update_website_endpoint(website_id):
     return update_website_for(g.api_user, website, data)
 
 
+@api_bp.route('/websites/<int:website_id>/reviews', methods=['POST'])
+@limiter.limit("10/minute")
+@api_key_required
+def submit_review_endpoint(website_id):
+    """Record a manual accessibility review, typically from an agent following the
+    prompt at /api/websites/<id>/reviews/prompt/.
+
+    The key's owner must be able to edit the website. The review is recorded as
+    coming from an agent, under the key owner's name.
+    ---
+    tags:
+      - Reviews
+    consumes:
+      - application/json
+    parameters:
+      - name: website_id
+        in: path
+        type: integer
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [in_progress, completed]
+            tool:
+              type: string
+              description: The agent or tool that did the review.
+            pages:
+              type: array
+              items:
+                type: string
+            summary:
+              type: string
+            results:
+              type: object
+              description: '{checklist key: {result: pass|fail|not_applicable|not_tested, notes, pages}}'
+    responses:
+      201:
+        description: The review was recorded.
+      400:
+        description: Invalid body; the error names the field.
+      401:
+        description: Missing, invalid, or revoked API key.
+      403:
+        description: The key's owner cannot edit this website.
+      404:
+        description: Website not found.
+    """
+    from datetime import datetime as _datetime, timezone as _timezone
+    from models.compliance import ManualReview
+    from services.reviews import save_review
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object body is required'}), 400
+    website = db.session.get(Website, website_id)
+    if not website:
+        return jsonify({'error': 'Website not found'}), 404
+    if not website.can_edit(g.api_user):
+        return jsonify({'error': 'Unauthorized'}), 403
+    now = _datetime.now(_timezone.utc).replace(tzinfo=None)
+    review = ManualReview(website_id=website.id, reviewer_id=g.api_user.id, source='agent',
+                          status='completed', started_at=now, completed_at=now, results={})
+    try:
+        save_review(review, data, now)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    db.session.add(review)
+    db.session.commit()
+    return jsonify(review.to_dict()), 201
+
+
 @api_bp.route('/domains', methods=['GET'])
 @api_key_required
 def list_domains():

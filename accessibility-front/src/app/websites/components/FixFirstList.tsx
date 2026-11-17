@@ -108,7 +108,23 @@ function FixFirstList({
                                         </span>
                                     </div>
                                 }
-                                extra={<ImpactTag impact={rule.impact} />}
+                                extra={
+                                    <span className="flex items-center gap-1">
+                                        {rule.overdue > 0 ? (
+                                            <Tag color="red">
+                                                {plural(rule.overdue, 'issue')} overdue
+                                            </Tag>
+                                        ) : (
+                                            rule.next_due && (
+                                                <Tag>
+                                                    Due{' '}
+                                                    {new Date(rule.next_due).toLocaleDateString()}
+                                                </Tag>
+                                            )
+                                        )}
+                                        <ImpactTag impact={rule.impact} />
+                                    </span>
+                                }
                             >
                                 <p className="mb-1 font-medium">
                                     Fixing this clears {plural(rule.elements, 'issue')} on{' '}

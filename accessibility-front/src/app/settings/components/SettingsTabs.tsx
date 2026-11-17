@@ -1,9 +1,16 @@
 'use client';
 import PageHeading from '@/components/PageHeading';
 import { SettingsProvider } from '@/providers/Settings';
-import { ApiOutlined, CheckSquareOutlined, SettingOutlined, ShopOutlined } from '@ant-design/icons';
+import {
+    ApiOutlined,
+    CheckSquareOutlined,
+    ExceptionOutlined,
+    SettingOutlined,
+    ShopOutlined,
+} from '@ant-design/icons';
 import { Tabs } from 'antd';
 import ApiKeys from './ApiKeys';
+import ExceptionsRegister from './ExceptionsRegister';
 import Requirements from './Requirements';
 import Vendors from './Vendors';
 import Settings from './Settings';
@@ -52,6 +59,15 @@ function SettingsTabs({ isAdmin }: { isAdmin: boolean }) {
                 </span>
             ),
             children: <Vendors />,
+        });
+        items.push({
+            key: 'exceptions',
+            label: (
+                <span>
+                    <ExceptionOutlined /> Exceptions
+                </span>
+            ),
+            children: <ExceptionsRegister />,
         });
     }
 

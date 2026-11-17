@@ -89,5 +89,6 @@ def test_delete_is_a_handful_of_statements_however_many_pages(app, make_user, ma
 
     elapsed = time.perf_counter() - started
     assert db.session.query(Site).count() == 0 and db.session.query(Report).count() == 0
-    assert len(statements) < 40, len(statements)  # not one per report or finding
+    # A fixed number per table the website owns, not one per report or finding.
+    assert len(statements) < 50, len(statements)
     assert elapsed < 5

@@ -33,6 +33,11 @@ type Settings = {
     health_history_days: string;
     tls_warning_days: string;
     stale_after_days: string;
+    sla_critical_days: string;
+    sla_serious_days: string;
+    sla_moderate_days: string;
+    sla_minor_days: string;
+    review_interval_days: string;
 };
 
 export type SettingKey = keyof Settings;

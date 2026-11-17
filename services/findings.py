@@ -367,12 +367,16 @@ def list_findings(site_ids, status: str = 'current', rule_id: str | None = None)
     if status == 'current':
         findings = [f for f in findings if f.last_report_id == latest.get(f.site_id)]
 
+    from services.compliance import deadline_info, exceptions_by_site, sla_days  # local import: compliance imports this module
+    sla, now = sla_days(), _utcnow()
+    exceptions = exceptions_by_site({f.site_id for f in findings})
     rules = {}
     for finding in findings:
         rule = rules.setdefault(finding.rule_id, {
             'rule_id': finding.rule_id, 'impact': finding.impact, 'help': finding.help,
             'help_url': finding.help_url,
             'counts': {key: 0 for key in FINDING_STATUSES},
+            'overdue': 0,
             'pages': {},
         })
         rule['counts'][finding.status] += 1
@@ -380,7 +384,10 @@ def list_findings(site_ids, status: str = 'current', rule_id: str | None = None)
             'site_id': finding.site_id, 'url': finding.site.url,
             'report_id': latest.get(finding.site_id), 'findings': [],
         })
-        page['findings'].append(finding.to_dict())
+        deadline = deadline_info(finding.rule_id, finding.impact, finding.first_seen, finding.status,
+                                 finding.site.url, exceptions.get(finding.site_id, []), sla, now)
+        rule['overdue'] += deadline['overdue']
+        page['findings'].append({**finding.to_dict(), **deadline})
     for rule in rules.values():
         rule['pages'] = list(rule['pages'].values())
     ordered = sorted(rules.values(), key=lambda r: (IMPACT_KEYS.index(r['impact']) if r['impact'] in IMPACT_KEYS else len(IMPACT_KEYS), r['rule_id']))
@@ -401,21 +408,31 @@ def fix_first(site_ids, guide_ids=frozenset()) -> dict:
     rows = (
         db.session.query(Finding.id, Finding.site_id, Finding.rule_id, Finding.impact, Finding.help,
                          Finding.help_url, Finding.status, Finding.selector, Finding.html,
-                         Finding.failure_summary, Site.url)
+                         Finding.failure_summary, Finding.first_seen, Site.url)
         .join(Site, Site.id == Finding.site_id)
         .filter(Finding.site_id.in_(site_ids), Finding.last_report_id.in_(list(latest.values())))
         .order_by(Finding.rule_id, Finding.site_id, Finding.id)
         .all()
     )
+    from services.compliance import deadline_info, exceptions_by_site, sla_days  # local import: compliance imports this module
+    sla, now = sla_days(), _utcnow()
+    exceptions = exceptions_by_site(latest.keys())
     rules, first_open = {}, {}
     for row in rows:
         rule = rules.setdefault(row.rule_id, {
             'rule_id': row.rule_id, 'impact': row.impact, 'help': row.help, 'help_url': row.help_url,
             'counts': {key: 0 for key in FINDING_STATUSES}, 'pages': {},
+            'overdue': 0, 'next_due': None,
         })
         rule['counts'][row.status] += 1
         if row.status != 'open':
             continue
+        deadline = deadline_info(row.rule_id, row.impact, row.first_seen, row.status, row.url,
+                                 exceptions.get(row.site_id, []), sla, now)
+        rule['overdue'] += deadline['overdue']
+        if deadline['due_at'] and deadline['exception_id'] is None and (
+                rule['next_due'] is None or deadline['due_at'] < rule['next_due']):
+            rule['next_due'] = deadline['due_at']
         page = rule['pages'].setdefault(row.site_id, {
             'site_id': row.site_id, 'url': row.url, 'report_id': latest[row.site_id], 'count': 0,
         })

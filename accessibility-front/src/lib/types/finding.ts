@@ -20,6 +20,10 @@ export type Finding = {
     status_by: string | null; // username, null when the scanner set it
     status_at: string | null;
     note: string | null;
+    // Deadline for open findings, and the exception that exempts it, if any.
+    due_at?: string | null;
+    overdue?: boolean;
+    exception_id?: number | null;
 };
 
 export type FindingPage = {
@@ -107,6 +111,10 @@ export type FixFirstRule = {
     elements: number;
     example: FixFirstExample;
     guide: boolean;
+    // Deadlines (services.compliance): open findings past due and not covered by an
+    // exception, and the earliest deadline still to come or passed.
+    overdue: number;
+    next_due: string | null;
 };
 
 export type WebsiteFixFirst = {

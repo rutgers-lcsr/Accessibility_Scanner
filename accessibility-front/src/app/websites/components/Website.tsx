@@ -23,6 +23,7 @@ import ScanWebsiteButton from './ScanWebsiteButton';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
 import WebsiteDocumentsTable from './WebsiteDocumentsTable';
+import WebsiteCompliance from './WebsiteCompliance';
 import WebsiteContent from './WebsiteContent';
 import WebsiteHealth from './WebsiteHealth';
 import WebsiteMedia from './WebsiteMedia';
@@ -226,6 +227,23 @@ const Website = ({ websiteId, user }: Props) => {
             children: <WebsiteHealth websiteId={websiteId} user={user} canEdit={canEdit} />,
         },
     ];
+
+    // Deadlines, exceptions and manual reviews: for signed-in people who can see the website.
+    if (user) {
+        const overdue = websiteReport.compliance?.overdue ?? 0;
+        WebsiteReportItems.push({
+            key: 'compliance',
+            label: overdue ? `Compliance (${overdue} overdue)` : 'Compliance',
+            children: (
+                <WebsiteCompliance
+                    website={websiteReport}
+                    user={user}
+                    canEdit={canEdit}
+                    onChanged={() => mutateWebsiteReport()}
+                />
+            ),
+        });
+    }
 
     // Settings come after the results: the people who can change them (site admins, the
     // website's admin and its members) open this tab, everyone lands on Fix first.

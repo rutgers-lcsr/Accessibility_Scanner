@@ -11,6 +11,7 @@ from models.document import Document, DocumentSiteAssoc  # noqa: F401  (register
 from models.finding import Finding  # noqa: F401  (registers the model for create_all)
 from models.health import HealthCheck, WebsiteHealth, WebsiteRequirementAssoc  # noqa: F401  (registers the models for create_all)
 from models.inventory import MediaItem, MediaSource, ThirdPartyHost, Vendor  # noqa: F401  (registers the models for create_all)
+from models.compliance import ComplianceException, ManualReview  # noqa: F401  (registers the models for create_all)
 from models.link import Link, LinkSource  # noqa: F401  (registers the models for create_all)
 from models.notifications import NotificationOptOut, WebsiteView
 from models.report import AxeReportCounts, Report, ReportMinimized
@@ -468,6 +469,18 @@ class Website(db.Model):
             },
         }
 
+    def get_compliance(self) -> dict:
+        """Findings past their deadline or due soon, exceptions, and manual review status."""
+        from datetime import timedelta
+        from services.compliance import compliance_counts, review_interval_days  # local import: services import models
+        counts = compliance_counts([self.id])[self.id]
+        last = counts['last_review']
+        return {
+            **counts,
+            'last_review': last.strftime("%Y-%m-%dT%H:%M:%SZ") if last else None,
+            'review_due': last is None or datetime.utcnow() - last > timedelta(days=review_interval_days()),
+        }
+
     def past_sunset(self, today: date | None = None) -> bool:
         """The sunset date has passed and the website has not been retired yet."""
         today = today or date.today()
@@ -663,6 +676,7 @@ class Website(db.Model):
             'documents': self.get_document_counts(),
             'link_counts': self.get_link_counts(),
             **self.get_inventory_counts(),
+            'compliance': self.get_compliance(),
             'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
             'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
@@ -765,6 +779,8 @@ class Website(db.Model):
             db.session.execute(MediaSource.delete().where(MediaSource.c.media_id.in_(media_ids)))
             db.session.query(MediaItem).filter(MediaItem.website_id == self.id).delete(synchronize_session=False)
             db.session.query(ThirdPartyHost).filter(ThirdPartyHost.website_id == self.id).delete(synchronize_session=False)
+            db.session.query(ComplianceException).filter(ComplianceException.website_id == self.id).delete(synchronize_session=False)
+            db.session.query(ManualReview).filter(ManualReview.website_id == self.id).delete(synchronize_session=False)
 
             domain = self.domain
             db.session.delete(self)
