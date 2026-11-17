@@ -1,7 +1,7 @@
 """Manual reviews: the checklist of things automated scanning cannot check, validating
 submitted results, and the prompt that lets an agent carry out a review.
 
-Automated rules catch roughly a third of WCAG failures. The rest (keyboard use, focus
+Automated rules find only part of the WCAG failures on a page. The rest (keyboard use, focus
 order, screen reader experience, zoom and reflow, captions, error handling) need a
 person, or an agent driving a real browser, to try the website.
 """

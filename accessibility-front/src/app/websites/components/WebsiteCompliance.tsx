@@ -188,8 +188,15 @@ function WebsiteCompliance({ website, user, canEdit, onChanged }: Props) {
                                 <>
                                     {c.last_review
                                         ? new Date(c.last_review).toLocaleDateString()
-                                        : 'Never'}{' '}
-                                    {c.review_due && <Tag color="orange">Due</Tag>}
+                                        : 'Never'}
+                                    {c.review_due && (
+                                        <>
+                                            {' '}
+                                            <Tag color="orange">
+                                                {c.last_review ? 'Due again' : 'Due now'}
+                                            </Tag>
+                                        </>
+                                    )}
                                 </>
                             ),
                         },
@@ -239,10 +246,10 @@ function WebsiteCompliance({ website, user, canEdit, onChanged }: Props) {
 
             <Section id="reviews" title="Manual reviews">
                 <p style={{ marginBottom: 12 }} className="text-sm text-gray-600">
-                    Automated scans catch about a third of accessibility problems. A manual review
-                    checks the rest: keyboard use, focus, screen readers, zoom, captions and forms.
-                    Record one here, or hand the prompt to an agent that can drive a browser; it
-                    submits its results with an API key.
+                    Automated checks find only part of the accessibility problems on a page. A
+                    manual review checks the rest: keyboard use, focus, screen readers, zoom,
+                    captions and forms. Record one here, or hand the prompt to an agent that can
+                    drive a browser; it submits its results with an API key.
                 </p>
                 {canEdit && (
                     <div className="mb-3 flex flex-wrap gap-2">

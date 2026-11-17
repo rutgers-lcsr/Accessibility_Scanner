@@ -141,8 +141,8 @@ function ComplianceReport() {
                                 />
                                 <p style={{ marginTop: 8 }} className="text-xs text-gray-600">
                                     Issues are counted per rule per page from the latest scan, as on
-                                    the website pages. Automated scans find about a third of
-                                    accessibility problems; manual reviews cover the rest.
+                                    the website pages. Automated checks find only part of the
+                                    accessibility problems on a page; manual reviews cover the rest.
                                 </p>
                             </section>
                         )}
