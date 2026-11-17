@@ -4,6 +4,7 @@ import { User, toPublicUser } from '@/lib/types/user';
 import { AlertsProvider } from '@/providers/Alerts';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { ConfigProvider, Layout } from 'antd';
+import NamedListboxes from '@/components/NamedListboxes';
 import NoPasswordManagers from '@/components/NoPasswordManagers';
 import { Footer } from 'antd/es/layout/layout';
 import type { Metadata } from 'next';
@@ -66,6 +67,7 @@ export default async function RootLayout({
                         textArea={{ autoComplete: 'off' }}
                     >
                         <NoPasswordManagers />
+                        <NamedListboxes />
                         <Layout hasSider>
                             <AlertsProvider>
                                 <UserProvider user={user}>
