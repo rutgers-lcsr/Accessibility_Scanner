@@ -34,6 +34,7 @@ AppSetting = Literal[
     "health_check_minutes",
     "health_history_days",
     "tls_warning_days",
+    "stale_after_days",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -76,6 +77,8 @@ DEFAULTS: dict[AppSetting, str] = {
     "health_check_minutes": "15",
     "health_history_days": "90",
     "tls_warning_days": "30",
+    # A page whose main text has not changed in this many days is stale (services.inventory).
+    "stale_after_days": "365",
 }
 
 class Settings(db.Model):

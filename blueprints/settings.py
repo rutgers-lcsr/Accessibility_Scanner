@@ -81,6 +81,7 @@ VALIDATORS = {
     "health_check_minutes": _int_at_least(5),
     "health_history_days": _int_at_least(1),
     "tls_warning_days": _int_at_least(1),
+    "stale_after_days": _int_at_least(1),
 }
 
 

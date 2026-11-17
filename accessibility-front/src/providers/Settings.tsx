@@ -32,6 +32,7 @@ type Settings = {
     health_check_minutes: string;
     health_history_days: string;
     tls_warning_days: string;
+    stale_after_days: string;
 };
 
 export type SettingKey = keyof Settings;

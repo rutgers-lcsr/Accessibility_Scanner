@@ -1,10 +1,11 @@
 'use client';
 import PageHeading from '@/components/PageHeading';
 import { SettingsProvider } from '@/providers/Settings';
-import { ApiOutlined, CheckSquareOutlined, SettingOutlined } from '@ant-design/icons';
+import { ApiOutlined, CheckSquareOutlined, SettingOutlined, ShopOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
 import ApiKeys from './ApiKeys';
 import Requirements from './Requirements';
+import Vendors from './Vendors';
 import Settings from './Settings';
 
 function SettingsTabs({ isAdmin }: { isAdmin: boolean }) {
@@ -42,6 +43,15 @@ function SettingsTabs({ isAdmin }: { isAdmin: boolean }) {
                 </span>
             ),
             children: <Requirements />,
+        });
+        items.push({
+            key: 'vendors',
+            label: (
+                <span>
+                    <ShopOutlined /> Vendors
+                </span>
+            ),
+            children: <Vendors />,
         });
     }
 

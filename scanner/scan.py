@@ -16,6 +16,7 @@ from models.settings import Settings
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
 from services.findings import refresh_suppressed_counts, sync_report_findings
+from services.inventory import collect_page_inventory, sync_media, sync_third_parties, update_page_content
 from utils.urls import get_full_url, get_netloc, get_site_netloc, get_website_url, normalize_url
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -111,11 +112,13 @@ def commit_with_retry(max_retries=3, retry_delay=1):
     return False
 
 
-async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None, limits: dict = None, depths: dict = None, robots: robotparser.RobotFileParser = None, documents: dict = None, link_targets: dict = None) -> AccessibilityReport:
+async def process_website(name: int, ace_config:str, tags:List[str], browser, queue: ListQueue, results: List[AccessibilitySummary], sites_done: set[str], currently_processing: set[str], website_obj: Website = None, app = None, progress_callback=None, total_sites_ref=None, limits: dict = None, depths: dict = None, robots: robotparser.RobotFileParser = None, documents: dict = None, link_targets: dict = None, media: dict = None, third_parties: dict = None) -> AccessibilityReport:
     """Crawl worker. ``limits`` (see crawl_limits) bounds the crawl, ``depths`` maps each
     queued URL to its link depth from the start page, ``robots`` filters disallowed URLs,
-    ``documents`` collects ``{url: {'type', 'pages'}}`` for the document inventory and
-    ``link_targets`` collects ``{url: {page: link text}}`` for the broken-link check."""
+    ``documents`` collects ``{url: {'type', 'pages'}}`` for the document inventory,
+    ``link_targets`` collects ``{url: {page: link text}}`` for the broken-link check and
+    ``media``/``third_parties`` collect the media and third-party inventories
+    (services.inventory.collect_page_inventory)."""
     while True:
         site = await queue.get()
         if site is None:  # sentinel to shut down
@@ -153,6 +156,9 @@ async def process_website(name: int, ace_config:str, tags:List[str], browser, qu
                         doc_type = document_type(doc_url)
                         if doc_type:
                             documents.setdefault(doc_url, {'type': doc_type, 'pages': set()})['pages'].add(site)
+
+                if media is not None and third_parties is not None:
+                    collect_page_inventory(media, third_parties, site, res)
 
                 # Every link (any host) is checked after the crawl; only same-site ones are queued.
                 if link_targets is not None:
@@ -237,6 +243,7 @@ async def store_report_to_db(site_report: AccessibilityReport, website: Website,
                 site.scanning = False
                 site.last_scan_status = 'completed'
                 site.last_scan_error = None
+                update_page_content(site, site_report)
                 db.session.add(report)
                 db.session.add(site)
                 commit_with_retry()
@@ -370,7 +377,8 @@ async def generate_single_site_report(site_url:str) -> int | None:
                         report_obj = Report(report, site_id=site.id)
                         site.reports.append(report_obj)
                         site.last_scanned = db.func.current_timestamp()
-                        
+                        update_page_content(site, report)
+
                         db.session.add(report_obj)
                         db.session.add(site)
                         commit_with_retry()
@@ -416,6 +424,8 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
     currently_processing: set[str] = set()
     documents: dict = {}
     link_targets: dict = {}
+    media: dict = {}
+    third_parties: dict = {}
     app = get_app()
 
     with app.app_context():
@@ -503,6 +513,8 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                         robots=robots,
                         documents=documents,
                         link_targets=link_targets,
+                        media=media,
+                        third_parties=third_parties,
                     ))
                     for i in range(num_workers)
                 ]
@@ -598,6 +610,14 @@ async def generate_reports(target_website: str = "https://resources.cs.rutgers.e
                     check_website_links(website.id, robots=robots, crawl_delay=limits['crawl_delay'])
                 except Exception as e:
                     log_message(f"Link check failed for {target_website}: {e}", 'error')
+                    db.session.rollback()
+
+                # Media and third-party inventories; may not fail the scan either.
+                try:
+                    sync_media(website.id, media)
+                    sync_third_parties(website.id, third_parties)
+                except Exception as e:
+                    log_message(f"Media/third-party inventory failed for {target_website}: {e}", 'error')
                     db.session.rollback()
                 
                 # Queue any websites that need rescanning as their own tasks. (These used

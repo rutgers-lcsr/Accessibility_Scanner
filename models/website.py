@@ -10,6 +10,7 @@ from models.assoc import UserWebsiteAssoc
 from models.document import Document, DocumentSiteAssoc  # noqa: F401  (registers the models for create_all)
 from models.finding import Finding  # noqa: F401  (registers the model for create_all)
 from models.health import HealthCheck, WebsiteHealth, WebsiteRequirementAssoc  # noqa: F401  (registers the models for create_all)
+from models.inventory import MediaItem, MediaSource, ThirdPartyHost, Vendor  # noqa: F401  (registers the models for create_all)
 from models.link import Link, LinkSource  # noqa: F401  (registers the models for create_all)
 from models.notifications import NotificationOptOut, WebsiteView
 from models.report import AxeReportCounts, Report, ReportMinimized
@@ -89,6 +90,14 @@ class Site(db.Model):
     # the error text when it failed, so a page with no new report can say why.
     last_scan_status: Mapped[str] = db.Column(db.String(20), nullable=True)
     last_scan_error: Mapped[str] = db.Column(db.Text, nullable=True)
+    # Stale content (services.inventory.update_page_content): a hash of the page's main
+    # text, when it last changed as far as the scans can tell, and the server's
+    # Last-Modified header.
+    content_hash: Mapped[str] = db.Column(db.String(40), nullable=True)
+    content_changed_at: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    last_modified: Mapped[datetime] = db.Column(db.DateTime, nullable=True)
+    # http:// resources an https:// page loads ([{'url', 'tag'}]), from the last scan.
+    mixed_content: Mapped[list] = db.Column(db.JSON, nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -445,6 +454,20 @@ class Website(db.Model):
         from services.links import empty_link_counts, link_counts  # local import: services import models
         return link_counts([self.id]).get(self.id, empty_link_counts())
 
+    def get_inventory_counts(self) -> dict:
+        """Media by caption status, third-party hosts, and stale and mixed-content pages."""
+        from services.inventory import media_counts, page_content_counts  # local import: services import models
+        content = page_content_counts([self.id])[self.id]
+        return {
+            'media_counts': media_counts([self.id])[self.id],
+            'third_party_count': db.session.query(func.count(ThirdPartyHost.id)).filter(ThirdPartyHost.website_id == self.id).scalar() or 0,
+            'content_counts': {
+                'stale_pages': content['stale_pages'],
+                'mixed_content_pages': content['mixed_content_pages'],
+                'last_change': content['last_change'].strftime("%Y-%m-%dT%H:%M:%SZ") if content['last_change'] else None,
+            },
+        }
+
     def past_sunset(self, today: date | None = None) -> bool:
         """The sunset date has passed and the website has not been retired yet."""
         today = today or date.today()
@@ -639,6 +662,7 @@ class Website(db.Model):
             'criticality': self.criticality,
             'documents': self.get_document_counts(),
             'link_counts': self.get_link_counts(),
+            **self.get_inventory_counts(),
             'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
             'updated_at': self.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
@@ -721,6 +745,7 @@ class Website(db.Model):
                 db.session.query(Report).filter(Report.site_id.in_(chunk)).delete(synchronize_session=False)
                 db.session.execute(DocumentSiteAssoc.delete().where(DocumentSiteAssoc.c.site_id.in_(chunk)))
                 db.session.query(LinkSource).filter(LinkSource.site_id.in_(chunk)).delete(synchronize_session=False)
+                db.session.execute(MediaSource.delete().where(MediaSource.c.site_id.in_(chunk)))
                 db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.site_id.in_(chunk)))
                 db.session.query(Site).filter(Site.id.in_(chunk)).delete(synchronize_session=False)
             db.session.execute(Site_Website_Assoc.delete().where(Site_Website_Assoc.c.website_id == self.id))
@@ -736,6 +761,10 @@ class Website(db.Model):
             db.session.query(HealthCheck).filter_by(website_id=self.id).delete(synchronize_session=False)
             db.session.query(WebsiteHealth).filter_by(website_id=self.id).delete(synchronize_session=False)
             db.session.execute(WebsiteRequirementAssoc.delete().where(WebsiteRequirementAssoc.c.website_id == self.id))
+            media_ids = db.session.query(MediaItem.id).filter(MediaItem.website_id == self.id)
+            db.session.execute(MediaSource.delete().where(MediaSource.c.media_id.in_(media_ids)))
+            db.session.query(MediaItem).filter(MediaItem.website_id == self.id).delete(synchronize_session=False)
+            db.session.query(ThirdPartyHost).filter(ThirdPartyHost.website_id == self.id).delete(synchronize_session=False)
 
             domain = self.domain
             db.session.delete(self)

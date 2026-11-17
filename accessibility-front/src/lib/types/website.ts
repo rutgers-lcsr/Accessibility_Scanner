@@ -1,5 +1,6 @@
 import { AxeReportCounts, AxeReportKeys, ReportMinimized, WebsiteAxeReport } from './axe';
 import { DocumentCounts } from './document';
+import { ContentCounts, MediaCounts } from './inventory';
 import { LinkCounts } from './link';
 
 export type Website = {
@@ -32,6 +33,10 @@ export type Website = {
     sites: number[];
     rate_limit: number;
     active: boolean;
+    // Crawl inventories
+    media_counts: MediaCounts;
+    third_party_count: number;
+    content_counts: ContentCounts;
     // Inventory
     lifecycle_status: WebsiteLifecycle;
     sunset_date: string | null; // YYYY-MM-DD

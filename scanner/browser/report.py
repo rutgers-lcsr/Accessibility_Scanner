@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, TypedDict
 from scanner.accessibility.ace import AxeReport, get_accessibility_report
-from scanner.browser.parse import  get_documents, get_imgs, get_link_targets, get_links, get_videos
+from scanner.browser.parse import  get_documents, get_imgs, get_inventory, get_link_targets, get_links, get_videos
 from playwright.async_api import Browser
 import time 
 from scanner.browser.tabbable import is_page_tabbable
@@ -55,7 +55,14 @@ class AccessibilityReport(TypedDict, total=False):
     timestamp: str
     photo: bytes
     tags: List[str]
-    
+    # services.inventory: [{'url', 'kind', 'provider', 'captions', 'audio_description'}],
+    # [{'url', 'host', 'kind'}], [{'url', 'tag'}], main-content text, Last-Modified header.
+    media: List[dict]
+    third_party: List[dict]
+    mixed_content: List[dict]
+    content_text: str | None
+    last_modified: str | None
+
 @dataclass
 class AccessibilitySummary:
     """
@@ -117,6 +124,13 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
             videos = await get_videos(page)
             imgs = await get_imgs(page)
             tabable = await is_page_tabbable(page)
+            # Media, third parties, mixed content and the text for stale-content
+            # tracking; read before the report overlay is injected. Never fails the page.
+            try:
+                inventory = await get_inventory(page)
+            except Exception as e:
+                log_message(f"Inventory collection failed for {website}: {e}", 'warning')
+                inventory = {}
 
             js_report = report_to_js(report['violations'], page.url, report_mode=True)
             await page.evaluate(f"(function () {{ {js_report} }})()")
@@ -133,6 +147,11 @@ async def generate_report(browser: Browser, website: str = "https://cs.rutgers.e
             result['timestamp'] = _now()
             result['photo'] = photo
             result['tags'] = tags or []
+            result['media'] = inventory.get('media') or []
+            result['third_party'] = inventory.get('third_party') or []
+            result['mixed_content'] = inventory.get('mixed_content') or []
+            result['content_text'] = inventory.get('text')
+            result['last_modified'] = (res.headers or {}).get('last-modified')
             return result
     except Exception as e:
         log_message(f"Error generating report for {website}: {e}", 'error')

@@ -1,0 +1,324 @@
+'use client';
+import PageLoading from '@/components/PageLoading';
+import { Field } from '@/app/websites/components/PanelFields';
+import { UnassignedHost, Vendor, VENDOR_STATUS_LABELS, VendorStatus } from '@/lib/types/inventory';
+import { useAlerts } from '@/providers/Alerts';
+import { useUser } from '@/providers/User';
+import { Button, Input, Modal, Popconfirm, Select, Table, Tag } from 'antd';
+import { useState } from 'react';
+import useSWR from 'swr';
+
+type Draft = Omit<Vendor, 'id' | 'review_overdue' | 'websites' | 'hosts'> & {
+    id?: number;
+    hosts: string;
+};
+
+const EMPTY: Draft = {
+    name: '',
+    hosts: '',
+    status: 'under_review',
+    vpat_url: '',
+    vpat_date: '',
+    review_due: '',
+    contact: '',
+    notes: '',
+};
+
+const STATUS_COLOR: Record<VendorStatus, string> = {
+    approved: 'green',
+    under_review: 'orange',
+    not_approved: 'red',
+};
+
+// The vendor register: third parties the websites load, with their accessibility
+// conformance report (VPAT/ACR) and when it is next due for review. Hosts seen on the
+// websites that match no vendor are listed below so they can be registered.
+function Vendors() {
+    const { handlerUserApiRequest } = useUser();
+    const { addAlert } = useAlerts();
+    const { data: vendors, mutate } = useSWR('/api/vendors/', handlerUserApiRequest<Vendor[]>);
+    const { data: unassigned, mutate: mutateUnassigned } = useSWR(
+        '/api/vendors/unassigned-hosts/',
+        handlerUserApiRequest<UnassignedHost[]>
+    );
+    const [draft, setDraft] = useState<Draft | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    const refresh = async () => {
+        await Promise.all([mutate(), mutateUnassigned()]);
+    };
+
+    const save = async () => {
+        if (!draft) return;
+        setSaving(true);
+        try {
+            const { id, hosts, ...rest } = draft;
+            await handlerUserApiRequest(id ? `/api/vendors/${id}/` : '/api/vendors/', {
+                method: id ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...rest, hosts: hosts.split(/\s+/).filter(Boolean) }),
+            });
+            await refresh();
+            setDraft(null);
+        } catch (e) {
+            addAlert('Could not save: ' + (e as Error).message, 'error');
+        }
+        setSaving(false);
+    };
+
+    const remove = async (id: number) => {
+        try {
+            await handlerUserApiRequest(`/api/vendors/${id}/`, { method: 'DELETE' });
+            await refresh();
+        } catch (e) {
+            addAlert('Could not delete: ' + (e as Error).message, 'error');
+        }
+    };
+
+    if (!vendors) return <PageLoading minimal />;
+
+    return (
+        <div className="max-w-6xl space-y-8">
+            <section aria-labelledby="vendor-register">
+                <h2 id="vendor-register" className="mb-2 text-xl font-semibold">
+                    Vendor register
+                </h2>
+                <p className="mb-4 text-sm text-gray-600">
+                    A host matches a vendor when it is one of the vendor&apos;s hosts or a subdomain
+                    of one.
+                </p>
+                <Button type="primary" className="mb-4" onClick={() => setDraft({ ...EMPTY })}>
+                    Add vendor
+                </Button>
+                <Table<Vendor>
+                    rowKey="id"
+                    dataSource={vendors}
+                    pagination={false}
+                    locale={{ emptyText: 'No vendors registered yet.' }}
+                    columns={[
+                        {
+                            title: 'Vendor',
+                            dataIndex: 'name',
+                            key: 'name',
+                            render: (name: string, row) => (
+                                <>
+                                    <div className="font-medium">{name}</div>
+                                    <div className="text-xs text-gray-500">
+                                        {row.hosts.join(', ')}
+                                    </div>
+                                </>
+                            ),
+                        },
+                        {
+                            title: 'Status',
+                            dataIndex: 'status',
+                            key: 'status',
+                            render: (status: VendorStatus) => (
+                                <Tag color={STATUS_COLOR[status]}>
+                                    {VENDOR_STATUS_LABELS[status]}
+                                </Tag>
+                            ),
+                        },
+                        {
+                            title: 'VPAT/ACR',
+                            key: 'vpat',
+                            render: (_, row) =>
+                                row.vpat_url ? (
+                                    <a href={row.vpat_url} target="_blank" rel="noreferrer">
+                                        Report{row.vpat_date && ` (${row.vpat_date})`}
+                                    </a>
+                                ) : (
+                                    <Tag color="orange">Missing</Tag>
+                                ),
+                        },
+                        {
+                            title: 'Review due',
+                            dataIndex: 'review_due',
+                            key: 'review_due',
+                            render: (value: string | null, row) =>
+                                value ? (
+                                    <>
+                                        {value}{' '}
+                                        {row.review_overdue && <Tag color="red">Overdue</Tag>}
+                                    </>
+                                ) : (
+                                    '—'
+                                ),
+                        },
+                        { title: 'Websites', dataIndex: 'websites', key: 'websites' },
+                        {
+                            title: '',
+                            key: 'actions',
+                            render: (_, row) => (
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="small"
+                                        onClick={() =>
+                                            setDraft({
+                                                ...row,
+                                                hosts: row.hosts.join('\n'),
+                                                vpat_url: row.vpat_url ?? '',
+                                                vpat_date: row.vpat_date ?? '',
+                                                review_due: row.review_due ?? '',
+                                                contact: row.contact ?? '',
+                                                notes: row.notes ?? '',
+                                            })
+                                        }
+                                    >
+                                        Edit
+                                    </Button>
+                                    <Popconfirm
+                                        title="Delete this vendor?"
+                                        onConfirm={() => remove(row.id)}
+                                    >
+                                        <Button size="small" danger>
+                                            Delete
+                                        </Button>
+                                    </Popconfirm>
+                                </div>
+                            ),
+                        },
+                    ]}
+                />
+            </section>
+
+            <section aria-labelledby="unassigned-hosts">
+                <h2 id="unassigned-hosts" className="mb-2 text-xl font-semibold">
+                    Hosts not in the register
+                </h2>
+                <p className="mb-4 text-sm text-gray-600">
+                    Hosts the websites load scripts, frames or styles from, or send forms to, that
+                    match no vendor. Most used first.
+                </p>
+                <Table<UnassignedHost>
+                    rowKey="host"
+                    dataSource={unassigned ?? []}
+                    loading={!unassigned}
+                    pagination={{ pageSize: 20, hideOnSinglePage: true }}
+                    locale={{ emptyText: 'Every host is matched to a vendor.' }}
+                    columns={[
+                        { title: 'Host', dataIndex: 'host', key: 'host' },
+                        {
+                            title: 'Used for',
+                            dataIndex: 'kinds',
+                            key: 'kinds',
+                            render: (kinds: string[]) =>
+                                kinds.map((kind) => <Tag key={kind}>{kind}</Tag>),
+                        },
+                        { title: 'Websites', dataIndex: 'websites', key: 'websites' },
+                        { title: 'Pages', dataIndex: 'pages', key: 'pages' },
+                        {
+                            title: '',
+                            key: 'add',
+                            render: (_, row) => (
+                                <Button
+                                    size="small"
+                                    onClick={() => setDraft({ ...EMPTY, hosts: row.host })}
+                                >
+                                    Add as vendor
+                                </Button>
+                            ),
+                        },
+                    ]}
+                />
+            </section>
+
+            <Modal
+                open={draft !== null}
+                title={draft?.id ? 'Edit vendor' : 'Add vendor'}
+                okText="Save"
+                confirmLoading={saving}
+                onOk={save}
+                onCancel={() => setDraft(null)}
+                width={640}
+            >
+                {draft && (
+                    <div className="space-y-4">
+                        <Field id="vendor-name" label="Name">
+                            <Input
+                                id="vendor-name"
+                                value={draft.name}
+                                maxLength={200}
+                                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                            />
+                        </Field>
+                        <Field
+                            id="vendor-hosts"
+                            label="Hosts"
+                            help="One per line, e.g. kaltura.com. Subdomains match too."
+                        >
+                            <Input.TextArea
+                                id="vendor-hosts"
+                                rows={3}
+                                value={draft.hosts}
+                                onChange={(e) => setDraft({ ...draft, hosts: e.target.value })}
+                            />
+                        </Field>
+                        <Field id="vendor-status" label="Status">
+                            <Select<VendorStatus>
+                                id="vendor-status"
+                                style={{ width: '100%' }}
+                                value={draft.status}
+                                onChange={(status) => setDraft({ ...draft, status })}
+                                options={(Object.keys(VENDOR_STATUS_LABELS) as VendorStatus[]).map(
+                                    (value) => ({
+                                        value,
+                                        label: VENDOR_STATUS_LABELS[value],
+                                    })
+                                )}
+                            />
+                        </Field>
+                        <Field id="vendor-vpat" label="VPAT/ACR link">
+                            <Input
+                                id="vendor-vpat"
+                                value={draft.vpat_url ?? ''}
+                                placeholder="https://"
+                                onChange={(e) => setDraft({ ...draft, vpat_url: e.target.value })}
+                            />
+                        </Field>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Field id="vendor-vpat-date" label="Report dated">
+                                <Input
+                                    id="vendor-vpat-date"
+                                    type="date"
+                                    value={draft.vpat_date ?? ''}
+                                    onChange={(e) =>
+                                        setDraft({ ...draft, vpat_date: e.target.value })
+                                    }
+                                />
+                            </Field>
+                            <Field id="vendor-review" label="Next review due">
+                                <Input
+                                    id="vendor-review"
+                                    type="date"
+                                    value={draft.review_due ?? ''}
+                                    onChange={(e) =>
+                                        setDraft({ ...draft, review_due: e.target.value })
+                                    }
+                                />
+                            </Field>
+                        </div>
+                        <Field id="vendor-contact" label="Contact">
+                            <Input
+                                id="vendor-contact"
+                                value={draft.contact ?? ''}
+                                maxLength={300}
+                                onChange={(e) => setDraft({ ...draft, contact: e.target.value })}
+                            />
+                        </Field>
+                        <Field id="vendor-notes" label="Notes">
+                            <Input.TextArea
+                                id="vendor-notes"
+                                rows={3}
+                                value={draft.notes ?? ''}
+                                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                            />
+                        </Field>
+                    </div>
+                )}
+            </Modal>
+        </div>
+    );
+}
+
+export default Vendors;

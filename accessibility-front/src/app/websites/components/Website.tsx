@@ -23,7 +23,10 @@ import ScanWebsiteButton from './ScanWebsiteButton';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
 import WebsiteDocumentsTable from './WebsiteDocumentsTable';
+import WebsiteContent from './WebsiteContent';
 import WebsiteHealth from './WebsiteHealth';
+import WebsiteMedia from './WebsiteMedia';
+import WebsiteThirdParties from './WebsiteThirdParties';
 import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteLinksTable from './WebsiteLinksTable';
 import WebsiteReport from './WebsiteReport';
@@ -194,6 +197,28 @@ const Website = ({ websiteId, user }: Props) => {
                     <WebsiteLinksTable websiteId={websiteId} user={user} />
                 </>
             ),
+        },
+        {
+            key: 'media',
+            label: `Media (${websiteReport.media_counts?.total ?? 0})`,
+            children: (
+                <WebsiteMedia
+                    websiteId={websiteId}
+                    user={user}
+                    canEdit={canEdit}
+                    onChanged={() => mutateWebsiteReport()}
+                />
+            ),
+        },
+        {
+            key: 'third-parties',
+            label: `Third parties (${websiteReport.third_party_count ?? 0})`,
+            children: <WebsiteThirdParties websiteId={websiteId} user={user} />,
+        },
+        {
+            key: 'content',
+            label: `Content${websiteReport.content_counts?.stale_pages ? ` (${websiteReport.content_counts.stale_pages} stale)` : ''}`,
+            children: <WebsiteContent websiteId={websiteId} user={user} />,
         },
         {
             key: 'health',

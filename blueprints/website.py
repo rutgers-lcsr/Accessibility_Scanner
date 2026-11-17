@@ -667,6 +667,165 @@ def run_website_health_check(website_id):
     return jsonify(health_summary(website)), 200
 
 
+@website_bp.route('/<int:website_id>/media/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_media(website_id):
+    """
+    Videos, audio and embedded players found on the website's pages, with whether they
+    have captions. Missing first, then unknown.
+    ---
+    tags:
+        - Inventory
+    parameters:
+        - in: query
+          name: status
+          type: string
+          enum: [present, missing, unknown]
+          description: Caption status (a person's verdict wins over the crawl's).
+        - in: query
+          name: page
+          type: integer
+        - in: query
+          name: limit
+          type: integer
+          default: 20
+    """
+    from models.inventory import MediaItem  # local import: keeps the model import list short
+    website, error = _viewable_website(website_id)
+    if error:
+        return error
+    status = request.args.get('status')
+    if status and status not in ('present', 'missing', 'unknown'):
+        return jsonify({'error': 'status must be one of present, missing, unknown'}), 400
+    page = request.args.get('page', default=1, type=int)
+    limit = min(max(request.args.get('limit', default=20, type=int), 1), 100)
+    items = db.session.query(MediaItem).filter_by(website_id=website_id).options(selectinload(MediaItem.pages)).all()
+    if status:
+        items = [item for item in items if item.caption_status == status]
+    order = {'missing': 0, 'unknown': 1, 'present': 2}
+    items.sort(key=lambda item: (order.get(item.caption_status, 3), item.url))
+    shown = items[(page - 1) * limit: page * limit]
+    return jsonify({'count': len(items), 'items': [item.to_dict() for item in shown]}), 200
+
+
+@website_bp.route('/<int:website_id>/media/<int:media_id>/', methods=['PATCH'])
+@jwt_required()
+def update_website_media(website_id, media_id):
+    """
+    Record a person's verdict on a media item's captions (people who can edit the website).
+    ---
+    tags:
+        - Inventory
+    parameters:
+        - in: body
+          name: body
+          schema:
+            type: object
+            properties:
+                caption_override: {type: string, enum: [verified, missing], description: null clears it.}
+                note: {type: string}
+    """
+    from datetime import datetime as _datetime, timezone as _timezone
+    from models.inventory import CAPTION_OVERRIDES, MediaItem  # local import: keeps the model import list short
+    website, error = _editable_website(website_id)
+    if error:
+        return error
+    item = db.session.get(MediaItem, media_id)
+    if item is None or item.website_id != website.id:
+        return jsonify({'error': 'Media not found'}), 404
+    data = request.get_json(silent=True) or {}
+    if 'caption_override' in data:
+        value = data['caption_override']
+        if value not in (None, *CAPTION_OVERRIDES):
+            return jsonify({'error': 'caption_override must be verified, missing or null'}), 400
+        item.caption_override = value
+        item.override_by = current_user.id if value else None
+        item.override_at = _datetime.now(_timezone.utc).replace(tzinfo=None) if value else None
+    if 'note' in data:
+        if data['note'] is not None and not isinstance(data['note'], str):
+            return jsonify({'error': 'note must be a string'}), 400
+        item.note = (data['note'] or '').strip() or None
+    db.session.commit()
+    return jsonify(item.to_dict()), 200
+
+
+@website_bp.route('/<int:website_id>/third-parties/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_third_parties(website_id):
+    """
+    Hosts other than the website's own that its pages load scripts, frames or
+    stylesheets from or send forms to, each with the vendor it matches (if any).
+    ---
+    tags:
+        - Inventory
+    """
+    from services.inventory import third_party_rows  # local import: services import models
+    website, error = _viewable_website(website_id)
+    if error:
+        return error
+    return jsonify(third_party_rows(website.id)), 200
+
+
+@website_bp.route('/<int:website_id>/content/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_content(website_id):
+    """
+    The website's pages with when their content last changed and any mixed content
+    (http:// resources on an https:// page). Oldest change first.
+    ---
+    tags:
+        - Inventory
+    parameters:
+        - in: query
+          name: filter
+          type: string
+          enum: [stale, mixed]
+        - in: query
+          name: page
+          type: integer
+        - in: query
+          name: limit
+          type: integer
+          default: 20
+    """
+    from datetime import datetime as _datetime, timedelta as _timedelta, timezone as _timezone
+    from services.inventory import stale_after_days  # local import: services import models
+    website, error = _viewable_website(website_id)
+    if error:
+        return error
+    wanted = request.args.get('filter')
+    page = request.args.get('page', default=1, type=int)
+    limit = min(max(request.args.get('limit', default=20, type=int), 1), 100)
+    days = stale_after_days()
+    cutoff = _datetime.now(_timezone.utc).replace(tzinfo=None) - _timedelta(days=days)
+    query = website.sites
+    if wanted == 'stale':
+        query = query.filter(Site.content_changed_at < cutoff)
+    elif wanted == 'mixed':
+        # NULL and '[]' both mean none; json_extract works on SQLite and MariaDB alike.
+        query = query.filter(func.json_extract(Site.mixed_content, '$[0]').isnot(None))
+    elif wanted:
+        return jsonify({'error': 'filter must be stale or mixed'}), 400
+    total = query.count()
+    rows = (query.order_by(Site.content_changed_at.is_(None), Site.content_changed_at.asc(), Site.url)
+            .offset((page - 1) * limit).limit(limit).all())
+    report_ids = latest_report_ids({site.id for site in rows})
+    iso = lambda value: value.strftime("%Y-%m-%dT%H:%M:%SZ") if value else None
+    return jsonify({
+        'count': total,
+        'stale_after_days': days,
+        'items': [{
+            'site_id': site.id,
+            'url': site.url,
+            'report_id': report_ids.get(site.id),
+            'content_changed_at': iso(site.content_changed_at),
+            'last_modified': iso(site.last_modified),
+            'stale': bool(site.content_changed_at and site.content_changed_at < cutoff),
+            'mixed_content': site.mixed_content or [],
+        } for site in rows],
+    }), 200
+
+
 @website_bp.route('/<int:website_id>/changes/', methods=['GET'])
 @jwt_required(optional=True)
 def get_website_changes(website_id):

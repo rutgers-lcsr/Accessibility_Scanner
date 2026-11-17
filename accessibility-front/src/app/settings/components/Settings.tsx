@@ -243,6 +243,13 @@ const SECTIONS: Section[] = [
                 kind: 'number',
                 min: 1,
             },
+            {
+                key: 'stale_after_days',
+                label: 'Page is stale after (days without changes)',
+                kind: 'number',
+                min: 1,
+                help: "Measured on each page's main text at every scan, or the server's Last-Modified date.",
+            },
         ],
     },
     {
