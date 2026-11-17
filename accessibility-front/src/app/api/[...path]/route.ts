@@ -21,6 +21,13 @@ const ALLOWED_PATHS = [
     '/api/scans',
     '/api/axe',
     '/api/settings',
+    // Compliance features (deadlines, exceptions, reviews, inventories, scorecards).
+    '/api/scorecards',
+    '/api/compliance-report',
+    '/api/exceptions',
+    '/api/requirements',
+    '/api/reviews',
+    '/api/vendors',
     '/api/v1',
     '/api/docs',
     '/api/apispec_1.json',
