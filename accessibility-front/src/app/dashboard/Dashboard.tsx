@@ -143,7 +143,11 @@ function Dashboard() {
                             {row.stale && ' · over 30 days old'}
                         </span>
                     )}
-                    <ScanStatusTag status={row.last_scan_status} lastScanned={row.last_scanned} />
+                    <ScanStatusTag
+                        status={row.last_scan_status}
+                        lastScanned={row.last_scanned}
+                        stale={row.stale}
+                    />
                 </div>
             ),
             sorter: (a, b) => (a.last_scanned ?? '').localeCompare(b.last_scanned ?? ''),
@@ -251,6 +255,12 @@ function Dashboard() {
                                         value={totals.pages_audited}
                                         suffix={`/ ${totals.pages}`}
                                     />
+                                    {totals.pages_offsite > 0 && (
+                                        <div className="mt-1 text-xs text-gray-600">
+                                            {totals.pages_offsite} more redirected to another site,
+                                            not counted
+                                        </div>
+                                    )}
                                 </Card>
                                 <Card className="h-full">
                                     <Statistic
@@ -307,7 +317,7 @@ function Dashboard() {
                         <section aria-labelledby="dash-violations">
                             <SectionTitle id="dash-violations">
                                 Open violations{' '}
-                                <span className="text-base font-normal text-gray-500">
+                                <span className="text-base font-normal text-gray-600">
                                     (latest scan of every page)
                                 </span>
                             </SectionTitle>
@@ -326,7 +336,7 @@ function Dashboard() {
                         <section aria-labelledby="dash-trend">
                             <SectionTitle id="dash-trend">
                                 Open violations over time{' '}
-                                <span className="text-base font-normal text-gray-500">
+                                <span className="text-base font-normal text-gray-600">
                                     (by severity)
                                 </span>
                             </SectionTitle>

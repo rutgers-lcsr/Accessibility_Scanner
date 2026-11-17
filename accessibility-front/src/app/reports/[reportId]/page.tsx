@@ -238,6 +238,24 @@ document.body.appendChild(accessScriptElement);`;
             />
             <Content className="mb-8 p-4">
                 <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+                    {report.latest_report_id && report.latest_report_id !== report.id && (
+                        // Statuses and notes live on the latest report, so this one has none.
+                        <Alert
+                            type="info"
+                            showIcon
+                            title="A newer scan of this page exists"
+                            description={
+                                <>
+                                    This report is from an earlier scan. Marking elements fixed,
+                                    false positive or accepted, and notes, are on the{' '}
+                                    <a href={`/reports/${report.latest_report_id}`}>
+                                        latest report
+                                    </a>
+                                    .
+                                </>
+                            }
+                        />
+                    )}
                     <Card>
                         {redirected && (
                             // First: everything below is about another site.
@@ -264,13 +282,19 @@ document.body.appendChild(accessScriptElement);`;
                                 style={{ margin: '0 0 4px' }}
                             >
                                 {redirected
-                                    ? `The scan found ${plural(elementCounts.total, 'failing element')} on ${scannedHost}`
+                                    ? `Nothing to fix on this website: the scan ended on ${scannedHost}`
                                     : elementCounts.total > 0
                                       ? `${plural(elementCounts.total, 'issue')} to fix on this page`
                                       : 'No automated failures on this page'}
                             </h2>
                             <p className="text-gray-700" style={{ margin: '0 0 20px' }}>
-                                {elementCounts.total > 0 ? (
+                                {redirected ? (
+                                    <>
+                                        On {scannedHost} it found{' '}
+                                        {plural(elementCounts.total, 'failing element')}, listed
+                                        below for whoever runs that site.
+                                    </>
+                                ) : elementCounts.total > 0 ? (
                                     <>
                                         Each issue is one element failing a check;{' '}
                                         {plural(failingRules, 'rule')}.{' '}
@@ -301,16 +325,18 @@ document.body.appendChild(accessScriptElement);`;
                                     'Automated checks cover only part of WCAG, so a person should still review the page.'
                                 )}
                             </p>
+                            {/* Another site's results: neutral, not this website's red. */}
                             <ImpactTiles
                                 counts={elementCounts}
                                 listId="detailed-accessibility-issues"
+                                muted={redirected}
                             />
                             {report.videos.length > 0 && (
                                 <p className="text-sm text-gray-700" style={{ margin: '16px 0 0' }}>
                                     <ExclamationCircleOutlined className="mr-1 inline" />
-                                    This page has videos: make sure they have captions, and are
-                                    labelled with <code>role=&quot;video&quot;</code> and{' '}
-                                    <code>aria-label</code>.{' '}
+                                    This page has videos: make sure they have captions, and a
+                                    transcript or audio description where the picture carries
+                                    information (WCAG 1.2.2, 1.2.3).{' '}
                                     <a
                                         href="https://dequeuniversity.com/rules/axe/4.7/video-caption"
                                         target="_blank"

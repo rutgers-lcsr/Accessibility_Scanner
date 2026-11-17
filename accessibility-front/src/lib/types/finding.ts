@@ -122,5 +122,7 @@ export type WebsiteFixFirst = {
     pages_audited: number;
     open_total: number;
     suppressed_rules: number;
+    // current elements marked false positive or accepted (not in any count)
+    suppressed_elements?: number;
     rules: FixFirstRule[];
 };

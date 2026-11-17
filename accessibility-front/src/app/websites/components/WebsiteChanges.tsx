@@ -45,12 +45,19 @@ function WebsiteChanges({ websiteId, user }: Props) {
     return (
         <Card style={{ marginTop: 8 }} title="What changed">
             <p className="mb-4">
-                Previous scan {when(data.since)} → this scan {when(data.until)}:{' '}
-                <strong>{data.previous.total}</strong> → <strong>{data.current.total}</strong> open
-                violations on the pages scanned both times; <strong>{data.new_count}</strong> new
+                {/* Two units, each named: rule failures for the before/after totals (a
+                    rule failing on one page counts once), elements for what changed. */}
+                Each page&apos;s two most recent scans, the latest on {when(data.until)}:{' '}
+                <strong>{data.previous.total}</strong> → <strong>{data.current.total}</strong> rule
+                failures on the pages scanned both times. Elements:{' '}
+                <strong>{data.new_count}</strong> new
                 {data.reopened_count > 0 && <> ({data.reopened_count} reopened)</>},{' '}
-                <strong>{data.fixed_count}</strong> fixed
-                {data.suppressed_count > 0 && <>, {data.suppressed_count} suppressed</>}.
+                <strong>{data.fixed_count}</strong> fixed, <strong>{data.open_count}</strong> still
+                open
+                {data.suppressed_count > 0 && (
+                    <>, {data.suppressed_count} marked false positive or accepted</>
+                )}
+                .
             </p>
             {data.regression && (
                 <Alert

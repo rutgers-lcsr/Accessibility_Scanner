@@ -12,10 +12,20 @@ import { Tag } from 'antd';
 function ScanStatusTag({
     status,
     lastScanned,
+    stale = false,
 }: {
     status: ScanStatus;
     lastScanned: string | null;
+    // last scanned over 30 days ago: the scan ran fine, but its results may be out of date
+    stale?: boolean;
 }) {
+    if (status === 'completed' && stale) {
+        return (
+            <Tag color="gold" icon={<WarningOutlined />}>
+                Stale
+            </Tag>
+        );
+    }
     if (status === 'completed') {
         return (
             <Tag color="green" icon={<CheckCircleOutlined />}>

@@ -101,6 +101,8 @@ export type Report = {
     suppressed_counts: AxeReportCounts | null;
     // the websites this page belongs to that the caller can open
     websites?: { id: number; url: string }[];
+    // the page's newest report; statuses and notes are kept on that one
+    latest_report_id?: number;
 };
 
 export type CheckTemplate = {

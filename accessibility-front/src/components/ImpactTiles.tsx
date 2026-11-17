@@ -11,11 +11,13 @@ type Props = {
     listId?: string;
     // Extra query parameters for that link, e.g. "tab=violations" on the website page.
     query?: string;
+    // Counts that are not this website's (a scan that ended on another site): no colour.
+    muted?: boolean;
 };
 
 // The four severity count tiles shown on the dashboard, report and website pages. A tile only
 // takes its severity colour when it has something in it, so the eye goes to the non-zero ones.
-function ImpactTiles({ counts, listId, query }: Props) {
+function ImpactTiles({ counts, listId, query, muted = false }: Props) {
     return (
         <ul
             className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4"
@@ -23,7 +25,7 @@ function ImpactTiles({ counts, listId, query }: Props) {
         >
             {IMPACTS.map((meta) => {
                 const count = counts[meta.key];
-                const active = count > 0;
+                const active = count > 0 && !muted;
                 const body = (
                     <>
                         <span

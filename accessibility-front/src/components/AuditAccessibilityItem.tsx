@@ -3,8 +3,8 @@ import { isSuppressed, REASON_MIN_LENGTH, STATUS_COLORS, STATUS_LABELS } from '@
 import { ImpactTag } from '@/lib/impact';
 import { AxeNode, AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { Finding, FindingRuleGroup, FindingStatus } from '@/lib/types/finding';
-import { Button, Card, Collapse, Dropdown, Input, Popconfirm, Tag, Tooltip } from 'antd';
-import { useRef, useState } from 'react';
+import { Button, Card, Collapse, Input, Modal, Radio, Tag, Tooltip } from 'antd';
+import { useState } from 'react';
 import { useGuides } from '@/hooks/useGuides';
 import { guideHref } from '@/lib/guides';
 import RescanPageButton from './RescanPageButton';
@@ -125,19 +125,17 @@ export function RuleFindingsSummary({
     onBulkStatus?: (ruleId: string, status: FindingStatus, note?: string) => Promise<void>;
 }) {
     const [busy, setBusy] = useState(false);
-    const [pending, setPending] = useState<FindingStatus | null>(null);
+    const [open, setOpen] = useState(false);
+    const [choice, setChoice] = useState<FindingStatus>('fixed');
     const [reason, setReason] = useState('');
-    const buttonRef = useRef<HTMLButtonElement>(null);
     const total = Object.values(group.counts).reduce((sum, n) => sum + n, 0);
-    const needsReason = pending !== null && isSuppressed(pending);
+    const needsReason = isSuppressed(choice);
     const reasonOk = reason.trim().length >= REASON_MIN_LENGTH;
-    // Back to the button that opened it, so a keyboard user keeps their place.
-    const close = () => {
-        setPending(null);
-        setReason('');
-        buttonRef.current?.focus();
-    };
     const suppressed = group.counts.false_positive + group.counts.accepted;
+    const close = () => {
+        setOpen(false);
+        setReason('');
+    };
     return (
         <div className="mt-3 flex flex-wrap items-center gap-2">
             {(Object.keys(STATUS_LABELS) as FindingStatus[])
@@ -153,74 +151,86 @@ export function RuleFindingsSummary({
                 </Tooltip>
             )}
             {canEdit && onBulkStatus && (
-                // Site-wide and easy to misclick, so the choice is confirmed with its size,
-                // and a suppressing verdict needs a reason oversight can read.
-                <Popconfirm
-                    open={pending !== null}
-                    title={
-                        pending &&
-                        `Mark all ${total} element${total === 1 ? '' : 's'} of this rule on this website as ${STATUS_LABELS[pending].toLowerCase()}?`
-                    }
-                    description={
-                        pending && isSuppressed(pending) ? (
-                            <div style={{ width: 300 }}>
-                                <label htmlFor={`reason-${ruleId}`} className="text-sm">
-                                    Reason (required, shown to reviewers)
+                // Site-wide and easy to get wrong, so one dialog holds the whole decision:
+                // the status, the size, and a reason when the status hides elements. A
+                // dialog takes focus, closes on Escape and gives focus back to this button.
+                <>
+                    <Button
+                        size="small"
+                        loading={busy}
+                        aria-haspopup="dialog"
+                        aria-label={`Set the status of all ${total} elements of rule ${ruleId} on this website`}
+                        onClick={() => setOpen(true)}
+                    >
+                        Set status for all {total}…
+                    </Button>
+                    <Modal
+                        open={open}
+                        title={`Status for all ${total} element${total === 1 ? '' : 's'} of this rule`}
+                        okText={`Mark ${total} as ${STATUS_LABELS[choice].toLowerCase()}`}
+                        okButtonProps={{ disabled: needsReason && !reasonOk }}
+                        onOk={async () => {
+                            const status = choice;
+                            const note = isSuppressed(status) ? reason.trim() : undefined;
+                            close();
+                            setBusy(true);
+                            await onBulkStatus(ruleId, status, note);
+                            setBusy(false);
+                        }}
+                        onCancel={close}
+                    >
+                        <p className="text-sm text-gray-700" style={{ margin: '0 0 12px' }}>
+                            On every page of this website.
+                        </p>
+                        <Radio.Group
+                            value={choice}
+                            onChange={(e) => setChoice(e.target.value as FindingStatus)}
+                            aria-label="Status"
+                            style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                        >
+                            {(Object.keys(STATUS_LABELS) as FindingStatus[]).map((status) => (
+                                <Radio key={status} value={status}>
+                                    {STATUS_LABELS[status]}
+                                    <span className="ml-2 text-sm text-gray-600">
+                                        {STATUS_HINTS[status]}
+                                    </span>
+                                </Radio>
+                            ))}
+                        </Radio.Group>
+                        {needsReason && (
+                            <div style={{ marginTop: 16 }}>
+                                <p style={{ margin: '0 0 8px' }}>
+                                    They will no longer count in this website&apos;s totals, Fix
+                                    first or the dashboard. Reviewers see who marked them and why.
+                                </p>
+                                <label htmlFor={`reason-${ruleId}`} className="text-sm font-medium">
+                                    Reason (required, at least {REASON_MIN_LENGTH} characters)
                                 </label>
                                 <Input.TextArea
                                     id={`reason-${ruleId}`}
                                     rows={3}
                                     maxLength={2000}
                                     value={reason}
+                                    aria-required
                                     onChange={(e) => setReason(e.target.value)}
                                     style={{ marginTop: 4 }}
                                 />
                             </div>
-                        ) : (
-                            'You can change it again the same way.'
-                        )
-                    }
-                    okText="Mark them"
-                    okButtonProps={{ disabled: needsReason && !reasonOk }}
-                    onConfirm={async () => {
-                        const status = pending;
-                        close();
-                        if (!status) return;
-                        setBusy(true);
-                        await onBulkStatus(
-                            ruleId,
-                            status,
-                            isSuppressed(status) ? reason.trim() : undefined
-                        );
-                        setBusy(false);
-                    }}
-                    onCancel={close}
-                >
-                    <Dropdown
-                        // Click, not hover: Enter and Space open it from the keyboard.
-                        trigger={['click']}
-                        menu={{
-                            items: (Object.keys(STATUS_LABELS) as FindingStatus[]).map(
-                                (status) => ({ key: status, label: STATUS_LABELS[status] })
-                            ),
-                            onClick: ({ key }) => setPending(key as FindingStatus),
-                        }}
-                    >
-                        <Button
-                            ref={buttonRef}
-                            size="small"
-                            loading={busy}
-                            aria-haspopup="menu"
-                            aria-label={`Mark all ${total} elements of rule ${ruleId} on this website as…`}
-                        >
-                            Mark all on this website as…
-                        </Button>
-                    </Dropdown>
-                </Popconfirm>
+                        )}
+                    </Modal>
+                </>
             )}
         </div>
     );
 }
+
+// What each status means, said where the choice is made.
+const STATUS_HINTS: Record<FindingStatus, string> = {
+    open: 'still to fix',
+    fixed: 'changed on the site; the next scan confirms it',
+    false_positive: 'the check is wrong about these elements',
+    accepted: 'known, and will not be fixed',
+};
 
 function AuditAccessibilityItem({
     accessibilityResult,
@@ -385,7 +395,12 @@ function AuditAccessibilityItem({
                         <NodeList
                             ruleId={ruleId}
                             nodes={accessibilityResult.nodes}
-                            label={nodeLabel ?? 'Example elements (from the first affected page)'}
+                            label={
+                                nodeLabel ??
+                                // The samples come from the page the website report met first
+                                // (reports[0], before the list above is sorted by count).
+                                `Example elements from ${accessibilityResult.reports[0]?.url.replace(/^https?:\/\//, '') ?? 'one page'}`
+                            }
                             open={false}
                         />
                     </div>

@@ -11,8 +11,9 @@ import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useUrlFilters } from '@/lib/urlFilters';
 import { useUser } from '@/providers/User';
-import { Alert, Tabs, TabsProps } from 'antd';
+import { Alert, Segmented, Tabs, TabsProps } from 'antd';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -56,6 +57,16 @@ function elementCounts(data: WebsiteFixFirst): AxeReportCounts {
 const isStale = (iso: string | null | undefined) =>
     !!iso && Date.now() - new Date(iso).getTime() > 30 * 86_400_000;
 
+// Old tab keys and the group they now belong to.
+const TAB_ALIASES: Record<string, string> = {
+    changes: 'history',
+    documents: 'links',
+    media: 'inventory',
+    'third-parties': 'inventory',
+    content: 'inventory',
+    health: 'inventory',
+};
+
 type Props = {
     websiteId: number;
     user: PublicUser | null;
@@ -66,7 +77,34 @@ const Website = ({ websiteId, user }: Props) => {
     const { mutate: mutateAll } = useSWRConfig();
     // The open tab lives in the URL (?tab=) so links from emails and cards land on it.
     const { params, setFilters } = useUrlFilters();
-    const activeTab = params.get('tab') ?? 'fix';
+    // Tabs were grouped (13 → 8); the old keys in emails and links open the group.
+    const requestedTab = params.get('tab') ?? 'fix';
+    const activeTab = TAB_ALIASES[requestedTab] ?? requestedTab;
+    const section = params.get('section');
+
+    // ?tab=changes and ?tab=documents land on a section further down: go there once the
+    // tab has rendered.
+    useEffect(() => {
+        const target =
+            requestedTab === 'changes'
+                ? 'what-changed'
+                : requestedTab === 'documents'
+                  ? 'documents'
+                  : null;
+        if (!target) return;
+        // The section loads its own data, so look for it for a few seconds.
+        let tries = 0;
+        const timer = window.setInterval(() => {
+            const el = document.getElementById(target);
+            if (el && el.offsetHeight > 40) {
+                el.scrollIntoView({ block: 'start' });
+                window.clearInterval(timer);
+            } else if (++tries > 30) {
+                window.clearInterval(timer);
+            }
+        }, 200);
+        return () => window.clearInterval(timer);
+    }, [requestedTab]);
 
     const {
         data: websiteReport,
@@ -108,38 +146,69 @@ const Website = ({ websiteId, user }: Props) => {
         mutateWebsiteReport(website);
     };
 
+    // A heading per tab panel, for screen-reader users moving by headings.
+    const panelHeading = (text: string) => <h2 className="sr-only">{text}</h2>;
+    const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+    // Inventory: the crawl inventories, one tab with a switch, so the tab bar stays short.
+    const inventoryOptions = [
+        { value: 'media', label: `Media (${websiteReport.media_counts?.total ?? 0})` },
+        {
+            value: 'third-parties',
+            label: `Third parties (${websiteReport.third_party_count ?? 0})`,
+        },
+        {
+            value: 'content',
+            label: websiteReport.content_counts?.stale_pages
+                ? `Content (${websiteReport.content_counts.stale_pages} stale)`
+                : 'Content',
+        },
+        { value: 'health', label: 'Health' },
+    ];
+    const inventorySection = inventoryOptions.some((o) => o.value === section)
+        ? section
+        : inventoryOptions.some((o) => o.value === requestedTab)
+          ? requestedTab
+          : 'media';
+    const stalePages = websiteReport.content_counts?.stale_pages ?? 0;
+
     const WebsiteReportItems: TabsProps['items'] = [
         {
             key: 'fix',
             label: 'Fix first',
             children: (
-                <FixFirst
-                    websiteId={websiteId}
-                    user={user}
-                    canEdit={canEdit}
-                    categories={websiteReport.categories}
-                    onCountsChanged={() => mutateWebsiteReport()}
-                    canScan={canScan}
-                    onPageScanned={onPageScanned}
-                />
+                <>
+                    {panelHeading('Fix first')}
+                    <FixFirst
+                        websiteId={websiteId}
+                        user={user}
+                        canEdit={canEdit}
+                        categories={websiteReport.categories}
+                        onCountsChanged={() => mutateWebsiteReport()}
+                        canScan={canScan}
+                        onPageScanned={onPageScanned}
+                    />
+                </>
             ),
         },
         {
             key: 'urls',
             label: `Pages (${websiteReport.sites.length})`,
             children: (
-                <WebsiteSiteTable
-                    websiteId={websiteId}
-                    user={user}
-                    canScan={canScan}
-                    onPageScanned={onPageScanned}
-                />
+                <>
+                    {panelHeading('Pages')}
+                    <WebsiteSiteTable
+                        websiteId={websiteId}
+                        user={user}
+                        canScan={canScan}
+                        onPageScanned={onPageScanned}
+                    />
+                </>
             ),
         },
         {
             key: 'violations',
-            // Distinct failing rules: the tiles count a rule once per page it fails on,
-            // and Fix first counts elements, so this count names its unit.
+            // Distinct failing rules: the tiles count elements, so this count names its unit.
             label: `By rule (${websiteReport.report.violations?.length ?? 0})`,
             children: (
                 <WebsiteReport
@@ -154,26 +223,51 @@ const Website = ({ websiteId, user }: Props) => {
             ),
         },
         {
+            // The trend, then what the latest scans changed (?tab=changes lands here).
             key: 'history',
             label: 'History',
-            children: <WebsiteHistoryChart websiteId={websiteId} user={user} />,
-        },
-        {
-            key: 'changes',
-            label: 'What changed',
-            children: <WebsiteChanges websiteId={websiteId} user={user} />,
-        },
-        {
-            key: 'documents',
-            label: `Documents (${websiteReport.documents?.total ?? 0})`,
             children: (
                 <>
-                    {(websiteReport.documents?.untagged_pdf ?? 0) > 0 && (
+                    {panelHeading('History')}
+                    <WebsiteHistoryChart websiteId={websiteId} user={user} />
+                    <div id="what-changed" style={{ marginTop: 16 }}>
+                        <WebsiteChanges websiteId={websiteId} user={user} />
+                    </div>
+                </>
+            ),
+        },
+        {
+            // ?tab=documents and ?tab=links land here.
+            key: 'links',
+            label: 'Links & documents',
+            children: (
+                <>
+                    <h2 className="text-lg font-semibold" style={{ margin: '8px 0 12px' }}>
+                        Links ({websiteReport.link_counts?.total ?? 0})
+                    </h2>
+                    {(websiteReport.link_counts?.broken ?? 0) > 0 && (
                         <Alert
-                            style={{ marginTop: 8, marginBottom: 16 }}
+                            style={{ marginBottom: 16 }}
                             type="warning"
                             showIcon
-                            title={`${websiteReport.documents.untagged_pdf} untagged PDF${websiteReport.documents.untagged_pdf === 1 ? '' : 's'}`}
+                            title={plural(websiteReport.link_counts.broken, 'broken link')}
+                            description="These links lead to a page that no longer exists. Fix or remove them on the pages listed under Linked from."
+                        />
+                    )}
+                    <WebsiteLinksTable websiteId={websiteId} user={user} />
+                    <h2
+                        id="documents"
+                        className="text-lg font-semibold"
+                        style={{ margin: '32px 0 12px' }}
+                    >
+                        Documents ({websiteReport.documents?.total ?? 0})
+                    </h2>
+                    {(websiteReport.documents?.untagged_pdf ?? 0) > 0 && (
+                        <Alert
+                            style={{ marginBottom: 16 }}
+                            type="warning"
+                            showIcon
+                            title={plural(websiteReport.documents.untagged_pdf, 'untagged PDF')}
                             description="Untagged PDFs have no reading structure, so screen readers cannot navigate them. Re-export them with tagging enabled or replace them with web pages."
                         />
                     )}
@@ -182,49 +276,40 @@ const Website = ({ websiteId, user }: Props) => {
             ),
         },
         {
-            key: 'links',
-            label: `Links (${websiteReport.link_counts?.total ?? 0})`,
+            // ?tab=media, third-parties, content and health land here, on that section.
+            key: 'inventory',
+            label: stalePages ? `Inventory (${stalePages} stale)` : 'Inventory',
             children: (
                 <>
-                    {(websiteReport.link_counts?.broken ?? 0) > 0 && (
-                        <Alert
-                            style={{ margin: '8px 0 16px' }}
-                            type="warning"
-                            showIcon
-                            title={`${websiteReport.link_counts.broken} broken link${websiteReport.link_counts.broken === 1 ? '' : 's'}`}
-                            description="These links lead to a page that no longer exists. Fix or remove them on the pages listed under Linked from."
+                    {panelHeading('Inventory')}
+                    <Segmented
+                        value={inventorySection}
+                        onChange={(value) =>
+                            setFilters({ tab: 'inventory', section: String(value) })
+                        }
+                        options={inventoryOptions}
+                        aria-label="Inventory section"
+                        style={{ margin: '8px 0 16px' }}
+                    />
+                    {inventorySection === 'media' && (
+                        <WebsiteMedia
+                            websiteId={websiteId}
+                            user={user}
+                            canEdit={canEdit}
+                            onChanged={() => mutateWebsiteReport()}
                         />
                     )}
-                    <WebsiteLinksTable websiteId={websiteId} user={user} />
+                    {inventorySection === 'third-parties' && (
+                        <WebsiteThirdParties websiteId={websiteId} user={user} />
+                    )}
+                    {inventorySection === 'content' && (
+                        <WebsiteContent websiteId={websiteId} user={user} />
+                    )}
+                    {inventorySection === 'health' && (
+                        <WebsiteHealth websiteId={websiteId} user={user} canEdit={canEdit} />
+                    )}
                 </>
             ),
-        },
-        {
-            key: 'media',
-            label: `Media (${websiteReport.media_counts?.total ?? 0})`,
-            children: (
-                <WebsiteMedia
-                    websiteId={websiteId}
-                    user={user}
-                    canEdit={canEdit}
-                    onChanged={() => mutateWebsiteReport()}
-                />
-            ),
-        },
-        {
-            key: 'third-parties',
-            label: `Third parties (${websiteReport.third_party_count ?? 0})`,
-            children: <WebsiteThirdParties websiteId={websiteId} user={user} />,
-        },
-        {
-            key: 'content',
-            label: `Content${websiteReport.content_counts?.stale_pages ? ` (${websiteReport.content_counts.stale_pages} stale)` : ''}`,
-            children: <WebsiteContent websiteId={websiteId} user={user} />,
-        },
-        {
-            key: 'health',
-            label: 'Health',
-            children: <WebsiteHealth websiteId={websiteId} user={user} canEdit={canEdit} />,
         },
     ];
 
@@ -276,12 +361,14 @@ const Website = ({ websiteId, user }: Props) => {
                 }
                 subtitle={
                     <>
-                        Last scanned {scanAge(websiteReport.last_scanned)}
+                        Last full scan {scanAge(websiteReport.last_scanned)}
                         {isStale(websiteReport.last_scanned) && (
                             <span className="font-medium text-orange-800">
                                 {' '}
                                 · over a month old
-                                {canEdit ? ': scan again for current results' : ''}
+                                {canEdit
+                                    ? ': if the site has changed since, scan it again before relying on these results'
+                                    : ''}
                             </span>
                         )}
                     </>
@@ -326,8 +413,17 @@ const Website = ({ websiteId, user }: Props) => {
                         style={{ margin: '16px 0 0' }}
                     >
                         {openCounts
-                            ? `${openCounts.total} open issue${openCounts.total === 1 ? '' : 's'} (failing elements) across the website's pages, by severity.`
+                            ? `${plural(openCounts.total, 'open issue')} across the website, by severity. Each issue is one element on a page that fails a check.`
                             : "Failing checks across the website's pages, by severity."}
+                        {(fixFirst?.suppressed_elements ?? 0) > 0 && (
+                            // Nothing leaves the counts unannounced.
+                            <>
+                                {' '}
+                                {plural(fixFirst?.suppressed_elements ?? 0, 'more element')} marked
+                                false positive or accepted{' '}
+                                {fixFirst?.suppressed_elements === 1 ? 'is' : 'are'} not counted.
+                            </>
+                        )}
                         {toCheck > 0 && (
                             <>
                                 {' '}
@@ -345,7 +441,9 @@ const Website = ({ websiteId, user }: Props) => {
                 <section aria-label="Report details">
                     <Tabs
                         activeKey={shownTab}
-                        onChange={(key) => setFilters({ tab: key === 'fix' ? null : key })}
+                        onChange={(key) =>
+                            setFilters({ tab: key === 'fix' ? null : key, section: null })
+                        }
                         items={WebsiteReportItems}
                     />
                 </section>

@@ -449,8 +449,10 @@ def fix_first(site_ids, guide_ids=frozenset()) -> dict:
     finding. Reads the finding table and the latest report ids only."""
     site_ids = list(site_ids)
     latest = latest_report_ids(site_ids)
+    # suppressed_elements: current elements marked false positive or accepted, which no
+    # count includes; shown next to the counts so nothing disappears unannounced.
     result = {'pages_total': len(site_ids), 'pages_audited': len(latest), 'open_total': 0,
-              'suppressed_rules': 0, 'rules': []}
+              'suppressed_rules': 0, 'suppressed_elements': 0, 'rules': []}
     if not latest:
         return result
     rows = (
@@ -473,6 +475,8 @@ def fix_first(site_ids, guide_ids=frozenset()) -> dict:
             'overdue': 0, 'next_due': None,
         })
         rule['counts'][row.status] += 1
+        if row.status in SUPPRESSED_STATUSES:
+            result['suppressed_elements'] += 1
         if row.status != 'open':
             continue
         deadline = deadline_info(row.rule_id, row.impact, row.first_seen, row.status, row.url,
@@ -529,7 +533,7 @@ def latest_and_previous_reports(site_ids) -> tuple[dict, dict]:
     """``({site_id: latest_row}, {site_id: previous_row})`` with light columns only."""
     if not site_ids:
         return {}, {}
-    columns = (Report.id, Report.site_id, Report.url, Report.timestamp, Report.report_counts, Report.suppressed_counts)
+    columns = (Report.id, Report.site_id, Report.url, Report.base_url, Report.timestamp, Report.report_counts, Report.suppressed_counts)
     latest_ts = (
         db.session.query(Report.site_id, func.max(Report.timestamp).label('ts'))
         .filter(Report.site_id.in_(list(site_ids)))
@@ -556,7 +560,11 @@ def latest_and_previous_reports(site_ids) -> tuple[dict, dict]:
                 by_site[row.site_id] = row
         return by_site
 
-    return newest_per_site(latest_ts), newest_per_site(previous_ts)
+    # As in latest_report_ids: a page whose newest scan ended on another site has no
+    # current report, so it takes no part in the comparison.
+    latest = {site_id: row for site_id, row in newest_per_site(latest_ts).items() if not is_offsite(row.url, row.base_url)}
+    previous = {site_id: row for site_id, row in newest_per_site(previous_ts).items() if site_id in latest}
+    return latest, previous
 
 
 def _group_by_rule(findings, page_report_id):

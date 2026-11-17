@@ -141,9 +141,12 @@ function visibleText(html?: string): string {
 // following:"; say what that means.
 function plainSummary(summary?: string): string {
     if (!summary) return '';
+    // One line under a heading is a diagnosis, not a list of choices: say "What failed".
     return summary
-        .replace(/Fix any of the following:/g, 'Fix it with any one of these:')
-        .replace(/Fix all of the following:/g, 'Fix all of these:')
+        .replace(/Fix any of the following:\n(\s*[^\n]+)\s*$/g, 'What failed:\n$1')
+        .replace(/Fix all of the following:\n(\s*[^\n]+)\s*$/g, 'What failed:\n$1')
+        .replace(/Fix any of the following:/g, 'Any one of these fixes it:')
+        .replace(/Fix all of the following:/g, 'All of these need fixing:')
         .trim();
 }
 

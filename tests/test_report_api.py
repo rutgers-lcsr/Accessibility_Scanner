@@ -42,3 +42,19 @@ def test_report_names_the_websites_the_viewer_can_open(client, make_user, make_s
 
     body = client.get(f"/api/reports/{report.id}/", headers=jwt_header(owner)).get_json()
     assert body["websites"] == [{"id": website.id, "url": website.url}]
+
+
+def test_older_report_points_to_the_latest(client, make_user, make_site, add_report, jwt_header):
+    """Statuses live on a page's latest report; an older one says which that is."""
+    from datetime import datetime, timedelta, timezone
+
+    owner = make_user("bob")
+    site = make_site(owner)
+    now = datetime.now(timezone.utc)
+    old = add_report(site, when=now - timedelta(days=3))
+    new = add_report(site, when=now)
+
+    body = client.get(f"/api/reports/{old.id}/", headers=jwt_header(owner)).get_json()
+    assert body["latest_report_id"] == new.id
+    body = client.get(f"/api/reports/{new.id}/", headers=jwt_header(owner)).get_json()
+    assert body["latest_report_id"] == new.id

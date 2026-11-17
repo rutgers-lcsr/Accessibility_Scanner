@@ -182,3 +182,15 @@ def test_suppressing_needs_a_reason(client, make_user, make_website, add_site, a
     bulk = f"/api/websites/{website.id}/findings/bulk/"
     assert client.post(bulk, json={"rule_id": "image-alt", "status": "accepted"}, headers=headers).status_code == 400
     assert client.post(bulk, json={"rule_id": "image-alt", "status": "accepted", "note": "Logo images, decorative"}, headers=headers).status_code == 200
+
+
+def test_fix_first_says_how_many_elements_are_hidden(client, make_user, make_website, add_site, add_report, jwt_header):
+    owner = make_user("alice")
+    website = make_website(owner)
+    site = add_site(website, page="/")
+    _scan(add_report, site, [_rule("image-alt", "critical", (("#a", "<img>"), ("#b", "<img>")))])
+    headers = jwt_header(owner)
+    client.patch(f"/api/findings/{_finding(site, '#a').id}/", json={"status": "accepted", "note": "Decorative logo image"}, headers=headers)
+
+    data = client.get(f"/api/websites/{website.id}/fix-first/", headers=headers).get_json()
+    assert data["suppressed_elements"] == 1 and data["open_total"] == 1

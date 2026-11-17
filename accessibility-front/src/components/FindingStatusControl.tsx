@@ -9,8 +9,8 @@ import {
 import { Finding, FindingStatus } from '@/lib/types/finding';
 import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
-import { Button, Input, Popover, Select, Tag, Tooltip } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { Button, Input, Modal, Select, Tag, Tooltip } from 'antd';
+import { useRef, useState } from 'react';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 
 type Props = {
@@ -40,9 +40,16 @@ function FindingStatusControl({ finding, canEdit, onChanged }: Props) {
     const hasReason = (finding.note ?? '').trim().length >= REASON_MIN_LENGTH;
     // The person just chose a status that needs a reason: put them in the box for it.
     const reasonRef = useRef<TextAreaRef>(null);
-    useEffect(() => {
-        if (noteOpen && reasonNeeded) reasonRef.current?.focus();
-    }, [noteOpen, reasonNeeded]);
+    // Focus goes back to whatever opened the dialog: the status menu or the note button.
+    const returnTo = useRef<HTMLElement | null>(null);
+    const openNote = () => {
+        returnTo.current = document.activeElement as HTMLElement | null;
+        setNoteOpen(true);
+    };
+    const closeNote = () => {
+        setNoteOpen(false);
+        setPendingStatus(null);
+    };
 
     const save = async (status: FindingStatus, nextNote: string | null) => {
         setSaving(true);
@@ -87,63 +94,58 @@ function FindingStatusControl({ finding, canEdit, onChanged }: Props) {
                 onChange={(status: FindingStatus) => {
                     if (isSuppressed(status) && !hasReason) {
                         setPendingStatus(status);
-                        setNoteOpen(true);
+                        openNote();
                         return;
                     }
                     save(status, null);
                 }}
             />
-            <Popover
-                trigger="click"
+            {/* A dialog, not a popover: it takes focus, closes on Escape and returns focus. */}
+            <Button
+                size="small"
+                type={finding.note ? 'default' : 'dashed'}
+                aria-haspopup="dialog"
+                onClick={openNote}
+            >
+                {finding.note ? 'Note' : 'Add note'}
+            </Button>
+            <Modal
                 open={noteOpen}
-                onOpenChange={(open) => {
-                    setNoteOpen(open);
-                    if (!open) setPendingStatus(null);
-                }}
                 title={
                     reasonNeeded
                         ? `Why ${STATUS_LABELS[pendingStatus].toLowerCase()}? (required)`
-                        : 'Note'
+                        : 'Note on this element'
                 }
-                content={
-                    <div style={{ width: 280 }}>
-                        {reasonNeeded && (
-                            <p className="text-sm text-gray-700" style={{ margin: '0 0 6px' }}>
-                                It takes this element off the counts, so reviewers need the reason.
-                            </p>
-                        )}
-                        <Input.TextArea
-                            rows={3}
-                            maxLength={2000}
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            aria-label={reasonNeeded ? 'Reason (required)' : 'Note on this finding'}
-                            ref={reasonRef}
-                        />
-                        <div className="mt-2 flex justify-end">
-                            <Button
-                                size="small"
-                                type="primary"
-                                loading={saving}
-                                disabled={reasonNeeded && !reasonOk}
-                                onClick={async () => {
-                                    await save(pendingStatus ?? finding.status, note);
-                                    setPendingStatus(null);
-                                    setNoteOpen(false);
-                                }}
-                            >
-                                {reasonNeeded
-                                    ? `Mark ${STATUS_LABELS[pendingStatus].toLowerCase()}`
-                                    : 'Save'}
-                            </Button>
-                        </div>
-                    </div>
+                okText={
+                    reasonNeeded ? `Mark ${STATUS_LABELS[pendingStatus].toLowerCase()}` : 'Save'
                 }
+                okButtonProps={{ disabled: reasonNeeded && !reasonOk, loading: saving }}
+                onOk={async () => {
+                    await save(pendingStatus ?? finding.status, note);
+                    closeNote();
+                }}
+                onCancel={closeNote}
+                afterOpenChange={(open) => {
+                    if (open) reasonRef.current?.focus();
+                }}
+                afterClose={() => returnTo.current?.focus()}
             >
-                <Button size="small" type={finding.note ? 'default' : 'dashed'}>
-                    {finding.note ? 'Note' : 'Add note'}
-                </Button>
-            </Popover>
+                {reasonNeeded && (
+                    <p style={{ margin: '0 0 8px' }}>
+                        It takes this element off every count, so reviewers need the reason (at
+                        least {REASON_MIN_LENGTH} characters).
+                    </p>
+                )}
+                <Input.TextArea
+                    rows={3}
+                    maxLength={2000}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    aria-label={reasonNeeded ? 'Reason (required)' : 'Note on this element'}
+                    aria-required={reasonNeeded}
+                    ref={reasonRef}
+                />
+            </Modal>
             {detail && <span className="text-xs text-gray-500">{detail}</span>}
         </span>
     );

@@ -27,6 +27,8 @@ export const rutgersTheme: ThemeConfig = {
         colorBgContainer: '#ffffff',
         // antd's default placeholder grey is 1.8:1 on white.
         colorTextPlaceholder: '#707070',
+        // Captions such as Statistic titles; antd's default #8c8c8c is 3.4:1 on white.
+        colorTextDescription: '#595959',
 
         // Type: Geist is loaded by the root layout (next/font) and exposed as CSS variables.
         fontFamily:

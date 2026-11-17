@@ -151,7 +151,7 @@ function FixFirstList({
                                             key: 'example',
                                             label: (
                                                 <span className="font-medium">
-                                                    Example element
+                                                    Example element{' '}
                                                     <span className="ml-2 text-xs font-normal text-gray-500">
                                                         on {example.url}
                                                     </span>

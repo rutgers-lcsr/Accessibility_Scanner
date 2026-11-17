@@ -4,7 +4,7 @@ import ScanProgressModal from '@/components/ScanProgressModal';
 import { useScan } from '@/hooks/useScan';
 import { WebsiteChanges } from '@/lib/types/finding';
 import { useUser } from '@/providers/User';
-import { Alert, Button, Collapse, Popconfirm, Spin } from 'antd';
+import { Alert, Button, Collapse, Modal, Spin } from 'antd';
 import { useState } from 'react';
 
 type Summary = { reportId: number | null; changes: WebsiteChanges };
@@ -86,6 +86,7 @@ export function VerifySummary({ reportId, changes }: Summary) {
 function RescanPageButton({ siteId, size = 'middle', pageUrl, onScanned }: Props) {
     const { handlerUserApiRequest } = useUser();
     const [summary, setSummary] = useState<Summary | null>(null);
+    const [confirming, setConfirming] = useState(false);
     const {
         loading,
         taskId,
@@ -115,25 +116,33 @@ function RescanPageButton({ siteId, size = 'middle', pageUrl, onScanned }: Props
     return (
         <>
             {/* Confirmed: one click otherwise starts a scan (a non-technical owner clicked
-                it before fixing anything). */}
-            <Popconfirm
+                it before fixing anything). A dialog, not a popover: it takes focus, closes
+                on Escape and gives focus back to this button. */}
+            <Button
+                size={size}
+                loading={loading}
+                aria-busy={loading}
+                aria-haspopup="dialog"
+                aria-label={pageUrl ? `Rescan ${pageUrl}` : undefined}
+                onClick={() => setConfirming(true)}
+            >
+                Rescan this page
+            </Button>
+            <Modal
+                open={confirming}
                 title="Rescan this page now?"
-                description="It takes about a minute. The new results replace the ones shown here."
                 okText="Rescan"
-                onConfirm={() => {
+                onOk={() => {
+                    setConfirming(false);
                     setSummary(null);
                     startScan();
                 }}
+                onCancel={() => setConfirming(false)}
             >
-                <Button
-                    size={size}
-                    loading={loading}
-                    aria-busy={loading}
-                    aria-label={pageUrl ? `Rescan ${pageUrl}` : undefined}
-                >
-                    Rescan this page
-                </Button>
-            </Popconfirm>
+                <p style={{ margin: 0 }}>
+                    It takes about a minute. The new results replace the ones shown here.
+                </p>
+            </Modal>
             {taskId && statusEndpoint && (
                 <ScanProgressModal
                     taskId={taskId}

@@ -86,7 +86,21 @@ function HistoryChart({ data, x, compact = false, series = 'categories' }: Props
         legend: { color: { position: 'top' as const } },
     };
 
-    return <Line {...config} />;
+    // The chart is a canvas: give screen readers the trend it shows in words.
+    const first = data[0];
+    const last = data[data.length - 1];
+    const firstX = (x === 'date' ? first.date : first.timestamp) ?? '';
+    const lastX = (x === 'date' ? last.date : last.timestamp) ?? '';
+    const summary = `Open violations went from ${first.report_counts?.violations?.total ?? 0} on ${
+        firstX ? labelFor(firstX) : 'the first scan'
+    } to ${last.report_counts?.violations?.total ?? 0} on ${firstX ? labelFor(lastX) : 'the last scan'}, over ${data.length} points.`;
+
+    return (
+        <figure style={{ margin: 0 }}>
+            <Line {...config} />
+            <figcaption className="sr-only">{summary}</figcaption>
+        </figure>
+    );
 }
 
 export default HistoryChart;

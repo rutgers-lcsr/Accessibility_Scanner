@@ -59,7 +59,12 @@ export default function PageViews({
                 value={view}
                 onChange={(next) => {
                     setView(next);
-                    setStatus('');
+                    // Said, so a screen-reader user knows what the panel now holds.
+                    setStatus(
+                        next === 'photo'
+                            ? 'Showing the screenshot from the scan.'
+                            : 'Showing the live preview.'
+                    );
                 }}
                 aria-label="How to show the page"
                 options={[

@@ -64,3 +64,39 @@ def test_pages_list_says_which_site_was_scanned(make_user, make_site, add_report
     site = make_site(make_user('bob'), page='/login')
     _record(add_report, site, base_url='https://cas.rutgers.edu')
     assert site.get_recent_report()['scanned_host'] == 'cas.rutgers.edu'
+
+
+def test_dashboard_overview_leaves_offsite_pages_out(make_user, make_website, add_site, add_report):
+    """The dashboard's audited pages, top rules and manual-check counts agree with the
+    website page: a scan that ended on another site counts for nothing, and is reported
+    on its own."""
+    from services.overview import build_overview
+
+    website = make_website(make_user('bob'))
+    own = add_site(website, page='/about')
+    login = add_site(website, page='/login')
+    _record(add_report, own, violations=[])
+    _record(add_report, login, base_url='https://cas.rutgers.edu')
+
+    overview = build_overview([website], top=5)
+    totals = overview['totals']
+    assert totals['pages_audited'] == 1
+    assert totals['pages_offsite'] == 1
+    assert totals['violations']['total'] == 0
+    assert overview['top_rules'] == []
+
+
+def test_what_changed_leaves_offsite_pages_out(make_user, make_website, add_site, add_report):
+    from datetime import datetime, timedelta, timezone
+
+    from services.findings import changes_for_sites
+
+    website = make_website(make_user('bob'))
+    login = add_site(website, page='/login')
+    now = datetime.now(timezone.utc)
+    _record(add_report, login, when=now - timedelta(days=1))  # on-site: one open finding
+    _record(add_report, login, when=now, base_url='https://cas.rutgers.edu')
+
+    changes = changes_for_sites([login.id])
+    assert changes['open_count'] == 0 and changes['still_open'] == []
+    assert changes['current']['total'] == 0

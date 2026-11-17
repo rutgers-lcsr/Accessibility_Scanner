@@ -8,6 +8,8 @@ the violation lists.
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
+from utils.urls import is_offsite
+
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -28,12 +30,16 @@ def iso(value: datetime | None) -> str | None:
     return value.strftime("%Y-%m-%dT%H:%M:%SZ") if value else None
 
 
-def latest_reports(website_ids, before: datetime | None = None) -> dict:
+def latest_reports(website_ids, before: datetime | None = None, include_offsite: bool = False) -> dict:
     """The most recent report of every page under the given websites.
 
     With ``before``, the most recent report at that moment instead, which is how the
     emails and the digest describe "then" versus "now". Returns ``{site_id: row}``
-    where row has id, site_id, url, timestamp and report_counts.
+    where row has id, site_id, url, base_url, timestamp and report_counts.
+
+    A page whose most recent scan ended on another site (``utils.urls.is_offsite``) has
+    no current report here, as in ``services.findings.latest_report_ids``: its results
+    are not the website's. ``include_offsite`` keeps them, to count such pages.
     """
     if not website_ids:
         return {}
@@ -46,7 +52,7 @@ def latest_reports(website_ids, before: datetime | None = None) -> dict:
         latest_ts = latest_ts.filter(Report.timestamp <= before)
     latest_ts = latest_ts.group_by(Report.site_id).subquery()
     rows = (
-        db.session.query(Report.id, Report.site_id, Report.url, Report.timestamp, Report.report_counts, Report.suppressed_counts)
+        db.session.query(Report.id, Report.site_id, Report.url, Report.base_url, Report.timestamp, Report.report_counts, Report.suppressed_counts)
         .join(latest_ts, (latest_ts.c.site_id == Report.site_id) & (latest_ts.c.ts == Report.timestamp))
         .all()
     )
@@ -55,7 +61,9 @@ def latest_reports(website_ids, before: datetime | None = None) -> dict:
         # Two reports can share a page's max timestamp; keep the newest id.
         if row.site_id not in by_site or row.id > by_site[row.site_id].id:
             by_site[row.site_id] = row
-    return by_site
+    if include_offsite:
+        return by_site
+    return {site_id: row for site_id, row in by_site.items() if not is_offsite(row.url, row.base_url)}
 
 
 def reports_at_last_email(website_ids) -> dict:
@@ -229,6 +237,8 @@ def build_overview(websites, top: int = 10) -> dict:
             'websites': len(websites),
             'pages': len(all_site_ids),
             'pages_audited': len(latest_by_site),
+            # Pages whose latest scan ended on another site: listed, not counted.
+            'pages_offsite': len(latest_reports(website_ids, include_offsite=True)) - len(latest_by_site),
             'pages_failing': sum(1 for row in latest_by_site.values() if _failing(row)),
             'stale_scans': sum(1 for website in websites if is_stale(website.last_scanned)),
             'last_scan': iso(last_scan),

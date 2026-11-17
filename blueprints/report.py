@@ -66,6 +66,9 @@ def get_report_by_id(report_id):
     )
     data['can_edit'] = bool(current_user) and report.site.can_edit(current_user)
     data['can_scan'] = bool(current_user) and report.site.can_scan(current_user)
+    # Statuses and notes are kept on the page's latest report; an older report links there.
+    newest = report.site.reports.order_by(Report.timestamp.desc(), Report.id.desc()).with_entities(Report.id).first()
+    data['latest_report_id'] = newest.id if newest else report.id
     # For the report page's link back to the website it belongs to.
     data['websites'] = [
         {'id': w.id, 'url': w.url} for w in report.site.websites if w.can_view(current_user)

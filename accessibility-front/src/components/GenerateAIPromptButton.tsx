@@ -60,7 +60,7 @@ function buildPrompt(violations: (AxeResult | WebsiteAxeResult)[], url?: string)
             // an agent does not take the sample for the whole list.
             lines.push(
                 website
-                    ? `- **Example elements from the first affected page (${v.nodes.length} of ${elementCount(v)}); open each page above for all of them:**`
+                    ? `- **Example elements from ${v.reports[0]?.url ?? 'one page'} (${v.nodes.length} of ${elementCount(v)}); open each page above for all of them:**`
                     : `- **Affected elements (${v.nodes.length}), all of them:**`
             );
             v.nodes.forEach((node) => {
