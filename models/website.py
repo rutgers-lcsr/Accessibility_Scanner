@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped
 from models.assoc import UserWebsiteAssoc
 from models.document import Document, DocumentSiteAssoc  # noqa: F401  (registers the models for create_all)
 from models.finding import Finding  # noqa: F401  (registers the model for create_all)
+from models.health import HealthCheck, WebsiteHealth, WebsiteRequirementAssoc  # noqa: F401  (registers the models for create_all)
 from models.link import Link, LinkSource  # noqa: F401  (registers the models for create_all)
 from models.notifications import NotificationOptOut, WebsiteView
 from models.report import AxeReportCounts, Report, ReportMinimized
@@ -732,6 +733,9 @@ class Website(db.Model):
             db.session.execute(UserWebsiteAssoc.delete().where(UserWebsiteAssoc.c.website_id == self.id))
             db.session.query(NotificationOptOut).filter_by(website_id=self.id).delete(synchronize_session=False)
             db.session.query(WebsiteView).filter_by(website_id=self.id).delete(synchronize_session=False)
+            db.session.query(HealthCheck).filter_by(website_id=self.id).delete(synchronize_session=False)
+            db.session.query(WebsiteHealth).filter_by(website_id=self.id).delete(synchronize_session=False)
+            db.session.execute(WebsiteRequirementAssoc.delete().where(WebsiteRequirementAssoc.c.website_id == self.id))
 
             domain = self.domain
             db.session.delete(self)

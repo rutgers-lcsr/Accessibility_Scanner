@@ -1,9 +1,10 @@
 'use client';
 import PageHeading from '@/components/PageHeading';
 import { SettingsProvider } from '@/providers/Settings';
-import { ApiOutlined, SettingOutlined } from '@ant-design/icons';
+import { ApiOutlined, CheckSquareOutlined, SettingOutlined } from '@ant-design/icons';
 import { Tabs } from 'antd';
 import ApiKeys from './ApiKeys';
+import Requirements from './Requirements';
 import Settings from './Settings';
 
 function SettingsTabs({ isAdmin }: { isAdmin: boolean }) {
@@ -32,6 +33,15 @@ function SettingsTabs({ isAdmin }: { isAdmin: boolean }) {
                     <Settings />
                 </SettingsProvider>
             ),
+        });
+        items.push({
+            key: 'requirements',
+            label: (
+                <span>
+                    <CheckSquareOutlined /> Content requirements
+                </span>
+            ),
+            children: <Requirements />,
         });
     }
 

@@ -214,6 +214,38 @@ const SECTIONS: Section[] = [
         ],
     },
     {
+        key: 'health',
+        label: 'Site health',
+        intro: "Regular checks of each website's home page: whether it is up, its certificate, its security headers, what it runs on and its required content.",
+        settings: [
+            {
+                key: 'health_checks_enabled',
+                label: 'Health checks',
+                kind: 'switch',
+                help: 'Retired websites are never checked.',
+            },
+            {
+                key: 'health_check_minutes',
+                label: 'Minutes between checks',
+                kind: 'number',
+                min: 5,
+                help: 'How often each website is checked. Each check is three requests to the home page.',
+            },
+            {
+                key: 'health_history_days',
+                label: 'Days of uptime history kept',
+                kind: 'number',
+                min: 1,
+            },
+            {
+                key: 'tls_warning_days',
+                label: 'Warn when a certificate expires within (days)',
+                kind: 'number',
+                min: 1,
+            },
+        ],
+    },
+    {
         key: 'users',
         label: 'Users',
         intro: 'How people added to websites get an email address.',

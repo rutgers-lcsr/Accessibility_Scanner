@@ -96,6 +96,12 @@ def apply_inventory_fields(website: Website, data: dict, is_admin: bool) -> None
         website.lifecycle_status = _optional_choice(data, 'lifecycle_status', LIFECYCLE_STATUSES) or 'live'
     if 'criticality' in data:
         website.criticality = _optional_choice(data, 'criticality', CRITICALITIES)
+    if 'requirement_ids' in data:
+        from models.health import ContentRequirement  # local import: keeps the model import list short
+        ids = data['requirement_ids']
+        if not isinstance(ids, list) or not all(isinstance(i, int) for i in ids):
+            raise ValueError('requirement_ids must be a list of requirement ids')
+        website.requirements = db.session.query(ContentRequirement).filter(ContentRequirement.id.in_(ids)).all() if ids else []
     if 'sunset_date' in data:
         value = data['sunset_date']
         if value in (None, ''):
@@ -601,6 +607,64 @@ def get_website_links(website_id):
     links = query.order_by(priority, Link.url).paginate(page=page, per_page=limit)
     report_ids = latest_report_ids({source.site_id for link in links.items for source in link.sources})
     return jsonify({'count': links.total, 'items': [link.to_dict(report_ids) for link in links.items]}), 200
+
+
+def _viewable_website(website_id: int):
+    """``(website, None)`` when the caller may view it, else ``(None, error response)``."""
+    website = db.session.get(Website, website_id)
+    if not website:
+        return None, (jsonify({'error': 'Website not found'}), 404)
+    if not website.can_view(current_user):
+        return None, (jsonify({'error': 'Unauthorized'}), 403)
+    return website, None
+
+
+def _editable_website(website_id: int):
+    """``(website, None)`` when the caller may edit it, else ``(None, error response)``."""
+    website = db.session.get(Website, website_id)
+    if not website:
+        return None, (jsonify({'error': 'Website not found'}), 404)
+    if not current_user or not website.can_edit(current_user):
+        return None, (jsonify({'error': 'Unauthorized'}), 403)
+    return website, None
+
+
+@website_bp.route('/<int:website_id>/health/', methods=['GET'])
+@jwt_required(optional=True)
+def get_website_health(website_id):
+    """
+    The website's latest health check (uptime, TLS, security headers, platform, content
+    requirements), its uptime over the last day, week and 30 days, and recent checks.
+    ---
+    tags:
+        - Health
+    responses:
+        200:
+            description: health is null until the first check has run.
+    """
+    website, error = _viewable_website(website_id)
+    if error:
+        return error
+    from services.health import health_summary  # local import: services import models
+    return jsonify(health_summary(website)), 200
+
+
+@website_bp.route('/<int:website_id>/health/check/', methods=['POST'])
+@limiter.limit("6/minute")
+@jwt_required()
+def run_website_health_check(website_id):
+    """
+    Run the website's health check now (people who can edit it).
+    ---
+    tags:
+        - Health
+    """
+    website, error = _editable_website(website_id)
+    if error:
+        return error
+    from services.health import check_website, health_summary  # local import: services import models
+    check_website(website)
+    return jsonify(health_summary(website)), 200
 
 
 @website_bp.route('/<int:website_id>/changes/', methods=['GET'])

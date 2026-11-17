@@ -247,6 +247,15 @@ def send_owner_digests():
     return run_owner_digests()
 
 
+@celery.task(name='scanner.tasks.run_health_checks', soft_time_limit=240, time_limit=290)
+def run_health_checks():
+    """Site health checks for every website that is due (scheduled by beat every few
+    minutes; health_check_minutes sets how often each website is checked)."""
+    from services.health import run_health_checks as run  # local import: services import models
+
+    return run()
+
+
 @celery.task(name='scanner.tasks.prune_reports')
 def prune_reports():
     """Nightly report retention (scheduled by beat). Always logs the plan; applies it

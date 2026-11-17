@@ -23,6 +23,7 @@ import ScanWebsiteButton from './ScanWebsiteButton';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
 import WebsiteDocumentsTable from './WebsiteDocumentsTable';
+import WebsiteHealth from './WebsiteHealth';
 import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteLinksTable from './WebsiteLinksTable';
 import WebsiteReport from './WebsiteReport';
@@ -193,6 +194,11 @@ const Website = ({ websiteId, user }: Props) => {
                     <WebsiteLinksTable websiteId={websiteId} user={user} />
                 </>
             ),
+        },
+        {
+            key: 'health',
+            label: 'Health',
+            children: <WebsiteHealth websiteId={websiteId} user={user} canEdit={canEdit} />,
         },
     ];
 

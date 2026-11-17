@@ -30,6 +30,10 @@ AppSetting = Literal[
     "document_recheck_days",
     "link_checks_per_scan",
     "link_recheck_days",
+    "health_checks_enabled",
+    "health_check_minutes",
+    "health_history_days",
+    "tls_warning_days",
 ]
 APP_SETTINGS: list[AppSetting] = list(get_args(AppSetting))
 
@@ -65,6 +69,13 @@ DEFAULTS: dict[AppSetting, str] = {
     # Broken-link check: links on the website's pages (any host) are probed after the crawl.
     "link_checks_per_scan": "500",
     "link_recheck_days": "7",
+    # Site health (services.health): each website's home page, TLS and headers are
+    # checked this often; the uptime history is kept this many days; certificates
+    # expiring within tls_warning_days are flagged.
+    "health_checks_enabled": "true",
+    "health_check_minutes": "15",
+    "health_history_days": "90",
+    "tls_warning_days": "30",
 }
 
 class Settings(db.Model):

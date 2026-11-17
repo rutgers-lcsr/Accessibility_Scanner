@@ -28,6 +28,10 @@ type Settings = {
     document_recheck_days: string;
     link_checks_per_scan: string;
     link_recheck_days: string;
+    health_checks_enabled: string;
+    health_check_minutes: string;
+    health_history_days: string;
+    tls_warning_days: string;
 };
 
 export type SettingKey = keyof Settings;

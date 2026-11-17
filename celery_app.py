@@ -77,6 +77,8 @@ celery.conf.update(
     task_routes={
         'scanner.tasks.scan_site': {'queue': 'pages'},
         'scanner.tasks.quick_scan': {'queue': 'pages'},
+        # A few HTTP requests per website; must not wait behind a crawl either.
+        'scanner.tasks.run_health_checks': {'queue': 'pages'},
     },
     # Task results live a day: that is how long a quick scan's result can be viewed.
     result_expires=86400,
@@ -96,6 +98,12 @@ celery.conf.update(
         'owner-digests': {
             'task': 'scanner.tasks.send_owner_digests',
             'schedule': crontab(hour=DIGEST_HOUR_UTC, minute=30),
+        },
+        # Site health: picks the websites whose last check is older than the
+        # health_check_minutes Setting; switched off with health_checks_enabled.
+        'health-checks': {
+            'task': 'scanner.tasks.run_health_checks',
+            'schedule': 300.0,
         },
         # Nightly report retention; a no-op (with a logged plan) until enabled in Settings.
         'prune-reports': {

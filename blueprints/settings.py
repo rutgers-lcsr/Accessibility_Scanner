@@ -77,6 +77,10 @@ VALIDATORS = {
     "document_recheck_days": _int_at_least(1),
     "link_checks_per_scan": _int_at_least(0),
     "link_recheck_days": _int_at_least(1),
+    "health_checks_enabled": _boolean,
+    "health_check_minutes": _int_at_least(5),
+    "health_history_days": _int_at_least(1),
+    "tls_warning_days": _int_at_least(1),
 }
 
 
