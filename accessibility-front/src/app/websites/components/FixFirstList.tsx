@@ -22,6 +22,8 @@ type Props = {
     // The rule to scroll to on arrival (?rule=), from an email.
     focusRule?: string | null;
     user?: PublicUser | null;
+    // After statuses changed in the element drawer: refresh the list and the counts.
+    onElementsChanged?: () => void;
 };
 
 // Rules shown in full before "Show all".
@@ -40,6 +42,7 @@ function FixFirstList({
     renderPageAction,
     focusRule,
     user = null,
+    onElementsChanged,
 }: Props) {
     // The rule whose every element is open in the drawer.
     const [elementsOf, setElementsOf] = useState<FixFirstRule | null>(null);
@@ -277,6 +280,8 @@ function FixFirstList({
                     title={elementsOf.help ?? elementsOf.rule_id}
                     user={user}
                     open={drawerOpen}
+                    canEdit={canEdit}
+                    onChanged={onElementsChanged}
                     onClose={() => setDrawerOpen(false)}
                     afterClose={() => {
                         setElementsOf(null);

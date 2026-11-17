@@ -1,13 +1,16 @@
 'use client';
-import { isSuppressed, REASON_MIN_LENGTH, STATUS_COLORS, STATUS_LABELS } from '@/lib/findings';
+import { STATUS_COLORS, STATUS_LABELS } from '@/lib/findings';
 import { ImpactTag } from '@/lib/impact';
 import { AxeNode, AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { Finding, FindingRuleGroup, FindingStatus } from '@/lib/types/finding';
-import { Button, Card, Collapse, Input, Modal, Radio, Tag, Tooltip } from 'antd';
+import { Button, Card, Collapse, Tag, Tooltip } from 'antd';
 import { useState } from 'react';
 import { useGuides } from '@/hooks/useGuides';
 import { guideHref } from '@/lib/guides';
 import RescanPageButton from './RescanPageButton';
+import StatusDialog from './StatusDialog';
+import { parseContrast, plainContrastFix } from '@/lib/contrast';
+import { signature } from '@/lib/signature';
 import ViolationNode, { findingKey, findingSelector } from './ViolationNode';
 
 type Props = {
@@ -40,6 +43,47 @@ function isWebsiteResult(result: WebsiteAxeResult | AxeResult): result is Websit
     return (result as WebsiteAxeResult).reports !== undefined;
 }
 
+// One group's elements, ten at a time, without repeating the group's fix sentence.
+function GroupNodes({
+    ruleId,
+    nodes,
+    previewEnabled,
+    findingsBySelector,
+    canEdit,
+    onFindingChanged,
+}: {
+    ruleId: string;
+    nodes: AxeNode[];
+    previewEnabled?: boolean;
+    findingsBySelector?: Map<string, Finding>;
+    canEdit?: boolean;
+    onFindingChanged?: (finding: Finding) => void;
+}) {
+    const [shown, setShown] = useState(NODE_PAGE);
+    return (
+        <>
+            <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
+                {nodes.slice(0, shown).map((node, idx) => (
+                    <ViolationNode
+                        key={idx}
+                        node={node}
+                        grouped
+                        previewEnabled={previewEnabled}
+                        finding={findingsBySelector?.get(findingKey(ruleId, findingSelector(node)))}
+                        canEdit={canEdit}
+                        onFindingChanged={onFindingChanged}
+                    />
+                ))}
+            </ul>
+            {shown < nodes.length && (
+                <Button size="small" onClick={() => setShown(nodes.length)}>
+                    Show all {nodes.length}
+                </Button>
+            )}
+        </>
+    );
+}
+
 // A rule's failing elements, ten at a time so a rule with hundreds stays cheap to open.
 function NodeList({
     ruleId,
@@ -61,6 +105,14 @@ function NodeList({
     onFindingChanged?: (finding: Finding) => void;
 }) {
     const [shown, setShown] = useState(NODE_PAGE);
+    // Group by shared markup when it repeats (lib/signature, as the website drawer does).
+    const byMarkup = new Map<string, AxeNode[]>();
+    for (const node of nodes) {
+        const key = signature(node.html, node.failureSummary);
+        byMarkup.set(key, [...(byMarkup.get(key) ?? []), node]);
+    }
+    const groups = [...byMarkup.entries()].sort((x, y) => y[1].length - x[1].length);
+    const grouped = nodes.length >= 4 && groups.length < nodes.length;
     return (
         <Collapse
             defaultActiveKey={open ? ['nodes'] : []}
@@ -75,7 +127,65 @@ function NodeList({
                             </Tag>
                         </span>
                     ),
-                    children: (
+                    children: grouped ? (
+                        // Repeated markup on one page (a code theme's 36 tokens): one group,
+                        // one fix sentence, instead of 36 identical cards.
+                        <div className="flex flex-col gap-4">
+                            {groups.map(([label, members]) => {
+                                const first = members[0];
+                                const colours = parseContrast(first.failureSummary);
+                                const fix = plainContrastFix(first.failureSummary, {
+                                    html: first.html,
+                                    selector: findingSelector(first),
+                                });
+                                return (
+                                    <section
+                                        key={label}
+                                        aria-label={`${members.length} element${members.length === 1 ? '' : 's'}: ${label}`}
+                                    >
+                                        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                            {colours && (
+                                                <span
+                                                    aria-hidden="true"
+                                                    className="inline-flex overflow-hidden rounded border border-gray-300"
+                                                >
+                                                    <span
+                                                        className="h-4 w-4"
+                                                        style={{ background: colours.foreground }}
+                                                    />
+                                                    <span
+                                                        className="h-4 w-4"
+                                                        style={{ background: colours.background }}
+                                                    />
+                                                </span>
+                                            )}
+                                            <code className="text-sm">{label}</code>
+                                            <Tag>
+                                                {members.length} element
+                                                {members.length === 1 ? '' : 's'}
+                                            </Tag>
+                                        </div>
+                                        {fix && (
+                                            <p
+                                                className="font-medium text-gray-900"
+                                                style={{ margin: '0 0 8px' }}
+                                            >
+                                                {fix}
+                                            </p>
+                                        )}
+                                        <GroupNodes
+                                            ruleId={ruleId}
+                                            nodes={members}
+                                            previewEnabled={previewEnabled}
+                                            findingsBySelector={findingsBySelector}
+                                            canEdit={canEdit}
+                                            onFindingChanged={onFindingChanged}
+                                        />
+                                    </section>
+                                );
+                            })}
+                        </div>
+                    ) : (
                         <>
                             <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
                                 {nodes.slice(0, shown).map((node, idx) => (
@@ -130,25 +240,8 @@ export function RuleFindingsSummary({
 }) {
     const [busy, setBusy] = useState(false);
     const [open, setOpen] = useState(false);
-    // Nothing chosen to start with: a stray Enter must not mark a whole rule fixed.
-    const [choice, setChoice] = useState<FindingStatus | null>(null);
-    const [reason, setReason] = useState('');
     const total = Object.values(group.counts).reduce((sum, n) => sum + n, 0);
-    const needsReason = choice !== null && isSuppressed(choice);
-    const blocked =
-        choice === null
-            ? 'Choose a status.'
-            : needsReason && !reason.trim()
-              ? `Add a reason of at least ${REASON_MIN_LENGTH} characters.`
-              : needsReason && reason.trim().length < REASON_MIN_LENGTH
-                ? `The reason needs at least ${REASON_MIN_LENGTH} characters.`
-                : null;
     const suppressed = group.counts.false_positive + group.counts.accepted;
-    const close = () => {
-        setOpen(false);
-        setReason('');
-        setChoice(null);
-    };
     return (
         <div className="mt-3 flex flex-wrap items-center gap-2">
             {(Object.keys(STATUS_LABELS) as FindingStatus[])
@@ -164,9 +257,6 @@ export function RuleFindingsSummary({
                 </Tooltip>
             )}
             {canEdit && onBulkStatus && (
-                // Site-wide and easy to get wrong, so one dialog holds the whole decision:
-                // the status, the size, and a reason when the status hides elements. A
-                // dialog takes focus, closes on Escape and gives focus back to this button.
                 <>
                     <Button
                         size="small"
@@ -177,83 +267,24 @@ export function RuleFindingsSummary({
                     >
                         Set status for all {total}…
                     </Button>
-                    <Modal
+                    <StatusDialog
                         open={open}
+                        count={total}
                         title={`Status for all ${total} element${total === 1 ? '' : 's'} of this rule`}
-                        okText={
-                            choice
-                                ? `Mark ${total} as ${STATUS_LABELS[choice].toLowerCase()}`
-                                : 'Mark them'
-                        }
-                        okButtonProps={{ disabled: blocked !== null }}
-                        onOk={async () => {
-                            const status = choice;
-                            if (!status) return;
-                            const note = isSuppressed(status) ? reason.trim() : undefined;
-                            close();
+                        scope="On every page of this website."
+                        onCancel={() => setOpen(false)}
+                        onConfirm={async (status, note) => {
+                            setOpen(false);
                             setBusy(true);
                             await onBulkStatus(ruleId, status, note);
                             setBusy(false);
                         }}
-                        onCancel={close}
-                    >
-                        <p className="text-sm text-gray-700" style={{ margin: '0 0 12px' }}>
-                            On every page of this website.
-                        </p>
-                        <Radio.Group
-                            value={choice}
-                            onChange={(e) => setChoice(e.target.value as FindingStatus)}
-                            aria-label="Status"
-                            style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
-                        >
-                            {(Object.keys(STATUS_LABELS) as FindingStatus[]).map((status) => (
-                                <Radio key={status} value={status}>
-                                    {STATUS_LABELS[status]}
-                                    {/* Read as "Open, still to fix", not run together. */}
-                                    <span className="sr-only">,</span>
-                                    <span className="ml-2 text-sm text-gray-600">
-                                        {STATUS_HINTS[status]}
-                                    </span>
-                                </Radio>
-                            ))}
-                        </Radio.Group>
-                        {needsReason && (
-                            <div style={{ marginTop: 16 }}>
-                                <p id={`reason-why-${ruleId}`} style={{ margin: '0 0 8px' }}>
-                                    They will no longer count in this website&apos;s totals, Fix
-                                    first or the dashboard. Reviewers see who marked them and why.
-                                </p>
-                                <label htmlFor={`reason-${ruleId}`} className="text-sm font-medium">
-                                    Reason (required, at least {REASON_MIN_LENGTH} characters)
-                                </label>
-                                <Input.TextArea
-                                    id={`reason-${ruleId}`}
-                                    rows={3}
-                                    maxLength={2000}
-                                    value={reason}
-                                    aria-required
-                                    aria-describedby={`reason-why-${ruleId}`}
-                                    onChange={(e) => setReason(e.target.value)}
-                                    style={{ marginTop: 4 }}
-                                />
-                            </div>
-                        )}
-                        {/* Why the confirm button is off, said instead of left to guess. */}
-                        <output className="mt-3 block text-sm text-gray-700">{blocked}</output>
-                    </Modal>
+                    />
                 </>
             )}
         </div>
     );
 }
-
-// What each status means, said where the choice is made.
-const STATUS_HINTS: Record<FindingStatus, string> = {
-    open: 'still to fix',
-    fixed: 'changed on the site; the next scan confirms it',
-    false_positive: 'the check is wrong about these elements',
-    accepted: 'known, and will not be fixed',
-};
 
 function AuditAccessibilityItem({
     accessibilityResult,

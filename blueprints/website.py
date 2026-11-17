@@ -23,7 +23,7 @@ from models.link import LINK_STATUS_ORDER, LINK_STATUSES, Link, LinkSource
 from sqlalchemy.orm import joinedload, selectinload
 from models.finding import FINDING_STATUSES
 from services.elements import CSV_COLUMNS as ELEMENT_CSV_COLUMNS, csv_rows, website_elements
-from services.findings import bulk_set_status, changes_for_sites, fix_first, list_findings, missing_reason
+from services.findings import bulk_set_status, bulk_set_status_ids, changes_for_sites, current_finding_ids, fix_first, list_findings, missing_reason
 from services.guides import available_guides
 from services.links import latest_report_ids
 from utils.export import csv_response
@@ -891,6 +891,56 @@ def get_website_elements(website_id):
         name = f"elements-{website.id}{'-' + re.sub(r'[^a-z0-9-]', '', rule_id.lower()) if rule_id else ''}.csv"
         return csv_response(ELEMENT_CSV_COLUMNS, csv_rows(data, os.environ.get('NEXT_PUBLIC_BASE_URL', '')), name)
     return jsonify(data), 200
+
+
+@website_bp.route('/<int:website_id>/findings/bulk-ids/', methods=['POST'])
+@jwt_required()
+def bulk_update_findings_by_id(website_id):
+    """
+    Set the status of a chosen set of findings (a group of elements sharing markup).
+    ---
+    tags:
+        - Findings
+    parameters:
+        - {in: path, name: website_id, required: true, type: integer}
+        - in: body
+          name: body
+          schema:
+            type: object
+            properties:
+                ids: {type: array, items: {type: integer}}
+                status: {type: string}
+                note: {type: string}
+    responses:
+        200:
+            description: How many findings were updated
+        400:
+            description: Bad ids or status, a finding not current on this website, or no reason
+        403:
+            description: The caller may not edit this website
+    """
+    website, error = _editable_website(website_id)
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    ids = data.get('ids')
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, int) for i in ids):
+        return jsonify({'error': 'ids must be a non-empty list of finding ids'}), 400
+    status = data.get('status')
+    if status not in FINDING_STATUSES:
+        return jsonify({'error': f"status must be one of {', '.join(FINDING_STATUSES)}"}), 400
+    note = data.get('note')
+    if note is not None and not isinstance(note, str):
+        return jsonify({'error': 'note must be text'}), 400
+    error = missing_reason(status, note)
+    if error:
+        return jsonify({'error': error}), 400
+    site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
+    if not set(ids) <= current_finding_ids(site_ids):
+        return jsonify({'error': 'Some of these findings are not current on this website'}), 400
+    updated = bulk_set_status_ids(ids, status, note, current_user.id)
+    db.session.commit()
+    return jsonify({'updated': updated}), 200
 
 
 @website_bp.route('/<int:website_id>/findings/bulk/', methods=['POST'])

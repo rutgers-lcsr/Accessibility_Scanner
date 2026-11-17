@@ -5,7 +5,8 @@ import { Finding } from '@/lib/types/finding';
 import { plainContrastFix } from '@/lib/contrast';
 import { useAlerts } from '@/providers/Alerts';
 import { CopyOutlined } from '@ant-design/icons';
-import { Button } from 'antd';
+import { STATUS_LABELS } from '@/lib/findings';
+import { Button, Tag } from 'antd';
 
 // Fired on window when the user asks to see an element in the page preview; PageIframe listens.
 export const PREVIEW_FOCUS_EVENT = 'a11y:preview-focus';
@@ -32,6 +33,8 @@ type Props = {
     finding?: Finding;
     canEdit?: boolean;
     onFindingChanged?: (finding: Finding) => void;
+    // In a group whose header already says the fix: leave the sentence out here.
+    grouped?: boolean;
 };
 
 // One failing element: selector, its HTML (as text, never rendered), axe's fix summary,
@@ -42,6 +45,7 @@ function ViolationNode({
     finding,
     canEdit = false,
     onFindingChanged,
+    grouped = false,
 }: Props) {
     const selector = nodeSelector(node);
     const focusInPreview = () =>
@@ -67,9 +71,11 @@ function ViolationNode({
                 find it; the selector and HTML are for finding it in code. */}
             {plainFix ? (
                 <>
-                    <p className="font-medium text-gray-900" style={{ margin: '0 0 6px' }}>
-                        {plainFix}
-                    </p>
+                    {!grouped && (
+                        <p className="font-medium text-gray-900" style={{ margin: '0 0 6px' }}>
+                            {plainFix}
+                        </p>
+                    )}
                     {summary && (
                         <details className="mb-2 text-xs text-gray-700">
                             <summary className="cursor-pointer">What the check measured</summary>
@@ -111,27 +117,42 @@ function ViolationNode({
                     )}
                 </span>
             </div>
-            {node.html && (
-                // Focusable: a keyboard user can scroll a long snippet.
-                <section
-                    tabIndex={0}
-                    aria-label={`HTML of ${selector || 'the element'}`}
-                    className="mt-2 max-h-40 overflow-auto rounded bg-white p-2"
-                >
-                    <pre className="whitespace-pre-wrap break-all text-xs" style={{ margin: 0 }}>
-                        <code>{node.html}</code>
-                    </pre>
-                </section>
-            )}
-            {finding && (
-                <div className="mt-2">
-                    <FindingStatusControl
-                        finding={finding}
-                        elementName={text ? `“${text}”` : selector}
-                        canEdit={canEdit}
-                        onChanged={onFindingChanged}
-                    />
-                </div>
+            {/* The detail for fixing in code and for triage, folded: shown, ten of these at a
+                time made each element nine controls tall. */}
+            {(node.html || finding) && (
+                <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-gray-700">
+                        More: HTML{finding ? ', status and note' : ''}
+                        {finding && finding.status !== 'open' && (
+                            <Tag style={{ marginLeft: 8 }}>{STATUS_LABELS[finding.status]}</Tag>
+                        )}
+                    </summary>
+                    {node.html && (
+                        // Focusable: a keyboard user can scroll a long snippet.
+                        <section
+                            tabIndex={0}
+                            aria-label={`HTML of ${selector || 'the element'}`}
+                            className="mt-2 max-h-40 overflow-auto rounded bg-white p-2"
+                        >
+                            <pre
+                                className="whitespace-pre-wrap break-all text-xs"
+                                style={{ margin: 0 }}
+                            >
+                                <code>{node.html}</code>
+                            </pre>
+                        </section>
+                    )}
+                    {finding && (
+                        <div className="mt-2">
+                            <FindingStatusControl
+                                finding={finding}
+                                elementName={text ? `“${text}”` : selector}
+                                canEdit={canEdit}
+                                onChanged={onFindingChanged}
+                            />
+                        </div>
+                    )}
+                </details>
             )}
         </li>
     );

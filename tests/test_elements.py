@@ -57,3 +57,30 @@ def test_signature_ignores_generated_css_classes():
     a = signature('color-contrast', '<span class="ant-typography css-var-_r_0_ css-viwxw0">a</span>', None)
     b = signature('color-contrast', '<span class="ant-typography css-dev-only-abc css-1q2w3e">b</span>', None)
     assert a == b and a['label'] == '<span class="ant-typography">'
+
+
+def test_status_for_a_group_of_elements(client, make_user, make_website, add_site, add_report, jwt_header, monkeypatch):
+    """A developer marks one group (one template) at a time: the ids must be current
+    findings of this website, and suppressing still needs a reason."""
+    import models.website as website_models
+    monkeypatch.setattr(website_models, "is_valid_url", lambda url: True)
+    owner = make_user("alice")
+    website = make_website(owner)
+    site = add_site(website, page="/guide")
+    _scan(add_report, site, [("span.a", '<span class="token">a</span>'), ("span.b", '<span class="token">b</span>'), ("p.c", '<p>c</p>')])
+    other = make_website(make_user("bob"), base="https://other.example")
+    other_site = add_site(other, page="/x")
+    _scan(add_report, other_site, [("span.z", '<span class="token">z</span>')])
+    ids = [f.id for f in site.findings.all() if f.selector in ("span.a", "span.b")]
+    foreign = other_site.findings.first().id
+    url = f"/api/websites/{website.id}/findings/bulk-ids/"
+    headers = jwt_header(owner)
+
+    assert client.post(url, json={"ids": ids, "status": "accepted"}, headers=headers).status_code == 400
+    assert client.post(url, json={"ids": ids + [foreign], "status": "fixed"}, headers=headers).status_code == 400
+    assert client.post(url, json={"ids": ids, "status": "fixed"}, headers=jwt_header(make_user("carol"))).status_code == 403
+
+    resp = client.post(url, json={"ids": ids, "status": "false_positive", "note": "Code theme colours, vendor plugin"}, headers=headers)
+    assert resp.status_code == 200 and resp.get_json()["updated"] == 2
+    statuses = {f.selector: f.status for f in site.findings.all()}
+    assert statuses == {"span.a": "false_positive", "span.b": "false_positive", "p.c": "open"}

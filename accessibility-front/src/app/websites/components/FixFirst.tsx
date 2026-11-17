@@ -50,6 +50,10 @@ function FixFirst({
         <div className="mt-2">
             <FixFirstList
                 user={user}
+                onElementsChanged={async () => {
+                    await mutate();
+                    onCountsChanged?.();
+                }}
                 websiteId={websiteId}
                 data={data}
                 canEdit={canEdit}

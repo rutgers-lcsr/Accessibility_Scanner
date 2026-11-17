@@ -349,6 +349,28 @@ def bulk_set_status(site_ids, rule_id: str, status: str, note: str | None, user_
     return updated
 
 
+def current_finding_ids(site_ids) -> set:
+    """Ids of the findings in the given pages' latest reports."""
+    latest = latest_report_ids(site_ids)
+    if not latest:
+        return set()
+    rows = (
+        db.session.query(Finding.id, Finding.site_id, Finding.last_report_id)
+        .filter(Finding.site_id.in_(list(latest)))
+        .all()
+    )
+    return {row.id for row in rows if row.last_report_id == latest.get(row.site_id)}
+
+
+def bulk_set_status_ids(ids, status: str, note: str | None, user_id: int | None) -> int:
+    """Apply a verdict to the given findings (a group of shared markup). The caller has
+    checked they are current findings of a website the user may edit."""
+    findings = db.session.query(Finding).filter(Finding.id.in_(list(ids))).all()
+    for finding in findings:
+        set_finding_status(finding, status, note, user_id)
+    return len(findings)
+
+
 def findings_since(website_ids, since: datetime | None) -> dict:
     """``{website_id: {'fixed': n, 'triaged': n, 'new': n}}`` since ``since`` (all time
     when None): findings the scanner closed (status fixed, status_by NULL), verdicts

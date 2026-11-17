@@ -120,6 +120,11 @@ function WebsiteReport({
                     title={elementsOf.help || elementsOf.id}
                     user={user}
                     open={drawerOpen}
+                    canEdit={canEdit}
+                    onChanged={async () => {
+                        await mutate();
+                        onCountsChanged?.();
+                    }}
                     onClose={() => setDrawerOpen(false)}
                     afterClose={() => {
                         setElementsOf(null);

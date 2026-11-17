@@ -7,6 +7,10 @@ import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
 import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { Button, Collapse, Drawer, Space, Tag } from 'antd';
+import StatusDialog from '@/components/StatusDialog';
+import { STATUS_LABELS } from '@/lib/findings';
+import { FindingStatus } from '@/lib/types/finding';
+import { useState } from 'react';
 import useSWR from 'swr';
 
 type Element = {
@@ -40,6 +44,10 @@ type Props = {
     onClose: () => void;
     // Called once the drawer has closed, to put focus back where it was.
     afterClose?: () => void;
+    // May set statuses (the website's admin, members, site admins).
+    canEdit?: boolean;
+    // After a group's status changed: refresh what showed the counts.
+    onChanged?: () => void;
 };
 
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
@@ -96,7 +104,11 @@ export default function RuleElements({
     open,
     onClose,
     afterClose,
+    canEdit = false,
+    onChanged,
 }: Props) {
+    // The group whose status is being set.
+    const [statusFor, setStatusFor] = useState<Group | null>(null);
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
     const base = `/api/websites/${websiteId}/elements/?rule=${encodeURIComponent(ruleId)}`;
@@ -113,6 +125,30 @@ export default function RuleElements({
                 `Could not copy the ${what.toLowerCase()}; select it and copy by hand`,
                 'error'
             );
+        }
+    };
+    const setGroupStatus = async (group: Group, status: FindingStatus, note?: string) => {
+        try {
+            const result = await handlerUserApiRequest<{ updated: number }>(
+                `/api/websites/${websiteId}/findings/bulk-ids/`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ids: group.elements.map((e) => e.id),
+                        status,
+                        ...(note ? { note } : {}),
+                    }),
+                }
+            );
+            addAlert(
+                `${plural(result.updated, 'element')} marked ${STATUS_LABELS[status].toLowerCase()}`,
+                'success'
+            );
+            await mutate();
+            onChanged?.();
+        } catch (error) {
+            addAlert('Could not update the elements: ' + (error as Error).message, 'error');
         }
     };
     const fileBase = `elements-${websiteId}-${ruleId.replace(/[^a-z0-9-]/gi, '')}`;
@@ -258,6 +294,15 @@ export default function RuleElements({
                                             >
                                                 Copy all {group.count} selectors
                                             </Button>
+                                            {canEdit && (
+                                                <Button
+                                                    size="small"
+                                                    aria-haspopup="dialog"
+                                                    onClick={() => setStatusFor(group)}
+                                                >
+                                                    Set status for these {group.count}…
+                                                </Button>
+                                            )}
                                         </Space>
                                         <ul className="m-0 list-none p-0">
                                             {group.elements.map((element) => {
@@ -344,6 +389,20 @@ export default function RuleElements({
                             };
                         })}
                     />
+                    {statusFor && (
+                        <StatusDialog
+                            open
+                            count={statusFor.count}
+                            title={`Status for these ${plural(statusFor.count, 'element')}`}
+                            scope={`${statusFor.label}, on ${plural(statusFor.pages, 'page')}.`}
+                            onCancel={() => setStatusFor(null)}
+                            onConfirm={(status, note) => {
+                                const group = statusFor;
+                                setStatusFor(null);
+                                setGroupStatus(group, status, note);
+                            }}
+                        />
+                    )}
                 </>
             )}
         </Drawer>
