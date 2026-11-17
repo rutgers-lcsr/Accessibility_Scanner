@@ -4,6 +4,7 @@ import { User, toPublicUser } from '@/lib/types/user';
 import { AlertsProvider } from '@/providers/Alerts';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { ConfigProvider, Layout } from 'antd';
+import NoPasswordManagers from '@/components/NoPasswordManagers';
 import { Footer } from 'antd/es/layout/layout';
 import type { Metadata } from 'next';
 import { getCurrentUser } from 'next-cas-client/app';
@@ -58,7 +59,13 @@ export default async function RootLayout({
                     unlayered, they beat every Tailwind class on an antd component, so
                     margins like mb-4 silently did nothing. */}
                 <AntdRegistry layer>
-                    <ConfigProvider theme={rutgersTheme}>
+                    <ConfigProvider
+                        theme={rutgersTheme}
+                        // No field here is a login (CAS signs in elsewhere): see NoPasswordManagers.
+                        input={{ autoComplete: 'off' }}
+                        textArea={{ autoComplete: 'off' }}
+                    >
+                        <NoPasswordManagers />
                         <Layout hasSider>
                             <AlertsProvider>
                                 <UserProvider user={user}>
