@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import useSWR from 'swr';
 import ExtraStartUrls from './ExtraStartUrls';
+import InventoryFields from './InventoryFields';
 import { Field, Legend } from './PanelFields';
 
 type Props = {
@@ -294,6 +295,8 @@ function AdminItems({ website, mutate }: Props) {
                         </Field>
                     </div>
                 </fieldset>
+
+                <InventoryFields website={website} mutate={mutate} isAdmin />
 
                 <fieldset className="min-w-0">
                     <Legend>Tags & details</Legend>

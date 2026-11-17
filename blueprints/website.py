@@ -7,8 +7,9 @@ from services.owner_digest import send_website_digest
 from models.report import  Report
 from models.settings import Settings
 from models.user import Profile, User
-from models.website import Domain, Site, Site_Website_Assoc, Website 
+from models.website import AUDIENCES, CRITICALITIES, LIFECYCLE_STATUSES, Domain, Site, Site_Website_Assoc, Website
 from models import db
+from datetime import date
 from sqlalchemy import case, func, or_
 from flask_sqlalchemy import pagination
 
@@ -55,6 +56,55 @@ def _csv_list(value) -> list:
     if not isinstance(value, list):
         raise ValueError('Categories must be a list of strings or a comma-separated string')
     return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _optional_text(data: dict, key: str, max_length: int) -> str | None:
+    value = data[key]
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f'{key} must be a string')
+    value = value.strip()
+    if len(value) > max_length:
+        raise ValueError(f'{key} must be at most {max_length} characters')
+    return value or None
+
+
+def _optional_choice(data: dict, key: str, choices: tuple) -> str | None:
+    value = data[key]
+    if value in (None, ''):
+        return None
+    if value not in choices:
+        raise ValueError(f"{key} must be one of {', '.join(choices)}")
+    return value
+
+
+def apply_inventory_fields(website: Website, data: dict, is_admin: bool) -> None:
+    """Set the inventory fields present in ``data``. Anyone who may edit the website sets
+    department, business owner and audience; lifecycle status, sunset date and
+    criticality are a site admin's call and are ignored for anyone else. Raises
+    ValueError for an invalid value (nothing is committed here)."""
+    if 'department' in data:
+        website.department = _optional_text(data, 'department', 200)
+    if 'business_owner' in data:
+        website.business_owner = _optional_text(data, 'business_owner', 200)
+    if 'audience' in data:
+        website.audience = _optional_choice(data, 'audience', AUDIENCES)
+    if not is_admin:
+        return
+    if 'lifecycle_status' in data:
+        website.lifecycle_status = _optional_choice(data, 'lifecycle_status', LIFECYCLE_STATUSES) or 'live'
+    if 'criticality' in data:
+        website.criticality = _optional_choice(data, 'criticality', CRITICALITIES)
+    if 'sunset_date' in data:
+        value = data['sunset_date']
+        if value in (None, ''):
+            website.sunset_date = None
+        else:
+            try:
+                website.sunset_date = date.fromisoformat(str(value)[:10])
+            except ValueError:
+                raise ValueError('sunset_date must be a date (YYYY-MM-DD)')
 
 
 def create_website_for(user: User, data: dict):
@@ -700,6 +750,11 @@ def update_website_for(editor: User, website: Website, data: dict):
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
 
+    try:
+        apply_inventory_fields(website, data, is_admin=bool(editor.profile and editor.profile.is_admin))
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
     # Admin only fields
     if editor.profile.is_admin:
         if 'public' in data:
@@ -1014,6 +1069,13 @@ def get_websites():
             )
         )
     
+    # Inventory filters; each takes one value or a comma-separated list.
+    for key, column in (('lifecycle', Website.lifecycle_status), ('department', Website.department),
+                        ('audience', Website.audience), ('criticality', Website.criticality)):
+        wanted = [v.strip() for v in (params.get(key) or '').split(',') if v.strip()]
+        if wanted:
+            w_query = w_query.filter(column.in_(wanted))
+
     if search:
         # By URL or by the admin user's name; the outer join keeps websites without an admin.
         w_query = w_query.outerjoin(Website.admin).filter(
@@ -1238,6 +1300,24 @@ def get_website_categories():
     categories.sort()
 
     return jsonify(categories), 200
+
+
+@website_bp.route('/departments/', methods=['GET'])
+@jwt_required()
+def get_website_departments():
+    """
+    The departments named on the websites the caller can view, for autocomplete and filters.
+    ---
+    tags:
+        - Websites
+    responses:
+        200:
+            description: Sorted list of department names.
+    """
+    rows = (db.session.query(Website.department).distinct()
+            .filter(Website.department.isnot(None), Website.department != '')
+            .filter(Website.visible_to(current_user)).all())
+    return jsonify(sorted({row[0] for row in rows})), 200
 
 @website_bp.route('/<int:website_id>/', methods=['GET'])
 @jwt_required(optional=True)

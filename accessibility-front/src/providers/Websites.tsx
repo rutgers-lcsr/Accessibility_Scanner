@@ -4,7 +4,7 @@ import { PageSize, savePageSize, usePageSize } from '@/lib/browser';
 import { pageParam, useUrlFilters } from '@/lib/urlFilters';
 import { Paged } from '@/lib/types/Paged';
 import { PublicUser } from '@/lib/types/user';
-import { Website } from '@/lib/types/website';
+import { Website, WebsiteLifecycle } from '@/lib/types/website';
 import { useRouter } from 'next/navigation';
 import React, { createContext, useContext } from 'react';
 import useSWR from 'swr';
@@ -35,6 +35,12 @@ type WebsitesContextType = {
     setWebsiteLimit: (limit: PageSize) => void;
     setWebsiteCategories: (categories: string[]) => void;
     setWebsiteOrderBy: (orderBy: WebsiteOrder) => void;
+    // Inventory filters (signed-in users)
+    WebsiteLifecycle: WebsiteLifecycle[];
+    setWebsiteLifecycle: (lifecycle: WebsiteLifecycle[]) => void;
+    WebsiteDepartments: string[];
+    setWebsiteDepartments: (departments: string[]) => void;
+    departments?: string[];
     openWebsite: (id: number) => void;
     exportCSV: () => void;
 };
@@ -68,6 +74,13 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
         setFilters({ category: next.join(',') || null, page: null });
     const setOrderBy = (next: WebsiteOrder) =>
         setFilters({ orderBy: next !== 'url' ? next : null, page: null });
+    const lifecycle = (params.get('lifecycle')?.split(',').filter(Boolean) ??
+        []) as WebsiteLifecycle[];
+    const departments = params.get('department')?.split(',').filter(Boolean) ?? [];
+    const setLifecycle = (next: WebsiteLifecycle[]) =>
+        setFilters({ lifecycle: next.join(',') || null, page: null });
+    const setDepartments = (next: string[]) =>
+        setFilters({ department: next.join(',') || null, page: null });
     const setLimit = (next: PageSize) => {
         savePageSize(next);
         setLimitState(next);
@@ -76,19 +89,22 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
     const { handlerUserApiRequest } = useUser();
 
     const { addAlert } = useAlerts();
+    const query = `page=${page}&limit=${limit}${searchUrl ? `&search=${encodeURIComponent(searchUrl)}` : ''}${searchCategories.length ? `&category=${encodeURIComponent(searchCategories.join(','))}` : ''}${lifecycle.length ? `&lifecycle=${lifecycle.join(',')}` : ''}${departments.length ? `&department=${encodeURIComponent(departments.join(','))}` : ''}&orderBy=${orderBy}`;
     const { data, error, isLoading, mutate } = useSWR(
-        limitReady
-            ? `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}${searchCategories.length ? `&category=${searchCategories.join(',')}` : ''}&orderBy=${orderBy}`
-            : null,
+        limitReady ? `/api/websites/?${query}` : null,
         user ? handlerUserApiRequest<Paged<Website>> : fetcherApi<Paged<Website>>
     );
     const { data: categories } = useSWR(
         `/api/websites/categories`,
         user ? handlerUserApiRequest<string[]> : fetcherApi<string[]>
     );
+    const { data: departmentNames } = useSWR(
+        user ? `/api/websites/departments/` : null,
+        handlerUserApiRequest<string[]>
+    );
 
     const exportCSV = () => {
-        const url = `/api/websites/?page=${page}&limit=${limit}${searchUrl ? `&search=${searchUrl}` : ''}${searchCategories.length ? `&category=${searchCategories.join(',')}` : ''}&orderBy=${orderBy}&format=csv`;
+        const url = `/api/websites/?${query}&format=csv`;
         window.open(url, '_blank');
     };
 
@@ -150,6 +166,11 @@ export const WebsitesProvider: React.FC<{ children: React.ReactNode; user: Publi
                 setWebsiteSearch: setSearchUrl,
                 setWebsiteCategories: setSearchCategories,
                 setWebsiteOrderBy: setOrderBy,
+                WebsiteLifecycle: lifecycle,
+                setWebsiteLifecycle: setLifecycle,
+                WebsiteDepartments: departments,
+                setWebsiteDepartments: setDepartments,
+                departments: departmentNames,
                 requestWebsite,
                 exportCSV,
             }}

@@ -52,12 +52,14 @@ def member_websites(user: User) -> list:
 
 
 def owner_websites(user: User) -> list:
-    """The websites this person is emailed about: theirs, email switched on, not opted out."""
+    """The websites this person is emailed about: theirs, email switched on, not opted
+    out, not retired."""
     opted_out = {
         row.website_id for row in
         db.session.query(NotificationOptOut.website_id).filter_by(user_id=user.id).all()
     }
-    return [website for website in member_websites(user) if website.should_email and website.id not in opted_out]
+    return [website for website in member_websites(user)
+            if website.should_email and website.id not in opted_out and website.lifecycle_status != 'retired']
 
 
 def digest_users() -> list:

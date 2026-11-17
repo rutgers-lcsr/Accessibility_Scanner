@@ -4,7 +4,7 @@ import PageHeading from '@/components/PageHeading';
 import WebsitePreview from '@/components/WebsitePreview';
 import { PageSize, pageSizeOptions } from '@/lib/browser';
 import { PublicUser } from '@/lib/types/user';
-import { Website as WebsiteType } from '@/lib/types/website';
+import { LIFECYCLE_LABELS, Website as WebsiteType, WebsiteLifecycle } from '@/lib/types/website';
 import { useWebsites } from '@/providers/Websites';
 import {
     Button,
@@ -43,6 +43,11 @@ function Websites({ user }: Props) {
         isLoading,
         setWebsiteSearch,
         exportCSV,
+        WebsiteLifecycle,
+        setWebsiteLifecycle,
+        WebsiteDepartments,
+        setWebsiteDepartments,
+        departments,
     } = useWebsites();
 
     // Who is responsible and what the site is for; site admins only, like the CSV export.
@@ -79,12 +84,34 @@ function Websites({ user }: Props) {
             dataIndex: 'url',
             key: 'url',
             render: (text: string, record: WebsiteType) => (
-                <WebsitePreview websiteId={record.id} url={text}>
-                    <Link href={`/websites/${record.id}`}>{text}</Link>
-                </WebsitePreview>
+                <>
+                    <WebsitePreview websiteId={record.id} url={text}>
+                        <Link href={`/websites/${record.id}`}>{text}</Link>
+                    </WebsitePreview>
+                    {record.lifecycle_status && record.lifecycle_status !== 'live' && (
+                        <Tag
+                            className="ml-2"
+                            color={record.lifecycle_status === 'retired' ? 'default' : 'orange'}
+                        >
+                            {LIFECYCLE_LABELS[record.lifecycle_status]}
+                        </Tag>
+                    )}
+                    {record.past_sunset && (
+                        <Tag className="ml-1" color="red">
+                            Past sunset
+                        </Tag>
+                    )}
+                </>
             ),
         },
         ...(user?.is_admin ? adminColumns : []),
+        {
+            title: 'Department',
+            dataIndex: 'department',
+            key: 'department',
+            render: (department: string | null) =>
+                department || <span className="text-gray-400">—</span>,
+        },
         {
             title: 'Last Scanned',
             dataIndex: 'last_scanned',
@@ -157,6 +184,35 @@ function Websites({ user }: Props) {
                                 </Select.Option>
                             ))}
                         </Select>
+                        {user && (
+                            <>
+                                <Select<WebsiteLifecycle[]>
+                                    className="w-56"
+                                    mode="multiple"
+                                    allowClear
+                                    placeholder="Lifecycle"
+                                    aria-label="Filter by lifecycle"
+                                    value={WebsiteLifecycle}
+                                    onChange={setWebsiteLifecycle}
+                                    options={(
+                                        Object.keys(LIFECYCLE_LABELS) as WebsiteLifecycle[]
+                                    ).map((value) => ({ value, label: LIFECYCLE_LABELS[value] }))}
+                                />
+                                <Select<string[]>
+                                    className="w-64"
+                                    mode="multiple"
+                                    allowClear
+                                    placeholder="Department"
+                                    aria-label="Filter by department"
+                                    value={WebsiteDepartments}
+                                    onChange={setWebsiteDepartments}
+                                    options={(departments ?? []).map((name) => ({
+                                        value: name,
+                                        label: name,
+                                    }))}
+                                />
+                            </>
+                        )}
                         <Tooltip title="Sort By">
                             <Select
                                 className="w-96"

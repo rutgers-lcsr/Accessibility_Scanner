@@ -45,7 +45,9 @@ def check_and_queue_scans():
     """
     from services.scan import queue_website_scan  # local import: avoids a circular import
 
-    websites = db.session.query(Website).filter(Website.active == True).all()
+    # Retired websites stay in the inventory but are no longer scanned on schedule.
+    websites = (db.session.query(Website)
+                .filter(Website.active == True, Website.lifecycle_status != 'retired').all())
     log_message(f"Checking {len(websites)} active websites for scheduled scans", 'info')
 
     queued_count = 0

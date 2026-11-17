@@ -12,6 +12,7 @@ import { useAlerts } from '@/providers/Alerts';
 import { Select } from 'antd';
 import { useState } from 'react';
 import ExtraStartUrls from './ExtraStartUrls';
+import InventoryFields from './InventoryFields';
 import { Field, Legend } from './PanelFields';
 
 type Props = {
@@ -64,6 +65,8 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                         </Field>
                     </div>
                 </fieldset>
+
+                <InventoryFields website={website} mutate={mutate} isAdmin={false} />
 
                 <fieldset className="min-w-0">
                     <Legend>Access</Legend>

@@ -32,6 +32,36 @@ export type Website = {
     sites: number[];
     rate_limit: number;
     active: boolean;
+    // Inventory
+    lifecycle_status: WebsiteLifecycle;
+    sunset_date: string | null; // YYYY-MM-DD
+    past_sunset: boolean;
+    department: string | null;
+    business_owner: string | null;
+    audience: WebsiteAudience | null;
+    criticality: WebsiteCriticality | null;
+};
+
+export type WebsiteLifecycle = 'draft' | 'live' | 'retiring' | 'retired';
+export type WebsiteAudience = 'public' | 'students' | 'faculty_staff' | 'internal';
+export type WebsiteCriticality = 'high' | 'medium' | 'low';
+
+export const LIFECYCLE_LABELS: Record<WebsiteLifecycle, string> = {
+    draft: 'Draft',
+    live: 'Live',
+    retiring: 'Being retired',
+    retired: 'Retired',
+};
+export const AUDIENCE_LABELS: Record<WebsiteAudience, string> = {
+    public: 'Public',
+    students: 'Students',
+    faculty_staff: 'Faculty and staff',
+    internal: 'Internal',
+};
+export const CRITICALITY_LABELS: Record<WebsiteCriticality, string> = {
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
 };
 
 export type Site = {

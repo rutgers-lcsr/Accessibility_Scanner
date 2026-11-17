@@ -1,6 +1,6 @@
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, TypedDict
 from sqlalchemy import and_, case, func, or_, select
 from models import db
@@ -21,6 +21,11 @@ from utils.urls import get_netloc, is_valid_url, normalize_url
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+LIFECYCLE_STATUSES = ('draft', 'live', 'retiring', 'retired')
+AUDIENCES = ('public', 'students', 'faculty_staff', 'internal')
+CRITICALITIES = ('high', 'medium', 'low')
+
 
 class SiteDict(TypedDict):
     id: int
@@ -299,10 +304,20 @@ class Website(db.Model):
     # whose sections are not linked from the root (see set_extra_start_urls).
     extra_start_urls: Mapped[str] = db.Column(db.Text, nullable=True)
     description: Mapped[str] = db.Column(db.Text, nullable=True)
+    # Inventory (see LIFECYCLE_STATUSES etc.). A retired website is kept for the record
+    # but no longer scanned on schedule or included in owner digests.
+    lifecycle_status: Mapped[str] = db.Column(db.String(20), nullable=False, default='live', server_default='live')
+    sunset_date: Mapped[date] = db.Column(db.Date, nullable=True)
+    department: Mapped[str] = db.Column(db.String(200), nullable=True, index=True)
+    # The person accountable for the content (free text: a name or an address), as
+    # opposed to the technical admin who receives the emails.
+    business_owner: Mapped[str] = db.Column(db.String(200), nullable=True)
+    audience: Mapped[str] = db.Column(db.String(20), nullable=True)
+    criticality: Mapped[str] = db.Column(db.String(10), nullable=True)
     created_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at: Mapped[datetime] = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-    
+
 
     # Permission checks
     def is_member(self, user: User | None) -> bool:
@@ -428,6 +443,11 @@ class Website(db.Model):
         """Links found on this website's pages: total and broken."""
         from services.links import empty_link_counts, link_counts  # local import: services import models
         return link_counts([self.id]).get(self.id, empty_link_counts())
+
+    def past_sunset(self, today: date | None = None) -> bool:
+        """The sunset date has passed and the website has not been retired yet."""
+        today = today or date.today()
+        return bool(self.sunset_date and self.sunset_date < today and self.lifecycle_status != 'retired')
 
     def get_extra_start_urls(self) -> List[str]:
         """Pages a full scan starts from besides the website URL itself."""
@@ -609,6 +629,13 @@ class Website(db.Model):
             'description': self.description,
             'categories': [cat.strip() for cat in self.categories.split(",")] if self.categories else [],
             'extra_start_urls': self.get_extra_start_urls(),
+            'lifecycle_status': self.lifecycle_status or 'live',
+            'sunset_date': self.sunset_date.isoformat() if self.sunset_date else None,
+            'past_sunset': self.past_sunset(),
+            'department': self.department,
+            'business_owner': self.business_owner,
+            'audience': self.audience,
+            'criticality': self.criticality,
             'documents': self.get_document_counts(),
             'link_counts': self.get_link_counts(),
             'created_at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
