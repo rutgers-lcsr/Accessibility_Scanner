@@ -30,3 +30,15 @@ def test_public_report_is_readable_anonymously(client, make_user, make_site, add
 
 def test_missing_report_is_404(client, make_user, jwt_header):
     assert client.get("/api/reports/999999/", headers=jwt_header(make_user())).status_code == 404
+
+
+def test_report_names_the_websites_the_viewer_can_open(client, make_user, make_site, add_report, jwt_header):
+    """The report page links back to its website ("All issues on ..."), so the API says
+    which of the page's websites this viewer may open."""
+    owner = make_user("bob")
+    site = make_site(owner)
+    report = add_report(site)
+    website = site.websites.first()
+
+    body = client.get(f"/api/reports/{report.id}/", headers=jwt_header(owner)).get_json()
+    assert body["websites"] == [{"id": website.id, "url": website.url}]

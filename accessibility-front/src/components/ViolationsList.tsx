@@ -153,81 +153,92 @@ function ViolationsList({
 
     return (
         <div>
-            <Flex gap={12} align="center" wrap="wrap" className="mb-4">
-                <Select
-                    mode="multiple"
-                    allowClear
-                    placeholder="Any impact"
-                    style={{ minWidth: 220 }}
-                    aria-label="Filter by impact"
-                    value={impacts}
-                    options={IMPACTS.map((m) => ({ value: m.key, label: m.label }))}
-                    onChange={(value: Impact[]) => setFilters({ impact: value.join(',') || null })}
-                />
-                <Input.Search
-                    allowClear
-                    placeholder="Search rules"
-                    style={{ width: 240 }}
-                    aria-label="Search rules"
-                    key={ruleQuery}
-                    defaultValue={ruleQuery}
-                    onSearch={(value) => setFilters({ rule: value || null })}
-                />
-                {pages && (
-                    <Select
-                        allowClear
-                        showSearch
-                        placeholder="Any page"
-                        style={{ minWidth: 280 }}
-                        aria-label="Filter by page"
-                        value={pageFilter || undefined}
-                        options={pages.map((p) => ({ value: p, label: p }))}
-                        onChange={(value) => setFilters({ page: value || null })}
-                    />
-                )}
-                <Space>
-                    <span className="text-gray-600">Sort by</span>
-                    <Select
-                        size="small"
-                        style={{ minWidth: 150 }}
-                        aria-label="Sort by"
-                        value={sortKey}
-                        options={[
-                            { value: 'impact', label: 'Impact' },
-                            ...(pages ? [{ value: 'pages', label: 'Pages affected' }] : []),
-                            { value: 'elements', label: 'Elements' },
-                        ]}
-                        onChange={(value: SortKey) => setFilters({ sort: value })}
-                    />
-                    <Button
-                        size="small"
-                        onClick={() => setFilters({ desc: desc ? '0' : null })}
-                        aria-label={desc ? 'Descending' : 'Ascending'}
-                        icon={<span aria-hidden="true">{desc ? '↓' : '↑'}</span>}
-                    >
-                        {desc ? 'Desc' : 'Asc'}
-                    </Button>
-                </Space>
-                {suppressedCount > 0 && (
-                    <Checkbox
-                        checked={showSuppressed}
-                        onChange={(e) => setFilters({ suppressed: e.target.checked ? '1' : null })}
-                    >
-                        Show suppressed ({suppressedCount})
-                    </Checkbox>
-                )}
-                <span className="text-sm text-gray-600">
-                    Showing {shown.length} of {violations.length}
-                </span>
-                {filtering && (
-                    <Button size="small" type="link" onClick={clear}>
-                        Clear filters
-                    </Button>
-                )}
-                <div className="ml-auto">
+            {/* Filters earn their place on a long list; a short one shows only the AI prompt. */}
+            {violations.length <= 3 && !filtering && suppressedCount === 0 ? (
+                <Flex justify="end" style={{ marginBottom: 16 }}>
                     <GenerateAIPromptButton violations={shown} url={url} />
-                </div>
-            </Flex>
+                </Flex>
+            ) : (
+                <Flex gap={12} align="center" wrap="wrap" style={{ marginBottom: 16 }}>
+                    <Select
+                        mode="multiple"
+                        allowClear
+                        placeholder="Any impact"
+                        style={{ minWidth: 220 }}
+                        aria-label="Filter by impact"
+                        value={impacts}
+                        options={IMPACTS.map((m) => ({ value: m.key, label: m.label }))}
+                        onChange={(value: Impact[]) =>
+                            setFilters({ impact: value.join(',') || null })
+                        }
+                    />
+                    <Input.Search
+                        allowClear
+                        placeholder="Search rules"
+                        style={{ width: 240 }}
+                        aria-label="Search rules"
+                        key={ruleQuery}
+                        defaultValue={ruleQuery}
+                        onSearch={(value) => setFilters({ rule: value || null })}
+                    />
+                    {pages && (
+                        <Select
+                            allowClear
+                            showSearch
+                            placeholder="Any page"
+                            style={{ minWidth: 280 }}
+                            aria-label="Filter by page"
+                            value={pageFilter || undefined}
+                            options={pages.map((p) => ({ value: p, label: p }))}
+                            onChange={(value) => setFilters({ page: value || null })}
+                        />
+                    )}
+                    <Space>
+                        <span className="text-gray-600">Sort by</span>
+                        <Select
+                            size="small"
+                            style={{ minWidth: 150 }}
+                            aria-label="Sort by"
+                            value={sortKey}
+                            options={[
+                                { value: 'impact', label: 'Impact' },
+                                ...(pages ? [{ value: 'pages', label: 'Pages affected' }] : []),
+                                { value: 'elements', label: 'Elements' },
+                            ]}
+                            onChange={(value: SortKey) => setFilters({ sort: value })}
+                        />
+                        <Button
+                            size="small"
+                            onClick={() => setFilters({ desc: desc ? '0' : null })}
+                            aria-label={desc ? 'Descending' : 'Ascending'}
+                            icon={<span aria-hidden="true">{desc ? '↓' : '↑'}</span>}
+                        >
+                            {desc ? 'Desc' : 'Asc'}
+                        </Button>
+                    </Space>
+                    {suppressedCount > 0 && (
+                        <Checkbox
+                            checked={showSuppressed}
+                            onChange={(e) =>
+                                setFilters({ suppressed: e.target.checked ? '1' : null })
+                            }
+                        >
+                            Show suppressed ({suppressedCount})
+                        </Checkbox>
+                    )}
+                    <span className="text-sm text-gray-600">
+                        Showing {shown.length} of {violations.length}
+                    </span>
+                    {filtering && (
+                        <Button size="small" type="link" onClick={clear}>
+                            Clear filters
+                        </Button>
+                    )}
+                    <div className="ml-auto">
+                        <GenerateAIPromptButton violations={shown} url={url} />
+                    </div>
+                </Flex>
+            )}
             {shown.length === 0 ? (
                 <div className="py-6 text-center text-gray-500">
                     No violations match the current filters.

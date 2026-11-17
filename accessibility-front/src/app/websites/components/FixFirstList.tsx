@@ -6,7 +6,7 @@ import { ImpactTag } from '@/lib/impact';
 import { FindingStatus, FixFirstPage, FixFirstRule, WebsiteFixFirst } from '@/lib/types/finding';
 import { PlatformId } from '@/lib/types/guide';
 import { Alert, Button, Card, Collapse, Progress, Space, Tag } from 'antd';
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 
 type Props = {
     websiteId: number;
@@ -20,6 +20,9 @@ type Props = {
     // The rule to scroll to on arrival (?rule=), from an email.
     focusRule?: string | null;
 };
+
+// Rules shown in full before "Show all".
+const TOP_RULES = 5;
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
@@ -35,6 +38,9 @@ function FixFirstList({
     focusRule,
 }: Props) {
     const scrolled = useRef(false);
+    // A long list starts with the top of the ranking; the rest is one click away. A rule
+    // linked from an email (?rule=) is always shown.
+    const [showAll, setShowAll] = useState(false);
     useEffect(() => {
         if (!focusRule || scrolled.current) return;
         const card = document.getElementById(`fix-${focusRule}`);
@@ -62,6 +68,11 @@ function FixFirstList({
         );
     }
 
+    const focusIndex = focusRule ? data.rules.findIndex((r) => r.rule_id === focusRule) : -1;
+    const visibleCount = showAll ? data.rules.length : Math.max(TOP_RULES, focusIndex + 1);
+    const visibleRules = data.rules.slice(0, visibleCount);
+    const hiddenCount = data.rules.length - visibleRules.length;
+
     const topThree = data.rules.slice(0, 3).reduce((sum, rule) => sum + rule.elements, 0);
     const topShare = data.open_total ? Math.round((100 * topThree) / data.open_total) : 0;
 
@@ -78,7 +89,7 @@ function FixFirstList({
                     } not listed.`}
             </p>
             <ol className="m-0 list-none space-y-4 p-0">
-                {data.rules.map((rule, index) => {
+                {visibleRules.map((rule, index) => {
                     const example = rule.example;
                     const guide = rule.guide ? guideHref(rule.rule_id, platform) : null;
                     return (
@@ -86,7 +97,10 @@ function FixFirstList({
                             <Card
                                 title={
                                     <div className="flex flex-wrap items-baseline gap-2">
-                                        <h3 className="text-lg font-semibold" style={{ margin: 0 }}>
+                                        <h3
+                                            className="text-base font-semibold whitespace-normal md:text-lg"
+                                            style={{ margin: 0 }}
+                                        >
                                             {index + 1}. {rule.help ?? rule.rule_id}
                                         </h3>
                                         <span className="text-xs font-normal text-gray-500">
@@ -113,7 +127,9 @@ function FixFirstList({
                                     onBulkStatus={onBulkStatus}
                                 />
                                 <Collapse
-                                    className="mt-3"
+                                    style={{ marginTop: 12 }}
+                                    // A short list of pages is the to-do itself: show it.
+                                    defaultActiveKey={rule.pages_affected <= 3 ? ['pages'] : []}
                                     items={[
                                         {
                                             key: 'example',
@@ -185,31 +201,41 @@ function FixFirstList({
                                         },
                                     ]}
                                 />
-                                <Space className="mt-3" wrap>
+                                {/* The same actions as the rule cards on the By rule tab
+                                    and the page report. */}
+                                <Space style={{ marginTop: 16 }} wrap size="middle">
                                     {guide ? (
                                         <Button type="primary" href={guide}>
-                                            Fix guide
+                                            How to fix
                                         </Button>
                                     ) : (
                                         rule.help_url && (
                                             <Button
+                                                type="primary"
                                                 href={rule.help_url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                             >
-                                                How to fix (Deque)
+                                                How to fix
                                             </Button>
                                         )
                                     )}
-                                    <Button href={violationsHref(websiteId, rule.rule_id)}>
-                                        Details
-                                    </Button>
+                                    <a href={violationsHref(websiteId, rule.rule_id)}>
+                                        Every element of this rule
+                                    </a>
                                 </Space>
                             </Card>
                         </li>
                     );
                 })}
             </ol>
+            {hiddenCount > 0 && (
+                <div className="mt-4 text-center">
+                    <Button onClick={() => setShowAll(true)}>
+                        Show the other {plural(hiddenCount, 'rule')}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }

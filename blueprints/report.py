@@ -66,6 +66,10 @@ def get_report_by_id(report_id):
     )
     data['can_edit'] = bool(current_user) and report.site.can_edit(current_user)
     data['can_scan'] = bool(current_user) and report.site.can_scan(current_user)
+    # For the report page's link back to the website it belongs to.
+    data['websites'] = [
+        {'id': w.id, 'url': w.url} for w in report.site.websites if w.can_view(current_user)
+    ]
     return jsonify(data), 200
 
 @report_bp.route('/<int:report_id>/pdf/', methods=['GET'])

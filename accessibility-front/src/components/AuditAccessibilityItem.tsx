@@ -3,11 +3,10 @@ import { STATUS_COLORS, STATUS_LABELS } from '@/lib/findings';
 import { ImpactTag } from '@/lib/impact';
 import { AxeNode, AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { Finding, FindingRuleGroup, FindingStatus } from '@/lib/types/finding';
-import { Button, Card, Collapse, Dropdown, Tag, Tooltip } from 'antd';
+import { Button, Card, Collapse, Dropdown, Popconfirm, Tag, Tooltip } from 'antd';
 import { useState } from 'react';
 import { useGuides } from '@/hooks/useGuides';
 import { guideHref } from '@/lib/guides';
-import Link from 'next/link';
 import RescanPageButton from './RescanPageButton';
 import ViolationNode, { findingKey, findingSelector } from './ViolationNode';
 
@@ -24,6 +23,11 @@ type Props = {
     onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
     canScan?: boolean;
     onPageScanned?: () => void;
+    // Anchor prefix of the card: "violation" (#violation-<rule>), or "review" for the
+    // needs-a-manual-check list, which can hold the same rule ids.
+    idPrefix?: string;
+    // What the element list is called ("Elements", "Elements to check").
+    nodeLabel?: string;
 };
 
 const NODE_PAGE = 10;
@@ -121,6 +125,8 @@ export function RuleFindingsSummary({
     onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
 }) {
     const [busy, setBusy] = useState(false);
+    const [pending, setPending] = useState<FindingStatus | null>(null);
+    const total = Object.values(group.counts).reduce((sum, n) => sum + n, 0);
     const suppressed = group.counts.false_positive + group.counts.accepted;
     return (
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -137,23 +143,38 @@ export function RuleFindingsSummary({
                 </Tooltip>
             )}
             {canEdit && onBulkStatus && (
-                <Dropdown
-                    menu={{
-                        items: (Object.keys(STATUS_LABELS) as FindingStatus[]).map((status) => ({
-                            key: status,
-                            label: STATUS_LABELS[status],
-                        })),
-                        onClick: async ({ key }) => {
-                            setBusy(true);
-                            await onBulkStatus(ruleId, key as FindingStatus);
-                            setBusy(false);
-                        },
+                // Site-wide and easy to misclick, so the choice is confirmed with its size.
+                <Popconfirm
+                    open={pending !== null}
+                    title={
+                        pending &&
+                        `Mark all ${total} element${total === 1 ? '' : 's'} of this rule on this website as ${STATUS_LABELS[pending].toLowerCase()}?`
+                    }
+                    description="You can change it again the same way."
+                    okText="Mark them"
+                    onConfirm={async () => {
+                        const status = pending;
+                        setPending(null);
+                        if (!status) return;
+                        setBusy(true);
+                        await onBulkStatus(ruleId, status);
+                        setBusy(false);
                     }}
+                    onCancel={() => setPending(null)}
                 >
-                    <Button size="small" loading={busy}>
-                        Mark all on this website as…
-                    </Button>
-                </Dropdown>
+                    <Dropdown
+                        menu={{
+                            items: (Object.keys(STATUS_LABELS) as FindingStatus[]).map(
+                                (status) => ({ key: status, label: STATUS_LABELS[status] })
+                            ),
+                            onClick: ({ key }) => setPending(key as FindingStatus),
+                        }}
+                    >
+                        <Button size="small" loading={busy}>
+                            Mark all on this website as…
+                        </Button>
+                    </Dropdown>
+                </Popconfirm>
             )}
         </div>
     );
@@ -169,36 +190,66 @@ function AuditAccessibilityItem({
     onBulkStatus,
     canScan = false,
     onPageScanned,
+    idPrefix = 'violation',
+    nodeLabel,
 }: Props) {
     const guides = useGuides();
     if (!accessibilityResult) return <div>No accessibility result provided.</div>;
 
     const ruleId = accessibilityResult.id;
-    const header = (
-        <>
-            <div className="mb-2 text-gray-700">{accessibilityResult.description}</div>
-            <div className="text-sm text-gray-500">
-                <strong>Help:</strong> {accessibilityResult.help}
-            </div>
-        </>
+    const cardId = `${idPrefix}-${ruleId}`;
+    // The same card on the website page and the page report: the plain-language rule as
+    // the title, what it means, one "How to fix" (our guide when there is one, else
+    // Deque's page), and the rule id and standards out of the way.
+    const title = (
+        <h3 className="text-base font-semibold whitespace-normal md:text-lg" style={{ margin: 0 }}>
+            {accessibilityResult.help || ruleId}
+        </h3>
     );
+    // A rule to check by hand has not failed, so it does not wear a severity colour.
+    const badge =
+        idPrefix === 'review' ? (
+            <Tag>Check by hand</Tag>
+        ) : (
+            <ImpactTag impact={accessibilityResult.impact} />
+        );
+    const header = <p className="mb-2 text-gray-700">{accessibilityResult.description}</p>;
+    const hasGuide = guides.has(ruleId);
     const footer = (
-        <>
-            <div className="mt-2 flex flex-wrap justify-end gap-2">
-                {accessibilityResult.tags &&
-                    accessibilityResult.tags.map((tag, index) => (
-                        <Tag key={index} color="default">
-                            {tag}
-                        </Tag>
-                    ))}
-            </div>
-            <div className="mt-2 flex justify-end-safe gap-4">
-                {guides.has(ruleId) && <Link href={guideHref(ruleId)}>Fix guide</Link>}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            {hasGuide ? (
+                <Button type="primary" href={guideHref(ruleId)}>
+                    How to fix
+                </Button>
+            ) : (
+                <Button
+                    type="primary"
+                    href={accessibilityResult.helpUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    How to fix
+                </Button>
+            )}
+            {hasGuide && (
                 <a href={accessibilityResult.helpUrl} target="_blank" rel="noopener noreferrer">
-                    Learn more
+                    More detail (Deque)
                 </a>
-            </div>
-        </>
+            )}
+            <details className="text-sm text-gray-600">
+                <summary className="cursor-pointer">Technical details</summary>
+                <p className="mt-2 mb-1">
+                    Rule <code>{ruleId}</code>
+                </p>
+                {!!accessibilityResult.tags?.length && (
+                    <div className="flex flex-wrap gap-1">
+                        {accessibilityResult.tags.map((tag) => (
+                            <Tag key={tag}>{tag}</Tag>
+                        ))}
+                    </div>
+                )}
+            </details>
+        </div>
     );
 
     if (isWebsiteResult(accessibilityResult)) {
@@ -206,14 +257,12 @@ function AuditAccessibilityItem({
             {
                 key: 'pages',
                 label: (
-                    <Tooltip title="Pages where this issue was found (click to expand)">
-                        <span className="font-medium">
-                            Affected URLs
-                            <Tag color="blue" style={{ marginLeft: 8 }}>
-                                {accessibilityResult.reports.length}
-                            </Tag>
-                        </span>
-                    </Tooltip>
+                    <span className="font-medium">
+                        Pages with this issue
+                        <Tag color="blue" style={{ marginLeft: 8 }}>
+                            {accessibilityResult.reports.length}
+                        </Tag>
+                    </span>
                 ),
                 children: (
                     <ul style={{ paddingLeft: 0, margin: 0 }}>
@@ -237,7 +286,11 @@ function AuditAccessibilityItem({
                                     </Tag>
                                 )}
                                 <a
-                                    href={`/reports/${report.report_id}?rule=${encodeURIComponent(ruleId)}#violation-${encodeURIComponent(ruleId)}`}
+                                    href={
+                                        idPrefix === 'violation'
+                                            ? `/reports/${report.report_id}?rule=${encodeURIComponent(ruleId)}#violation-${encodeURIComponent(ruleId)}`
+                                            : `/reports/${report.report_id}#${idPrefix}-${encodeURIComponent(ruleId)}`
+                                    }
                                     className="text-blue-600 hover:underline"
                                     style={{
                                         flex: 1,
@@ -266,12 +319,7 @@ function AuditAccessibilityItem({
         ];
 
         return (
-            <Card
-                id={`violation-${ruleId}`}
-                style={{ marginBottom: '16px' }}
-                title={<span className="text-lg font-semibold">{ruleId}</span>}
-                extra={<ImpactTag impact={accessibilityResult.impact} />}
-            >
+            <Card id={cardId} style={{ marginBottom: '16px' }} title={title} extra={badge}>
                 {header}
                 {ruleFindings && (
                     <RuleFindingsSummary
@@ -291,7 +339,7 @@ function AuditAccessibilityItem({
                         <NodeList
                             ruleId={ruleId}
                             nodes={accessibilityResult.nodes}
-                            label="Example elements (from the first affected page)"
+                            label={nodeLabel ?? 'Example elements (from the first affected page)'}
                             open={false}
                         />
                     </div>
@@ -302,20 +350,16 @@ function AuditAccessibilityItem({
     }
 
     return (
-        <Card
-            id={`violation-${ruleId}`}
-            style={{ marginBottom: '16px' }}
-            title={<span className="text-lg font-semibold">{ruleId}</span>}
-            extra={<ImpactTag impact={accessibilityResult.impact} />}
-        >
+        <Card id={cardId} style={{ marginBottom: '16px' }} title={title} extra={badge}>
             {header}
             {!!accessibilityResult.nodes?.length && (
                 <div className="mt-2">
                     <NodeList
                         ruleId={ruleId}
                         nodes={accessibilityResult.nodes}
-                        label="Elements"
-                        open
+                        label={nodeLabel ?? 'Elements'}
+                        // Failing elements are the to-do; elements to check stay folded.
+                        open={idPrefix === 'violation'}
                         previewEnabled={previewEnabled}
                         findingsBySelector={findingsBySelector}
                         canEdit={canEdit}

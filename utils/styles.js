@@ -162,7 +162,7 @@ style.innerHTML = `
         position: fixed;
         top: 18px;
         right: 18px;
-        background: linear-gradient(90deg, #d7263d 0%, #a41313 100%);
+        background: #222222; /* a note, not an error: neutral, not red */
         color: #fff;
         padding: 13px 18px;
         border-radius: 7px;
@@ -817,13 +817,15 @@ function createToolTip(injections, element, selector) {
 }
 var elementMap = new Map();
 let alertTimeout = 10000;
+// Issues whose element is not on the page as it loads now (it changed since the scan,
+// or the scan was redirected). Reported once, in words, instead of one alert per selector.
+let missingCount = 0;
 for (const injection of injections) {
     try {
         const elements = document.querySelector(injection.selector);
         if (!elements) {
             console.log(`No elements found for selector: ${injection.selector}`);
-            addAlert(`No elements found for selector: ${injection.selector}`, alertTimeout);
-            alertTimeout += 2500; // Increase timeout for next alert
+            missingCount += 1;
             continue;
         }
         if (!elementMap.has(injection.selector)) {
@@ -836,6 +838,13 @@ for (const injection of injections) {
         continue;
     }
 }
+if (missingCount > 0) {
+    addAlert(
+        `${missingCount} issue${missingCount === 1 ? ' is' : 's are'} not on this version of the page, so ${missingCount === 1 ? 'it is' : 'they are'} not outlined. The report screenshot shows ${missingCount === 1 ? 'it' : 'them'}.`,
+        alertTimeout
+    );
+}
+
 let tooltips = [];
 for (const [selector, injections] of elementMap.entries()) {
     try {
@@ -870,6 +879,10 @@ document.addEventListener('click', (event) => {
 });
 // Log summary of injections applied
 console.log(`Applied ${injections.length} style injections to ${elementMap.size} unique selectors.`);
-addAlert(`Click on highlighted elements to learn more about the changes made.`, 15000);
-addAlert(`Click the "Ask Microsoft Copilot" button in the tooltip, this will copy the prompt to clipboard and open another tab with Microsoft 365 Copilot.`, 20000);
+// In the report page's preview frame (proxyRewrite sets __a11yPreviewUrl) the page
+// around it already explains this, and in a narrow panel these notes cover the page.
+if (!window.__a11yPreviewUrl) {
+    addAlert(`Click on highlighted elements to learn more about the changes made.`, 15000);
+    addAlert(`Click the "Ask Microsoft Copilot" button in the tooltip, this will copy the prompt to clipboard and open another tab with Microsoft 365 Copilot.`, 20000);
+}
 ToggleLoadingIndicator(false);

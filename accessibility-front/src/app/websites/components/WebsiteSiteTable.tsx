@@ -37,8 +37,8 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
 
     const sites_columns = [
         {
-            title: 'URL',
-            width: 300,
+            title: 'Page',
+            width: 320,
             dataIndex: 'url',
             key: 'url',
             render: (text: string, record: Site) =>
@@ -49,7 +49,7 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
                 ),
         },
         {
-            title: 'Last Scanned',
+            title: 'Last scanned',
             dataIndex: 'last_scanned',
             key: 'last_scanned',
             render: (date: string) => {
@@ -58,35 +58,28 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
             },
         },
         {
-            title: 'Passed',
-            key: 'passed',
-            render: (text: string, record: Site) => (
-                <span>{record.current_report?.report_counts.passes.total ?? '—'}</span>
-            ),
-            dataIndex: 'passed',
-        },
-        {
-            title: 'Violations',
+            // Rules, not elements: the same unit as the website's severity tiles.
+            title: 'Failing rules',
             key: 'violations',
             render: (text: string, record: Site) => (
-                <span>{record.current_report?.report_counts.violations.total ?? '—'}</span>
+                <span className="tabular-nums">
+                    {record.current_report?.report_counts.violations.total ?? '—'}
+                </span>
             ),
             dataIndex: 'violations',
         },
         {
-            title: 'Active Tags',
-            key: 'tags',
+            title: 'Passing rules',
+            key: 'passed',
             render: (text: string, record: Site) => (
-                <>
-                    {record.tags.map((tag) => (
-                        <Tag key={tag}>{tag}</Tag>
-                    ))}
-                </>
+                <span className="tabular-nums">
+                    {record.current_report?.report_counts.passes.total ?? '—'}
+                </span>
             ),
-            dataIndex: 'tags',
+            dataIndex: 'passed',
         },
         {
-            title: 'Last Scan',
+            title: 'Last scan',
             key: 'last_scan_status',
             dataIndex: 'last_scan_status',
             render: (status: Site['last_scan_status'], record: Site) => {
@@ -103,26 +96,22 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
                 return <Tag>Not yet scanned</Tag>;
             },
         },
-        {
-            title: 'Actions',
-            key: 'actions',
-            render: (text: string, record: Site) => (
-                <span className="flex flex-wrap items-center gap-2">
-                    {record.current_report ? (
-                        <a href={`/reports/${record.current_report.id}`}>View Report</a>
-                    ) : (
-                        <span className="text-gray-400">No report yet</span>
-                    )}
-                    {canScan && (
-                        <RescanPageButton
-                            siteId={record.id}
-                            size="small"
-                            onScanned={onPageScanned}
-                        />
-                    )}
-                </span>
-            ),
-        },
+        ...(canScan
+            ? [
+                  {
+                      title: <span className="sr-only">Actions</span>,
+                      key: 'actions',
+                      width: 150,
+                      render: (text: string, record: Site) => (
+                          <RescanPageButton
+                              siteId={record.id}
+                              size="small"
+                              onScanned={onPageScanned}
+                          />
+                      ),
+                  },
+              ]
+            : []),
     ];
 
     if (siteError) return <PageError status={500} title="Error loading sites" />;
@@ -130,6 +119,10 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
 
     return (
         <>
+            <p className="mt-2 mb-4 text-sm text-gray-700">
+                Pages with the most failing rules first. Open a page for its report; expand a row
+                for its history.
+            </p>
             <Table<Site>
                 className="min-h-[400px]"
                 style={{ width: '100%', minHeight: 400, maxWidth: '100%' }}

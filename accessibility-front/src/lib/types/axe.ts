@@ -96,6 +96,8 @@ export type Report = {
     // the caller may rescan this page (the website's admin, its members, site admins)
     can_scan: boolean;
     suppressed_counts: AxeReportCounts | null;
+    // the websites this page belongs to that the caller can open
+    websites?: { id: number; url: string }[];
 };
 
 export type CheckTemplate = {

@@ -29,7 +29,7 @@ function WebsiteChanges({ websiteId, user }: Props) {
 
     if (!data.since) {
         return (
-            <Card className="mt-2" title="What changed">
+            <Card style={{ marginTop: 8 }} title="What changed">
                 <Alert
                     type="info"
                     showIcon
@@ -43,7 +43,7 @@ function WebsiteChanges({ websiteId, user }: Props) {
     const nothing = data.new_count === 0 && data.fixed_count === 0;
 
     return (
-        <Card className="mt-2" title="What changed">
+        <Card style={{ marginTop: 8 }} title="What changed">
             <p className="mb-4">
                 Previous scan {when(data.since)} → this scan {when(data.until)}:{' '}
                 <strong>{data.previous.total}</strong> → <strong>{data.current.total}</strong> open
@@ -54,13 +54,20 @@ function WebsiteChanges({ websiteId, user }: Props) {
             </p>
             {data.regression && (
                 <Alert
-                    className="mb-4"
+                    style={{ marginBottom: 16 }}
                     type="warning"
                     showIcon
                     title="This scan is worse than the previous one"
                 />
             )}
-            {nothing && <Alert className="mb-4" type="success" showIcon title="Nothing changed" />}
+            {nothing && (
+                <Alert
+                    style={{ marginBottom: 16 }}
+                    type="success"
+                    showIcon
+                    title="Nothing changed"
+                />
+            )}
             <Collapse
                 defaultActiveKey={['new', 'fixed']}
                 items={[

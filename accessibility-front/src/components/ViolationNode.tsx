@@ -44,9 +44,13 @@ function ViolationNode({
     const focusInPreview = () =>
         window.dispatchEvent(new CustomEvent(PREVIEW_FOCUS_EVENT, { detail: { selector } }));
 
+    const summary = plainSummary(node.failureSummary);
+
     return (
-        <li className="mb-3 rounded border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700">
-            <div className="flex items-start justify-between gap-2">
+        <li className="mb-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
+            {/* What is wrong first, in words; the selector and HTML are for finding it. */}
+            {summary && <div className="mb-2 whitespace-pre-wrap">{summary}</div>}
+            <div className="flex items-start justify-between gap-2 text-xs text-gray-700">
                 <code className="break-all">{selector || '(no selector)'}</code>
                 {previewEnabled && selector && (
                     <Button size="small" onClick={focusInPreview}>
@@ -55,12 +59,9 @@ function ViolationNode({
                 )}
             </div>
             {node.html && (
-                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2">
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2 text-xs">
                     <code>{node.html}</code>
                 </pre>
-            )}
-            {node.failureSummary && (
-                <div className="mt-2 whitespace-pre-wrap text-gray-600">{node.failureSummary}</div>
             )}
             {finding && (
                 <div className="mt-2">
@@ -73,6 +74,16 @@ function ViolationNode({
             )}
         </li>
     );
+}
+
+// axe's summary opens each group with "Fix any of the following:" / "Fix all of the
+// following:"; say what that means.
+function plainSummary(summary?: string): string {
+    if (!summary) return '';
+    return summary
+        .replace(/Fix any of the following:/g, 'Fix it with any one of these:')
+        .replace(/Fix all of the following:/g, 'Fix all of these:')
+        .trim();
 }
 
 export default ViolationNode;

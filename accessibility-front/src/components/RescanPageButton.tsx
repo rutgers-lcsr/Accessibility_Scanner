@@ -53,7 +53,7 @@ export function VerifySummary({ reportId, changes }: Summary) {
             />
             {!first && (
                 <Collapse
-                    className="mt-3"
+                    style={{ marginTop: 12 }}
                     items={[
                         {
                             key: 'fixed',

@@ -2,6 +2,7 @@
 
 export {
     AlertOutlined,
+    CheckCircleFilled,
     ExclamationCircleOutlined,
     InfoCircleOutlined,
     WarningOutlined,

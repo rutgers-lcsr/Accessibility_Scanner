@@ -5,11 +5,14 @@ import ImpactTiles from '@/components/ImpactTiles';
 import PageHeading from '@/components/PageHeading';
 import PolicyNote from '@/components/PolicyNote';
 import { fetcherApi } from '@/lib/api';
+import { AxeReportCounts } from '@/lib/types/axe';
+import { WebsiteFixFirst } from '@/lib/types/finding';
 import { PublicUser } from '@/lib/types/user';
 import { Website as WebsiteType } from '@/lib/types/website';
 import { useUrlFilters } from '@/lib/urlFilters';
 import { useUser } from '@/providers/User';
 import { Alert, Tabs, TabsProps } from 'antd';
+import Link from 'next/link';
 import useSWR, { useSWRConfig } from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -24,6 +27,29 @@ import WebsiteHistoryChart from './WebsiteHistoryChart';
 import WebsiteLinksTable from './WebsiteLinksTable';
 import WebsiteReport from './WebsiteReport';
 import WebsiteSiteTable from './WebsiteSiteTable';
+
+// "12 days ago (Sep 28, 2026)". Rendered only in the browser (this page waits for its
+// data on the client), so the age and the local date cannot mismatch the server.
+function scanAge(iso: string | null | undefined): string {
+    if (!iso) return 'never';
+    const date = new Date(iso);
+    const days = Math.floor((Date.now() - date.getTime()) / 86_400_000);
+    const age = days < 1 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+    return `${age} (${date.toLocaleDateString(undefined, { dateStyle: 'medium' })})`;
+}
+
+// Open elements per severity from the Fix first ranking (suppressed rules excluded).
+function elementCounts(data: WebsiteFixFirst): AxeReportCounts {
+    const counts: AxeReportCounts = { total: 0, critical: 0, serious: 0, moderate: 0, minor: 0 };
+    for (const rule of data.rules) {
+        counts.total += rule.elements;
+        if (rule.impact) counts[rule.impact] += rule.elements;
+    }
+    return counts;
+}
+
+const isStale = (iso: string | null | undefined) =>
+    !!iso && Date.now() - new Date(iso).getTime() > 30 * 86_400_000;
 
 type Props = {
     websiteId: number;
@@ -46,11 +72,19 @@ const Website = ({ websiteId, user }: Props) => {
         `/api/websites/${websiteId}`,
         user ? handlerUserApiRequest<WebsiteType> : fetcherApi<WebsiteType>
     );
+    // The tiles count open elements, the unit Fix first ranks by, so the two agree.
+    // Same key as FixFirst, so SWR makes one request for both.
+    const { data: fixFirst } = useSWR(
+        `/api/websites/${websiteId}/fix-first`,
+        user ? handlerUserApiRequest<WebsiteFixFirst> : fetcherApi<WebsiteFixFirst>
+    );
     if (isLoadingReport) return <PageLoading />;
     if (!websiteReport || reportError)
         return <PageError status={500} title="Error loading website report" />;
 
     const violations = websiteReport.report_counts.violations;
+    const openCounts = fixFirst ? elementCounts(fixFirst) : null;
+    const toCheck = websiteReport.report.incomplete?.length ?? 0;
     // Site admins, the website's admin and its members triage (Website.can_edit).
     const canEdit =
         !!user &&
@@ -87,27 +121,21 @@ const Website = ({ websiteId, user }: Props) => {
         },
         {
             key: 'urls',
-            label: `Urls (${websiteReport.sites.length})`,
+            label: `Pages (${websiteReport.sites.length})`,
             children: (
-                <>
-                    {isLoadingReport ? (
-                        <PageLoading />
-                    ) : reportError ? (
-                        <PageError status={500} title="Error loading website report" />
-                    ) : (
-                        <WebsiteSiteTable
-                            websiteId={websiteId}
-                            user={user}
-                            canScan={canScan}
-                            onPageScanned={onPageScanned}
-                        />
-                    )}
-                </>
+                <WebsiteSiteTable
+                    websiteId={websiteId}
+                    user={user}
+                    canScan={canScan}
+                    onPageScanned={onPageScanned}
+                />
             ),
         },
         {
             key: 'violations',
-            label: `Violations (${violations.total})`,
+            // Distinct failing rules: the tiles count a rule once per page it fails on,
+            // and Fix first counts elements, so this count names its unit.
+            label: `By rule (${websiteReport.report.violations?.length ?? 0})`,
             children: (
                 <WebsiteReport
                     websiteId={websiteId}
@@ -137,7 +165,7 @@ const Website = ({ websiteId, user }: Props) => {
                 <>
                     {(websiteReport.documents?.untagged_pdf ?? 0) > 0 && (
                         <Alert
-                            className="mt-2 mb-4"
+                            style={{ marginTop: 8, marginBottom: 16 }}
                             type="warning"
                             showIcon
                             title={`${websiteReport.documents.untagged_pdf} untagged PDF${websiteReport.documents.untagged_pdf === 1 ? '' : 's'}`}
@@ -168,9 +196,6 @@ const Website = ({ websiteId, user }: Props) => {
         },
     ];
 
-    // console.log(websiteReport);
-    // console.log(user);
-
     // Settings come after the results: the people who can change them (site admins, the
     // website's admin and its members) open this tab, everyone lands on Fix first.
     if (user && canEdit) {
@@ -200,11 +225,18 @@ const Website = ({ websiteId, user }: Props) => {
                         Website Report for <HeaderLink url={`${websiteReport.url}`} />
                     </>
                 }
-                subtitle={`Last scanned: ${
-                    websiteReport.last_scanned
-                        ? new Date(websiteReport.last_scanned).toLocaleString()
-                        : 'Never'
-                }`}
+                subtitle={
+                    <>
+                        Last scanned {scanAge(websiteReport.last_scanned)}
+                        {isStale(websiteReport.last_scanned) && (
+                            <span className="font-medium text-orange-800">
+                                {' '}
+                                · over a month old
+                                {canEdit ? ': scan again for current results' : ''}
+                            </span>
+                        )}
+                    </>
+                }
                 actions={
                     canEdit && (
                         <ScanWebsiteButton websiteId={websiteId} onComplete={() => mutate()} />
@@ -215,7 +247,7 @@ const Website = ({ websiteId, user }: Props) => {
                 {websiteReport.last_scan_status &&
                     websiteReport.last_scan_status !== 'completed' && (
                         <Alert
-                            className="mb-6"
+                            style={{ marginBottom: 24 }}
                             type="error"
                             showIcon
                             title={
@@ -226,31 +258,39 @@ const Website = ({ websiteId, user }: Props) => {
                             description={websiteReport.last_scan_error || undefined}
                         />
                     )}
-                <section
-                    aria-labelledby="accessibility-report"
-                    className="rounded-lg bg-gray-50 p-6"
-                >
-                    <h2
-                        id="accessibility-report"
-                        className="mb-6 text-2xl font-semibold text-gray-800"
-                    >
-                        Accessibility Report
+                <section aria-labelledby="accessibility-report" className="mb-2">
+                    <h2 id="accessibility-report" className="sr-only">
+                        Summary
                     </h2>
-                    <ImpactTiles counts={violations} />
-                    <div className="mt-6">
-                        <PolicyNote />
-                    </div>
-                    {violations.total > 15 && (
-                        // Give some advice if there are too many violations
-                        <div className="mt-6 rounded-md p-4">
-                            <Alert
-                                title="Start with the Fix first tab: it ranks the issues by how many pages one fix clears, and links to a guide for each."
-                                type="info"
-                                style={{}}
-                                showIcon
-                            />
-                        </div>
+                    {openCounts ? (
+                        <ImpactTiles
+                            counts={openCounts}
+                            listId="issues-by-rule"
+                            query="tab=violations"
+                        />
+                    ) : (
+                        <ImpactTiles counts={violations} />
                     )}
+                    <p
+                        className="max-w-[75ch] text-sm text-gray-700"
+                        // Inline: antd's unlayered reset beats Tailwind margins on <p>.
+                        style={{ margin: '16px 0 0' }}
+                    >
+                        {openCounts
+                            ? `${openCounts.total} open issue${openCounts.total === 1 ? '' : 's'} (failing elements) across the website's pages, by severity.`
+                            : "Failing checks across the website's pages, by severity."}
+                        {toCheck > 0 && (
+                            <>
+                                {' '}
+                                <Link href="?tab=violations#needs-review">
+                                    {toCheck} more rule{toCheck === 1 ? '' : 's'} need a manual
+                                    check
+                                </Link>
+                                .
+                            </>
+                        )}
+                    </p>
+                    <PolicyNote />
                 </section>
 
                 <section aria-label="Report details">

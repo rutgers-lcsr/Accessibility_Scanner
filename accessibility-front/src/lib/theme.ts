@@ -8,6 +8,10 @@ export const rutgersTheme: ThemeConfig = {
 
         colorInfo: '#007fac',
         colorSuccess: '#00626d',
+        // antd derives the success alert's fill from colorSuccess, which for this dark teal
+        // comes out a muddy grey; use a light tint of the same teal instead.
+        colorSuccessBg: '#e8f5f2',
+        colorSuccessBorder: '#a7d5cc',
         colorWarning: '#ebb600',
         colorError: '#8e0d18',
 
@@ -21,6 +25,8 @@ export const rutgersTheme: ThemeConfig = {
         colorBorder: '#d8d8d8',
         colorBorderSecondary: '#efefef',
         colorBgContainer: '#ffffff',
+        // antd's default placeholder grey is 1.8:1 on white.
+        colorTextPlaceholder: '#707070',
 
         // Type: Geist is loaded by the root layout (next/font) and exposed as CSS variables.
         fontFamily:
@@ -29,8 +35,9 @@ export const rutgersTheme: ThemeConfig = {
             'var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
 
         // Other accents. Hover and active go darker, not lighter, so a hovered link keeps
-        // its contrast (the lighter blues were about 2:1 on white).
-        colorLink: '#007fac',
+        // its contrast (the lighter blues were about 2:1 on white). #007fac itself is only
+        // 4.3:1 on the gray panels and 3.6:1 on an info alert, so links use a darker step.
+        colorLink: '#006a8f',
         colorLinkHover: '#005f80',
         colorLinkActive: '#004d68',
 
@@ -39,6 +46,17 @@ export const rutgersTheme: ThemeConfig = {
         controlItemBgHover: '#e3f3ef',
     },
     components: {
+        // Tag text is shade 7 of each preset palette, which fails 4.5:1 on its own tint for
+        // these colours (green 3.4:1, orange 3.3:1, gold 2.8:1); use the next darker shade.
+        Tag: {
+            volcano7: '#ad2102',
+            orange7: '#ad4e00',
+            gold7: '#874d00',
+            yellow7: '#876800',
+            lime7: '#3f6600',
+            green7: '#237804',
+            cyan7: '#006d75',
+        },
         Button: {
             colorPrimary: '#cc0033',
         },
