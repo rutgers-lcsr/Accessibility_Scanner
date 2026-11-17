@@ -1,10 +1,13 @@
 'use client';
 
 import { PREVIEW_FOCUS_EVENT } from '@/components/ViolationNode';
-import { useAlerts } from '@/providers/Alerts';
 import { FullscreenExitOutlined, FullscreenOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import { ReactNode, useEffect, useRef, useState } from 'react';
+
+// Fired on window after "Show in preview": the element was or was not on the live page.
+export const PREVIEW_FOUND_EVENT = 'a11y:preview-found';
+export const PREVIEW_MISSING_EVENT = 'a11y:preview-missing';
 
 type Props = {
     url: string;
@@ -21,7 +24,7 @@ function PageIframe({ url, children, frameClassName = 'w-full min-h-[700px]' }: 
     // Where the reader was when they asked for "Show in preview": the issue list is far
     // above the preview, so offer the way back.
     const [returnTo, setReturnTo] = useState<number | null>(null);
-    const { addAlert } = useAlerts();
+    const returnFocus = useRef<HTMLElement | null>(null);
 
     // "Show in preview" on a violation: scroll the framed page to the element and open
     // its tooltip. The frame is same-origin (/proxy), and the injected report script has
@@ -30,6 +33,8 @@ function PageIframe({ url, children, frameClassName = 'w-full min-h-[700px]' }: 
         const onFocus = (event: Event) => {
             const selector = (event as CustomEvent<{ selector?: string }>).detail?.selector;
             if (!selector) return;
+            // The button pressed, to give focus back to after "Back to the issue".
+            returnFocus.current = document.activeElement as HTMLElement | null;
             // The panel holding the frame may only now be switching to it (PageViews), so
             // look for the element once it is visible.
             window.setTimeout(() => {
@@ -60,12 +65,15 @@ function PageIframe({ url, children, frameClassName = 'w-full min-h-[700px]' }: 
                     target = null; // cross-origin frame or a selector the browser rejects
                 }
                 if (!target) {
-                    addAlert(
-                        'Element not found in the live preview; switch to the screenshot to see it',
-                        'warning'
+                    // Not on the page as it loads now: PageViews shows the screenshot instead.
+                    window.dispatchEvent(
+                        new CustomEvent(PREVIEW_MISSING_EVENT, { detail: { selector } })
                     );
                     return;
                 }
+                window.dispatchEvent(
+                    new CustomEvent(PREVIEW_FOUND_EVENT, { detail: { selector } })
+                );
                 target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 target.classList.add('animation-highlight');
                 target.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
@@ -73,7 +81,7 @@ function PageIframe({ url, children, frameClassName = 'w-full min-h-[700px]' }: 
         };
         window.addEventListener(PREVIEW_FOCUS_EVENT, onFocus);
         return () => window.removeEventListener(PREVIEW_FOCUS_EVENT, onFocus);
-    }, [addAlert]);
+    }, []);
 
     useEffect(() => {
         const onFullscreenChange = () =>
@@ -125,6 +133,7 @@ function PageIframe({ url, children, frameClassName = 'w-full min-h-[700px]' }: 
                         onClick={() => {
                             window.scrollTo({ top: returnTo, behavior: 'smooth' });
                             setReturnTo(null);
+                            returnFocus.current?.focus({ preventScroll: true });
                         }}
                     >
                         Back to the issue

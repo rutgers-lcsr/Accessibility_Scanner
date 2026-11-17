@@ -4,6 +4,7 @@ A throwaway sqlite database is used. The DATABASE_URL env var is set *before*
 importing the app so config.py and models/__init__.py pick the sqlite (schema-less)
 path, then the schema is rebuilt fresh for every test for isolation.
 """
+from urllib.parse import urlparse
 import os
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -110,7 +111,7 @@ def add_report(app):
     from models import db
     from models.report import Report
 
-    def _make(site, url=None, when=None, violations=None, passes=None, photo=None):
+    def _make(site, url=None, when=None, violations=None, passes=None, photo=None, base_url=None):
         if when is None:
             when = datetime.now(timezone.utc)
         if violations is None:
@@ -132,7 +133,8 @@ def add_report(app):
             ]
         data = {
             "url": url or site.url,
-            "base_url": "https://example.com",
+            # Where the scan ended: the page's own site unless a test says otherwise.
+            "base_url": base_url or "{0.scheme}://{0.netloc}".format(urlparse(url or site.url)),
             "timestamp": when.isoformat(),
             "report": {
                 "violations": violations,

@@ -7,14 +7,16 @@ import { useUser } from '@/providers/User';
 export function useBulkFindingStatus(websiteId: number, onDone?: () => Promise<void> | void) {
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
-    return async (ruleId: string, status: FindingStatus) => {
+    return async (ruleId: string, status: FindingStatus, note?: string) => {
         try {
             const result = await handlerUserApiRequest<{ updated: number }>(
                 `/api/websites/${websiteId}/findings/bulk`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rule_id: ruleId, status }),
+                    body: JSON.stringify(
+                        note ? { rule_id: ruleId, status, note } : { rule_id: ruleId, status }
+                    ),
                 }
             );
             addAlert(`${result.updated} elements of ${ruleId} marked`, 'success');

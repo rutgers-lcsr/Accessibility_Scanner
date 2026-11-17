@@ -90,6 +90,17 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
                         </Tooltip>
                     );
                 }
+                const elsewhere = record.current_report?.scanned_host;
+                if (status === 'completed' && elsewhere) {
+                    // Its results are another site's, so they count nothing here.
+                    return (
+                        <Tooltip
+                            title={`When scanned, this page redirected to ${elsewhere}. Those results are not counted for this website.`}
+                        >
+                            <Tag color="gold">Scanned {elsewhere}</Tag>
+                        </Tooltip>
+                    );
+                }
                 if (status === 'completed') {
                     return <Tag color="green">OK</Tag>;
                 }
@@ -105,6 +116,7 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
                       render: (text: string, record: Site) => (
                           <RescanPageButton
                               siteId={record.id}
+                              pageUrl={record.url}
                               size="small"
                               onScanned={onPageScanned}
                           />

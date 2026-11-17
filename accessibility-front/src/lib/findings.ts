@@ -17,6 +17,9 @@ export const STATUS_COLORS: Record<FindingStatus, string> = {
     accepted: 'blue',
 };
 
+// False positive and accepted need a reason this long (services.findings.REASON_MIN_LENGTH).
+export const REASON_MIN_LENGTH = 10;
+
 export function isSuppressed(status: FindingStatus): boolean {
     return status === 'false_positive' || status === 'accepted';
 }

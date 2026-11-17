@@ -26,7 +26,7 @@ type Props = {
     // Current findings per rule across the website (website page).
     ruleFindings?: Record<string, FindingRuleGroup>;
     canEdit?: boolean;
-    onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
+    onBulkStatus?: (ruleId: string, status: FindingStatus, note?: string) => Promise<void>;
     // Offer "Rescan this page" on each affected page (website page).
     canScan?: boolean;
     onPageScanned?: () => void;
@@ -226,9 +226,10 @@ function ViolationsList({
                             Show suppressed ({suppressedCount})
                         </Checkbox>
                     )}
-                    <span className="text-sm text-gray-600">
+                    {/* Announced when a filter changes what is listed. */}
+                    <output className="text-sm text-gray-600">
                         Showing {shown.length} of {violations.length}
-                    </span>
+                    </output>
                     {filtering && (
                         <Button size="small" type="link" onClick={clear}>
                             Clear filters

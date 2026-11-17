@@ -17,11 +17,12 @@ from models.link import Link, LinkSource  # noqa: F401  (registers the models fo
 from models.notifications import NotificationOptOut, WebsiteView
 from models.report import AxeReportCounts, Report, ReportMinimized
 from services.history import effective_counts
+from utils.urls import is_offsite, scanned_host
 from models.rules import Rule
 from models.settings import Settings
 from models.user import User
 from scanner.accessibility.ace import AxeReportKeys, AxeResult, WebsiteAxeReport
-from utils.urls import get_netloc, is_valid_url, normalize_url
+from utils.urls import get_netloc, is_valid_url, normalize_url  # noqa: E402
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -105,7 +106,7 @@ class Site(db.Model):
 
     @hybrid_method
     def get_recent_report(self) -> ReportMinimized | None:
-        report = self.reports.order_by(Report.timestamp.desc()).with_entities(Report.id, Report.url, Report.report_counts, Report.suppressed_counts, Report.timestamp).first()
+        report = self.reports.order_by(Report.timestamp.desc()).with_entities(Report.id, Report.url, Report.base_url, Report.report_counts, Report.suppressed_counts, Report.timestamp).first()
         if report is None:
             # A page whose scans have all failed has no report yet.
             return None
@@ -114,6 +115,8 @@ class Site(db.Model):
             'url': report.url,
             'report_counts': effective_counts(report.report_counts, report.suppressed_counts),
             'suppressed_counts': report.suppressed_counts,
+            # Set when the scan ended on another site (services.findings): not counted.
+            'scanned_host': scanned_host(report.url, report.base_url),
             'timestamp': report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else None
         }
         return report
@@ -600,7 +603,8 @@ class Website(db.Model):
         report = {}
         for site in self.sites:
             current_report = site.get_full_current_report()
-            if current_report:
+            # A scan that ended on another site is not the owner's (services.findings).
+            if current_report and not is_offsite(current_report.url, current_report.base_url):
                 for key in ["violations", "passes", "incomplete", "inapplicable"]:
                     if key not in report:
                         # initialize the key with an empty list

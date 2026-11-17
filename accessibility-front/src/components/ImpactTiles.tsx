@@ -49,7 +49,7 @@ function ImpactTiles({ counts, listId, query }: Props) {
                             // name and the title, and a keyboard user can reach it.
                             <a
                                 href={`?${query ? `${query}&` : ''}impact=${meta.key}#${listId}`}
-                                className={`${box} no-underline transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2`}
+                                className={`${box} tile-link no-underline transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2`}
                                 title={meta.description}
                                 aria-label={`${count} ${meta.label.toLowerCase()}: show ${count === 1 ? 'it' : 'them'}`}
                             >

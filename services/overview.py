@@ -150,18 +150,40 @@ def top_rules(report_ids, limit) -> list:
     return ranked[:limit]
 
 
+# A scan older than this needs attention: its results may no longer describe the site.
+STALE_SCAN_DAYS = 30
+
+
+def is_stale(last_scanned: datetime | None, now: datetime | None = None) -> bool:
+    if last_scanned is None:
+        return False
+    now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+    if last_scanned.tzinfo is not None:
+        last_scanned = last_scanned.astimezone(timezone.utc).replace(tzinfo=None)
+    return now - last_scanned > timedelta(days=STALE_SCAN_DAYS)
+
+
+def _failing(row) -> bool:
+    """Whether a page's latest report fails at least one rule that still counts."""
+    counts = effective_counts(row.report_counts, row.suppressed_counts) or {}
+    return ((counts.get('violations') or {}).get('total') or 0) > 0
+
+
 def website_row(website: Website, site_ids: set, latest_by_site: dict, documents: dict | None = None, links: dict | None = None) -> dict:
-    counts = sum_counts({
+    per_site = {
         site_id: effective_counts(latest_by_site[site_id].report_counts, latest_by_site[site_id].suppressed_counts)
         for site_id in site_ids if site_id in latest_by_site
-    })
+    }
+    counts = sum_counts(per_site)
     return {
         'id': website.id,
         'url': website.url,
         'categories': website.get_categories(),
         'pages': len(site_ids),
         'pages_audited': sum(1 for site_id in site_ids if site_id in latest_by_site),
+        'pages_failing': sum(1 for site_id in site_ids if site_id in latest_by_site and _failing(latest_by_site[site_id])),
         'last_scanned': iso(website.last_scanned),
+        'stale': is_stale(website.last_scanned),
         'last_scan_status': website.last_scan_status,
         'violations': counts['violations'],
         'passes': counts['passes']['total'],
@@ -207,6 +229,8 @@ def build_overview(websites, top: int = 10) -> dict:
             'websites': len(websites),
             'pages': len(all_site_ids),
             'pages_audited': len(latest_by_site),
+            'pages_failing': sum(1 for row in latest_by_site.values() if _failing(row)),
+            'stale_scans': sum(1 for website in websites if is_stale(website.last_scanned)),
             'last_scan': iso(last_scan),
             'violations': totals['violations'],
             'passes': totals['passes']['total'],

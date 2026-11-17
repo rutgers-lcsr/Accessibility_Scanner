@@ -47,7 +47,7 @@ def test_members_can_triage_edit_membership_and_start_pages(client, make_user, m
     headers = jwt_header(member)
 
     assert client.patch(f"/api/findings/{_finding(site, '#a').id}/", json={"status": "fixed"}, headers=headers).status_code == 200
-    assert client.post(f"/api/websites/{website.id}/findings/bulk/", json={"rule_id": "label", "status": "accepted"}, headers=headers).status_code == 200
+    assert client.post(f"/api/websites/{website.id}/findings/bulk/", json={"rule_id": "label", "status": "accepted", "note": "Labels come from the vendor form"}, headers=headers).status_code == 200
     assert _finding(site, "#l").status == "accepted"
 
     resp = client.patch(f"/api/websites/{website.id}/", json={"users": ["bob"], "extra_start_urls": ["https://example.com/section/"]}, headers=headers)
@@ -73,7 +73,7 @@ def test_strangers_and_anonymous_still_cannot(client, make_user, make_website, a
 
     assert client.patch(f"/api/findings/{finding_id}/", json={"status": "fixed"}).status_code == 401
     assert client.patch(f"/api/findings/{finding_id}/", json={"status": "fixed"}, headers=stranger).status_code == 403
-    assert client.post(f"/api/websites/{website.id}/findings/bulk/", json={"rule_id": "label", "status": "accepted"}, headers=stranger).status_code == 403
+    assert client.post(f"/api/websites/{website.id}/findings/bulk/", json={"rule_id": "label", "status": "accepted", "note": "Labels come from the vendor form"}, headers=stranger).status_code == 403
     assert client.patch(f"/api/websites/{website.id}/", json={"users": ["carol"]}, headers=stranger).status_code == 403
     assert client.get(f"/api/reports/{report.id}/").get_json()["can_edit"] is False
     assert client.get(f"/api/reports/{report.id}/", headers=stranger).get_json()["can_edit"] is False

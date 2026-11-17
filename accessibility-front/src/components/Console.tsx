@@ -31,7 +31,12 @@ const Console: React.FC<Props> = ({ id, label, command, mini }) => {
     if (mini) {
         return (
             <Tooltip title="Copy">
-                <Button icon={<CopyOutlined />} onClick={handleCopy} aria-label={`Copy ${label}`} />
+                {/* Named apart from the full console's copy button on the same page. */}
+                <Button
+                    icon={<CopyOutlined />}
+                    onClick={handleCopy}
+                    aria-label={`Copy ${label} (preview toolbar)`}
+                />
             </Tooltip>
         );
     }
@@ -45,7 +50,18 @@ const Console: React.FC<Props> = ({ id, label, command, mini }) => {
             id={id}
         >
             <div className="flex-1 h-fit w-full shadow-sm">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeHighlight]}
+                    components={{
+                        // The script scrolls sideways: focusable so a keyboard can scroll it.
+                        pre: ({ node: _node, ...props }) => (
+                            <section tabIndex={0} aria-label={label} className="console-scroll">
+                                <pre {...props} />
+                            </section>
+                        ),
+                    }}
+                >
                     {markdown}
                 </ReactMarkdown>
             </div>

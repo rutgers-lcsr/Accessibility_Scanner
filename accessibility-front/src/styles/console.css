@@ -1,3 +1,12 @@
 pre {
-   margin-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+/* The focusable section around the script scrolls, not the highlighted code inside it,
+   so a keyboard user can scroll it (axe scrollable-region-focusable). */
+.console-scroll {
+    overflow-x: auto;
+}
+.console-scroll pre,
+.console-scroll code.hljs {
+    overflow: visible !important;
 }

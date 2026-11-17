@@ -10,8 +10,12 @@ export type DashboardWebsite = {
     categories: string[];
     pages: number;
     pages_audited: number;
+    // pages whose latest scan fails at least one rule that still counts
+    pages_failing: number;
     last_scanned: string | null;
     last_scan_status: ScanStatus;
+    // last scanned more than 30 days ago (services.overview.STALE_SCAN_DAYS)
+    stale: boolean;
     violations: AxeReportCounts;
     passes: number;
     incomplete: number;
@@ -45,6 +49,8 @@ export type Dashboard = {
         websites: number;
         pages: number;
         pages_audited: number;
+        pages_failing: number;
+        stale_scans: number;
         last_scan: string | null;
         violations: AxeReportCounts;
         passes: number;

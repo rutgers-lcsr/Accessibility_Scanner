@@ -20,6 +20,7 @@ from models.finding import FINDING_STATUSES, Finding, SUPPRESSED_STATUSES
 from models.report import Report
 from models.website import Site, Site_Website_Assoc
 from services.history import effective_counts, sum_counts
+from utils.urls import is_offsite
 
 IMPACT_KEYS = ('critical', 'serious', 'moderate', 'minor')
 
@@ -209,6 +210,28 @@ def refresh_suppressed_counts(site_id: int, report_id: int) -> dict:
     return counts
 
 
+def offsite_counts(report_counts: dict | None) -> dict:
+    """A suppression snapshot that takes every failing rule off the counts."""
+    violations = (report_counts or {}).get('violations') or {}
+    return {'total': violations.get('total', 0), **{key: violations.get(key, 0) for key in IMPACT_KEYS}}
+
+
+def record_report_findings(report: Report) -> None:
+    """Track the findings of a report just stored for its page. No commit.
+
+    A scan that ended on another site (``utils.urls.is_offsite``: a login page sent to
+    CAS) is not the owner's to fix: no findings are recorded from it and its snapshot
+    suppresses every rule, so every count built on ``effective_counts`` shows nothing
+    for the page while the report itself keeps what was found."""
+    if is_offsite(report.url, report.base_url):
+        db.session.query(Report).filter(Report.id == report.id).update(
+            {'suppressed_counts': offsite_counts(report.report_counts)}, synchronize_session=False
+        )
+        return
+    sync_report_findings(report.site_id, report.id, report.timestamp, (report.report or {}).get('violations') or [])
+    refresh_suppressed_counts(report.site_id, report.id)
+
+
 def suppressed_fingerprints(site_ids) -> set:
     """``{(site_id, fingerprint)}`` of suppressed findings on the given pages."""
     if not site_ids:
@@ -222,7 +245,10 @@ def suppressed_fingerprints(site_ids) -> set:
 
 
 def latest_report_ids(site_ids) -> dict:
-    """``{site_id: report_id}`` of each page's newest report."""
+    """``{site_id: report_id}`` of each page's newest report. A page whose newest scan
+    ended on another site (``utils.urls.is_offsite``) has no current report: its
+    findings are not the owner's, so Fix first, the findings lists and the compliance
+    counts leave it out."""
     if not site_ids:
         return {}
     latest_ts = (
@@ -232,14 +258,20 @@ def latest_report_ids(site_ids) -> dict:
         .subquery()
     )
     rows = (
-        db.session.query(Report.id, Report.site_id)
+        db.session.query(Report.id, Report.site_id, Report.url, Report.base_url)
         .join(latest_ts, (latest_ts.c.site_id == Report.site_id) & (latest_ts.c.ts == Report.timestamp))
         .all()
     )
     latest = {}
-    for report_id, site_id in rows:
-        latest[site_id] = max(report_id, latest.get(site_id, 0))
-    return latest
+    offsite = set()
+    for report_id, site_id, url, base_url in rows:
+        if report_id >= latest.get(site_id, 0):
+            latest[site_id] = report_id
+            if is_offsite(url, base_url):
+                offsite.add(site_id)
+            else:
+                offsite.discard(site_id)
+    return {site_id: report_id for site_id, report_id in latest.items() if site_id not in offsite}
 
 
 # --- triage ------------------------------------------------------------------------------
@@ -267,6 +299,22 @@ def triage_activity(website_ids) -> dict:
         .all()
     )
     return {website_id: {'triaged': count, 'last_triage': last} for website_id, count, last in rows}
+
+
+# False positive and accepted take findings off every count; the people overseeing a
+# website read the reason, so it has to say something.
+REASON_MIN_LENGTH = 10
+
+
+def missing_reason(status: str, note: str | None, current_note: str | None = None) -> str | None:
+    """The error to return when a suppressing status comes without a reason, else None.
+    A reason already on the finding counts when no new note is sent."""
+    if status not in SUPPRESSED_STATUSES:
+        return None
+    reason = note if note is not None else current_note
+    if reason and len(reason.strip()) >= REASON_MIN_LENGTH:
+        return None
+    return f'Marking findings false positive or accepted needs a reason (at least {REASON_MIN_LENGTH} characters)'
 
 
 def set_finding_status(finding: Finding, status: str, note: str | None, user_id: int | None) -> None:

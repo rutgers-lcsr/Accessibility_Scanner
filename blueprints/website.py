@@ -20,7 +20,7 @@ from models.document import DOCUMENT_STATUS_ORDER, DOCUMENT_STATUSES, Document
 from models.link import LINK_STATUS_ORDER, LINK_STATUSES, Link, LinkSource
 from sqlalchemy.orm import joinedload, selectinload
 from models.finding import FINDING_STATUSES
-from services.findings import bulk_set_status, changes_for_sites, fix_first, list_findings
+from services.findings import bulk_set_status, changes_for_sites, fix_first, list_findings, missing_reason
 from services.guides import available_guides
 from services.links import latest_report_ids
 from utils.export import csv_response
@@ -913,6 +913,9 @@ def bulk_update_website_findings(website_id):
     note = data.get('note')
     if note is not None and not isinstance(note, str):
         return jsonify({'error': 'note must be text'}), 400
+    error = missing_reason(status, note)
+    if error:
+        return jsonify({'error': error}), 400
 
     site_ids = [row.id for row in website.sites.with_entities(Site.id).all()]
     if data.get('site_id') is not None:

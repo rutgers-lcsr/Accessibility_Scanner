@@ -95,7 +95,7 @@ def test_owners_activity_counts_only_verdicts_people_gave(client, make_user, mak
     _scan(add_report, site, [_rule("r1", selector="#a"), _rule("r2", selector="#b"), _rule("r3", selector="#c")])
 
     # alice accepts #a through the API and the site admin marks #b fixed by hand ...
-    resp = client.patch(f"/api/findings/{_finding(site, '#a').id}/", json={"status": "accepted"}, headers=jwt_header(alice))
+    resp = client.patch(f"/api/findings/{_finding(site, '#a').id}/", json={"status": "accepted", "note": "Third-party widget, ticket filed"}, headers=jwt_header(alice))
     assert resp.status_code == 200
     set_finding_status(_finding(site, "#b"), "fixed", None, admin.id)
     db.session.commit()

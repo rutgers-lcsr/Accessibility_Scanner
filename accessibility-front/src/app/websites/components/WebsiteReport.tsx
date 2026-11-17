@@ -64,7 +64,8 @@ function WebsiteReport({
             <p className="mb-4 max-w-[75ch] text-gray-700">
                 The automated checks could not decide these, often because of a background image or
                 hidden content. Open a page to look at each element, and fix it if the problem
-                applies. They do not count towards the issues above.
+                applies. They do not count towards the issues above. A rule can be in both lists:
+                some of its elements failed, others could not be decided.
             </p>
             {toCheck.map((result) => (
                 <AuditAccessibilityItem

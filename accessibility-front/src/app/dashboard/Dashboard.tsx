@@ -29,11 +29,6 @@ const DAY_OPTIONS = [
     { value: 365, label: 'Last year' },
 ];
 
-function passRate(passes: number, violations: number): number | null {
-    const total = passes + violations;
-    return total === 0 ? null : Math.round((passes / total) * 100);
-}
-
 function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
     return (
         <h2 id={id} className="mb-3 text-xl font-semibold text-gray-800">
@@ -59,8 +54,9 @@ function Dashboard() {
     if (isLoading || !data) return <PageLoading />;
 
     const { totals } = data;
-    const attention = (totals.scan_status.failed ?? 0) + (totals.scan_status.unreachable ?? 0);
-    const rate = passRate(totals.passes, totals.violations.total);
+    const failedScans = (totals.scan_status.failed ?? 0) + (totals.scan_status.unreachable ?? 0);
+    // A scan over 30 days old may no longer describe the site, so it needs attention too.
+    const attention = failedScans + totals.stale_scans;
 
     const websiteColumns: TableColumnType<DashboardWebsite>[] = [
         {
@@ -121,14 +117,17 @@ function Dashboard() {
             defaultSortOrder: 'descend',
         },
         {
-            title: 'Pass rate',
-            key: 'pass_rate',
+            // Pages, not a pass rate over rules: that reads near 100% whatever the state.
+            title: 'Failing pages',
+            key: 'pages_failing',
             align: 'right',
-            render: (_, row) => {
-                const value = passRate(row.passes, row.violations.total);
-                return value === null ? <span className="text-gray-400">—</span> : `${value}%`;
-            },
-            sorter: numberSorter((r) => passRate(r.passes, r.violations.total) ?? -1),
+            render: (_, row) =>
+                row.pages_audited ? (
+                    `${row.pages_failing} / ${row.pages_audited}`
+                ) : (
+                    <span className="text-gray-400">—</span>
+                ),
+            sorter: numberSorter((r) => r.pages_failing),
         },
         {
             // When it ran and how it ended, in one column.
@@ -137,8 +136,11 @@ function Dashboard() {
             render: (_, row) => (
                 <div className="flex flex-col items-start gap-1">
                     {row.last_scanned && (
-                        <span className="whitespace-nowrap">
+                        <span
+                            className={`whitespace-nowrap ${row.stale ? 'font-medium text-orange-800' : ''}`}
+                        >
                             {formatDate(new Date(row.last_scanned), 'MMM d, yyyy')}
+                            {row.stale && ' · over 30 days old'}
                         </span>
                     )}
                     <ScanStatusTag status={row.last_scan_status} lastScanned={row.last_scanned} />
@@ -252,10 +254,13 @@ function Dashboard() {
                                 </Card>
                                 <Card className="h-full">
                                     <Statistic
-                                        title="Pass rate (rules passed vs. violated)"
-                                        value={rate ?? '—'}
-                                        suffix={rate === null ? undefined : '%'}
+                                        title="Pages with failures"
+                                        value={totals.pages_failing}
+                                        suffix={`/ ${totals.pages_audited}`}
                                     />
+                                    <div className="mt-1 text-xs text-gray-500">
+                                        Failing at least one automated check
+                                    </div>
                                 </Card>
                                 <Card className="h-full">
                                     <Statistic
@@ -276,7 +281,14 @@ function Dashboard() {
                                     />
                                     <div className="mt-1 text-xs text-gray-500">
                                         {attention > 0
-                                            ? 'Websites whose last scan failed or could not reach the site'
+                                            ? [
+                                                  failedScans > 0 &&
+                                                      `${failedScans} failed or could not reach the site`,
+                                                  totals.stale_scans > 0 &&
+                                                      `${totals.stale_scans} last scanned over 30 days ago`,
+                                              ]
+                                                  .filter(Boolean)
+                                                  .join('; ')
                                             : totals.last_scan
                                               ? `Last scan ${formatDate(new Date(totals.last_scan), 'MMM d, yyyy HH:mm')}`
                                               : 'No scans yet'}
@@ -301,12 +313,12 @@ function Dashboard() {
                             </SectionTitle>
                             <ImpactTiles counts={totals.violations} />
                             <p className="mt-3 text-sm text-gray-600">
-                                {totals.violations.total} violations across {totals.pages_audited}{' '}
-                                audited pages
-                                {totals.pages_audited > 0 &&
-                                    ` (${(totals.violations.total / totals.pages_audited).toFixed(1)} per page)`}
+                                {/* Says its unit: a website page counts failing elements. */}
+                                {totals.violations.total} rule failures across{' '}
+                                {totals.pages_audited} audited pages (a rule failing on one page
+                                counts once, however many elements fail)
                                 {totals.incomplete > 0 &&
-                                    `, plus ${totals.incomplete} checks that need manual review`}
+                                    `, plus ${totals.incomplete} checks that need a person to decide`}
                                 .
                             </p>
                         </section>

@@ -1,10 +1,10 @@
 'use client';
-import { STATUS_COLORS, STATUS_LABELS } from '@/lib/findings';
+import { isSuppressed, REASON_MIN_LENGTH, STATUS_COLORS, STATUS_LABELS } from '@/lib/findings';
 import { ImpactTag } from '@/lib/impact';
 import { AxeNode, AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { Finding, FindingRuleGroup, FindingStatus } from '@/lib/types/finding';
-import { Button, Card, Collapse, Dropdown, Popconfirm, Tag, Tooltip } from 'antd';
-import { useState } from 'react';
+import { Button, Card, Collapse, Dropdown, Input, Popconfirm, Tag, Tooltip } from 'antd';
+import { useRef, useState } from 'react';
 import { useGuides } from '@/hooks/useGuides';
 import { guideHref } from '@/lib/guides';
 import RescanPageButton from './RescanPageButton';
@@ -20,7 +20,7 @@ type Props = {
     ruleFindings?: FindingRuleGroup;
     canEdit?: boolean;
     onFindingChanged?: (finding: Finding) => void;
-    onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
+    onBulkStatus?: (ruleId: string, status: FindingStatus, note?: string) => Promise<void>;
     canScan?: boolean;
     onPageScanned?: () => void;
     // Anchor prefix of the card: "violation" (#violation-<rule>), or "review" for the
@@ -122,11 +122,21 @@ export function RuleFindingsSummary({
     ruleId: string;
     group: Pick<FindingRuleGroup, 'counts'>;
     canEdit?: boolean;
-    onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
+    onBulkStatus?: (ruleId: string, status: FindingStatus, note?: string) => Promise<void>;
 }) {
     const [busy, setBusy] = useState(false);
     const [pending, setPending] = useState<FindingStatus | null>(null);
+    const [reason, setReason] = useState('');
+    const buttonRef = useRef<HTMLButtonElement>(null);
     const total = Object.values(group.counts).reduce((sum, n) => sum + n, 0);
+    const needsReason = pending !== null && isSuppressed(pending);
+    const reasonOk = reason.trim().length >= REASON_MIN_LENGTH;
+    // Back to the button that opened it, so a keyboard user keeps their place.
+    const close = () => {
+        setPending(null);
+        setReason('');
+        buttonRef.current?.focus();
+    };
     const suppressed = group.counts.false_positive + group.counts.accepted;
     return (
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -143,26 +153,52 @@ export function RuleFindingsSummary({
                 </Tooltip>
             )}
             {canEdit && onBulkStatus && (
-                // Site-wide and easy to misclick, so the choice is confirmed with its size.
+                // Site-wide and easy to misclick, so the choice is confirmed with its size,
+                // and a suppressing verdict needs a reason oversight can read.
                 <Popconfirm
                     open={pending !== null}
                     title={
                         pending &&
                         `Mark all ${total} element${total === 1 ? '' : 's'} of this rule on this website as ${STATUS_LABELS[pending].toLowerCase()}?`
                     }
-                    description="You can change it again the same way."
+                    description={
+                        pending && isSuppressed(pending) ? (
+                            <div style={{ width: 300 }}>
+                                <label htmlFor={`reason-${ruleId}`} className="text-sm">
+                                    Reason (required, shown to reviewers)
+                                </label>
+                                <Input.TextArea
+                                    id={`reason-${ruleId}`}
+                                    rows={3}
+                                    maxLength={2000}
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    style={{ marginTop: 4 }}
+                                />
+                            </div>
+                        ) : (
+                            'You can change it again the same way.'
+                        )
+                    }
                     okText="Mark them"
+                    okButtonProps={{ disabled: needsReason && !reasonOk }}
                     onConfirm={async () => {
                         const status = pending;
-                        setPending(null);
+                        close();
                         if (!status) return;
                         setBusy(true);
-                        await onBulkStatus(ruleId, status);
+                        await onBulkStatus(
+                            ruleId,
+                            status,
+                            isSuppressed(status) ? reason.trim() : undefined
+                        );
                         setBusy(false);
                     }}
-                    onCancel={() => setPending(null)}
+                    onCancel={close}
                 >
                     <Dropdown
+                        // Click, not hover: Enter and Space open it from the keyboard.
+                        trigger={['click']}
                         menu={{
                             items: (Object.keys(STATUS_LABELS) as FindingStatus[]).map(
                                 (status) => ({ key: status, label: STATUS_LABELS[status] })
@@ -170,7 +206,13 @@ export function RuleFindingsSummary({
                             onClick: ({ key }) => setPending(key as FindingStatus),
                         }}
                     >
-                        <Button size="small" loading={busy}>
+                        <Button
+                            ref={buttonRef}
+                            size="small"
+                            loading={busy}
+                            aria-haspopup="menu"
+                            aria-label={`Mark all ${total} elements of rule ${ruleId} on this website as…`}
+                        >
                             Mark all on this website as…
                         </Button>
                     </Dropdown>
@@ -266,53 +308,57 @@ function AuditAccessibilityItem({
                 ),
                 children: (
                     <ul style={{ paddingLeft: 0, margin: 0 }}>
-                        {accessibilityResult.reports.map((report, idx) => (
-                            <li
-                                key={idx}
-                                style={{
-                                    listStyle: 'none',
-                                    marginBottom: 12,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                }}
-                            >
-                                <Tag color="geekblue" style={{ marginRight: 8 }}>
-                                    {new Date(report.timestamp).toLocaleString()}
-                                </Tag>
-                                {report.node_count !== undefined && (
-                                    <Tag style={{ marginRight: 8 }}>
-                                        {report.node_count}{' '}
-                                        {report.node_count === 1 ? 'element' : 'elements'}
-                                    </Tag>
-                                )}
-                                <a
-                                    href={
-                                        idPrefix === 'violation'
-                                            ? `/reports/${report.report_id}?rule=${encodeURIComponent(ruleId)}#violation-${encodeURIComponent(ruleId)}`
-                                            : `/reports/${report.report_id}#${idPrefix}-${encodeURIComponent(ruleId)}`
-                                    }
-                                    className="text-blue-600 hover:underline"
+                        {/* Most elements first: the page to start on. */}
+                        {[...accessibilityResult.reports]
+                            .sort((a, b) => (b.node_count ?? 0) - (a.node_count ?? 0))
+                            .map((report, idx) => (
+                                <li
+                                    key={idx}
                                     style={{
-                                        flex: 1,
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
+                                        listStyle: 'none',
+                                        marginBottom: 12,
+                                        display: 'flex',
+                                        alignItems: 'center',
                                     }}
-                                    title={report.url}
                                 >
-                                    {report.url}
-                                </a>
-                                {canScan && (
-                                    <span style={{ marginLeft: 8 }}>
-                                        <RescanPageButton
-                                            siteId={report.site_id}
-                                            size="small"
-                                            onScanned={onPageScanned}
-                                        />
-                                    </span>
-                                )}
-                            </li>
-                        ))}
+                                    <Tag color="geekblue" style={{ marginRight: 8 }}>
+                                        {new Date(report.timestamp).toLocaleString()}
+                                    </Tag>
+                                    {report.node_count !== undefined && (
+                                        <Tag style={{ marginRight: 8 }}>
+                                            {report.node_count}{' '}
+                                            {report.node_count === 1 ? 'element' : 'elements'}
+                                        </Tag>
+                                    )}
+                                    <a
+                                        href={
+                                            idPrefix === 'violation'
+                                                ? `/reports/${report.report_id}?rule=${encodeURIComponent(ruleId)}#violation-${encodeURIComponent(ruleId)}`
+                                                : `/reports/${report.report_id}#${idPrefix}-${encodeURIComponent(ruleId)}`
+                                        }
+                                        className="text-blue-600 hover:underline"
+                                        style={{
+                                            flex: 1,
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                        title={report.url}
+                                    >
+                                        {report.url}
+                                    </a>
+                                    {canScan && (
+                                        <span style={{ marginLeft: 8 }}>
+                                            <RescanPageButton
+                                                siteId={report.site_id}
+                                                pageUrl={report.url}
+                                                size="small"
+                                                onScanned={onPageScanned}
+                                            />
+                                        </span>
+                                    )}
+                                </li>
+                            ))}
                     </ul>
                 ),
             },

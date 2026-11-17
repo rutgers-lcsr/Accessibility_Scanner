@@ -59,6 +59,7 @@ function FixFirst({
                     canScan ? (
                         <RescanPageButton
                             siteId={page.site_id}
+                            pageUrl={page.url}
                             size="small"
                             onScanned={onPageScanned}
                         />

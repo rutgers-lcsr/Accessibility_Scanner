@@ -14,7 +14,7 @@ type Props = {
     canEdit: boolean;
     // Pre-selects the platform tab of the guides (from the website's categories).
     platform: PlatformId | null;
-    onBulkStatus?: (ruleId: string, status: FindingStatus) => Promise<void>;
+    onBulkStatus?: (ruleId: string, status: FindingStatus, note?: string) => Promise<void>;
     // Rendered at the end of every page row (the rescan action, once it exists).
     renderPageAction?: (page: FixFirstPage, rule: FixFirstRule) => ReactNode;
     // The rule to scroll to on arrival (?rule=), from an email.
@@ -183,35 +183,41 @@ function FixFirstList({
                                             ),
                                             children: (
                                                 <ul className="m-0 list-none p-0">
-                                                    {rule.pages.map((page) => {
-                                                        const href = reportHref(
-                                                            page.report_id,
-                                                            rule.rule_id
-                                                        );
-                                                        return (
-                                                            <li
-                                                                key={page.site_id}
-                                                                className="flex flex-wrap items-center gap-2 border-b border-gray-100 py-1 last:border-0"
-                                                            >
-                                                                {href ? (
-                                                                    <a
-                                                                        href={href}
-                                                                        className="break-all"
-                                                                    >
-                                                                        {page.url}
-                                                                    </a>
-                                                                ) : (
-                                                                    <span className="break-all">
-                                                                        {page.url}
-                                                                    </span>
-                                                                )}
-                                                                <Tag>
-                                                                    {plural(page.count, 'element')}
-                                                                </Tag>
-                                                                {renderPageAction?.(page, rule)}
-                                                            </li>
-                                                        );
-                                                    })}
+                                                    {/* Most elements first. */}
+                                                    {[...rule.pages]
+                                                        .sort((a, b) => b.count - a.count)
+                                                        .map((page) => {
+                                                            const href = reportHref(
+                                                                page.report_id,
+                                                                rule.rule_id
+                                                            );
+                                                            return (
+                                                                <li
+                                                                    key={page.site_id}
+                                                                    className="flex flex-wrap items-center gap-2 border-b border-gray-100 py-1 last:border-0"
+                                                                >
+                                                                    {href ? (
+                                                                        <a
+                                                                            href={href}
+                                                                            className="break-all"
+                                                                        >
+                                                                            {page.url}
+                                                                        </a>
+                                                                    ) : (
+                                                                        <span className="break-all">
+                                                                            {page.url}
+                                                                        </span>
+                                                                    )}
+                                                                    <Tag>
+                                                                        {plural(
+                                                                            page.count,
+                                                                            'element'
+                                                                        )}
+                                                                    </Tag>
+                                                                    {renderPageAction?.(page, rule)}
+                                                                </li>
+                                                            );
+                                                        })}
                                                 </ul>
                                             ),
                                         },

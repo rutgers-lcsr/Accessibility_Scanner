@@ -4,7 +4,7 @@ from flask_jwt_extended import current_user, jwt_required
 
 from models import db
 from models.finding import FINDING_STATUSES, Finding
-from services.findings import set_finding_status
+from services.findings import missing_reason, set_finding_status
 
 findings_bp = Blueprint('findings', __name__)
 
@@ -56,6 +56,9 @@ def update_finding(finding_id):
     note = data.get('note')
     if note is not None and not isinstance(note, str):
         return jsonify({'error': 'note must be text'}), 400
+    error = missing_reason(status, note, finding.note)
+    if error:
+        return jsonify({'error': error}), 400
 
     set_finding_status(finding, status, note, current_user.id)
     db.session.commit()

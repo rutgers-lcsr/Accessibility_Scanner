@@ -71,6 +71,9 @@ export type ReportMinimized = {
     url: string;
     report_counts: Record<AxeReportKeys, AxeReportCounts>;
     timestamp: string;
+    // The host the scan ended on when it was another site (a login page sent to CAS);
+    // such a page counts nothing for the website.
+    scanned_host?: string | null;
 };
 
 export type Report = {

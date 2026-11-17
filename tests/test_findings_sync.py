@@ -197,7 +197,7 @@ def test_sync_failure_keeps_the_report(app, make_user, make_site, monkeypatch):
     def boom(*args, **kwargs):
         raise RuntimeError("sync broke")
 
-    monkeypatch.setattr(scan_mod, "sync_report_findings", boom)
+    monkeypatch.setattr(scan_mod, "record_report_findings", boom)
     site = make_site(make_user())
     website = site.websites.first()
 

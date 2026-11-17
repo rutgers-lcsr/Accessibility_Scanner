@@ -1,10 +1,17 @@
 'use client';
-import { FINDING_STATUSES, STATUS_COLORS, STATUS_LABELS } from '@/lib/findings';
+import {
+    FINDING_STATUSES,
+    isSuppressed,
+    REASON_MIN_LENGTH,
+    STATUS_COLORS,
+    STATUS_LABELS,
+} from '@/lib/findings';
 import { Finding, FindingStatus } from '@/lib/types/finding';
 import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
 import { Button, Input, Popover, Select, Tag, Tooltip } from 'antd';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
 
 type Props = {
     finding: Finding;
@@ -26,6 +33,16 @@ function FindingStatusControl({ finding, canEdit, onChanged }: Props) {
     const [saving, setSaving] = useState(false);
     const [note, setNote] = useState(finding.note ?? '');
     const [noteOpen, setNoteOpen] = useState(false);
+    // A false positive or accepted verdict waiting for its reason (required by the API).
+    const [pendingStatus, setPendingStatus] = useState<FindingStatus | null>(null);
+    const reasonNeeded = pendingStatus !== null;
+    const reasonOk = note.trim().length >= REASON_MIN_LENGTH;
+    const hasReason = (finding.note ?? '').trim().length >= REASON_MIN_LENGTH;
+    // The person just chose a status that needs a reason: put them in the box for it.
+    const reasonRef = useRef<TextAreaRef>(null);
+    useEffect(() => {
+        if (noteOpen && reasonNeeded) reasonRef.current?.focus();
+    }, [noteOpen, reasonNeeded]);
 
     const save = async (status: FindingStatus, nextNote: string | null) => {
         setSaving(true);
@@ -67,33 +84,57 @@ function FindingStatusControl({ finding, canEdit, onChanged }: Props) {
                     value: status,
                     label: STATUS_LABELS[status],
                 }))}
-                onChange={(status: FindingStatus) => save(status, null)}
+                onChange={(status: FindingStatus) => {
+                    if (isSuppressed(status) && !hasReason) {
+                        setPendingStatus(status);
+                        setNoteOpen(true);
+                        return;
+                    }
+                    save(status, null);
+                }}
             />
             <Popover
                 trigger="click"
                 open={noteOpen}
-                onOpenChange={setNoteOpen}
-                title="Note"
+                onOpenChange={(open) => {
+                    setNoteOpen(open);
+                    if (!open) setPendingStatus(null);
+                }}
+                title={
+                    reasonNeeded
+                        ? `Why ${STATUS_LABELS[pendingStatus].toLowerCase()}? (required)`
+                        : 'Note'
+                }
                 content={
                     <div style={{ width: 280 }}>
+                        {reasonNeeded && (
+                            <p className="text-sm text-gray-700" style={{ margin: '0 0 6px' }}>
+                                It takes this element off the counts, so reviewers need the reason.
+                            </p>
+                        )}
                         <Input.TextArea
                             rows={3}
                             maxLength={2000}
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
-                            aria-label="Note on this finding"
+                            aria-label={reasonNeeded ? 'Reason (required)' : 'Note on this finding'}
+                            ref={reasonRef}
                         />
                         <div className="mt-2 flex justify-end">
                             <Button
                                 size="small"
                                 type="primary"
                                 loading={saving}
+                                disabled={reasonNeeded && !reasonOk}
                                 onClick={async () => {
-                                    await save(finding.status, note);
+                                    await save(pendingStatus ?? finding.status, note);
+                                    setPendingStatus(null);
                                     setNoteOpen(false);
                                 }}
                             >
-                                Save
+                                {reasonNeeded
+                                    ? `Mark ${STATUS_LABELS[pendingStatus].toLowerCase()}`
+                                    : 'Save'}
                             </Button>
                         </div>
                     </div>

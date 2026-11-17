@@ -77,7 +77,7 @@ def test_suppressing_a_finding_drops_the_counts_at_once(client, make_user, make_
     assert (before["total"], before["critical"]) == (2, 1)
 
     finding = _finding(site, "#img")
-    client.patch(f"/api/findings/{finding.id}/", json={"status": "false_positive"}, headers=jwt_header(owner))
+    client.patch(f"/api/findings/{finding.id}/", json={"status": "false_positive", "note": "Decorative image, not content"}, headers=jwt_header(owner))
 
     after = client.get(f"/api/websites/{website.id}/", headers=jwt_header(owner)).get_json()["report_counts"]["violations"]
     assert (after["total"], after["critical"]) == (1, 0)
@@ -96,7 +96,7 @@ def test_bulk_verdict_touches_current_findings_of_the_rule_only(client, make_use
     _scan(add_report, home, [_rule("region", nodes=(("#new", "<p>new</p>"),)), _rule("label")], when=now)  # #old is now fixed
     _scan(add_report, about, [_rule("region", nodes=(("#about", "<p>"),))], when=now)
 
-    resp = client.post(f"/api/websites/{website.id}/findings/bulk/", json={"rule_id": "region", "status": "accepted", "note": "banner"}, headers=jwt_header(owner))
+    resp = client.post(f"/api/websites/{website.id}/findings/bulk/", json={"rule_id": "region", "status": "accepted", "note": "Vendor banner we cannot change"}, headers=jwt_header(owner))
     assert resp.status_code == 200 and resp.get_json() == {"updated": 2}
     assert _finding(home, "#new").status == "accepted" and _finding(about, "#about").status == "accepted"
     assert _finding(home, "#old").status == "fixed"  # not current: untouched
@@ -155,3 +155,30 @@ def test_report_payload_carries_findings_for_the_latest_report_only(client, make
     assert client.get(f"/api/reports/{latest.id}/", headers=jwt_header(make_user("root", is_admin=True))).get_json()["can_edit"] is True
     website.public = True
     assert client.get(f"/api/reports/{latest.id}/").get_json()["can_edit"] is False
+
+
+def test_suppressing_needs_a_reason(client, make_user, make_website, add_site, add_report, jwt_header):
+    """False positive and accepted take findings off every count, so oversight needs to
+    read why: a reason of at least ten characters, for one finding or a whole rule."""
+    owner = make_user("alice")
+    website = make_website(owner)
+    site = add_site(website, page="/")
+    _scan(add_report, site, [_rule("image-alt", "critical", (("#img", "<img>"),))])
+    finding = _finding(site, "#img")
+    url = f"/api/findings/{finding.id}/"
+    headers = jwt_header(owner)
+
+    for body in ({"status": "false_positive"}, {"status": "accepted", "note": "  ok  "}):
+        resp = client.patch(url, json=body, headers=headers)
+        assert resp.status_code == 400
+        assert "reason" in resp.get_json()["error"]
+    assert _finding(site, "#img").status == "open"
+
+    # Fixed and open need no reason; a reason already on the finding is enough later.
+    assert client.patch(url, json={"status": "fixed"}, headers=headers).status_code == 200
+    assert client.patch(url, json={"status": "open", "note": "Alt text is empty on purpose"}, headers=headers).status_code == 200
+    assert client.patch(url, json={"status": "false_positive"}, headers=headers).status_code == 200
+
+    bulk = f"/api/websites/{website.id}/findings/bulk/"
+    assert client.post(bulk, json={"rule_id": "image-alt", "status": "accepted"}, headers=headers).status_code == 400
+    assert client.post(bulk, json={"rule_id": "image-alt", "status": "accepted", "note": "Logo images, decorative"}, headers=headers).status_code == 200

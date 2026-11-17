@@ -80,3 +80,28 @@ def test_build_overview_without_top_rules(app, make_user, make_website, add_site
 
     assert overview["top_rules"] == []
     assert overview["websites"][0]["violations"]["critical"] == 1
+
+
+def test_overview_counts_failing_pages_and_stale_scans(app, make_user, make_website, add_site, add_report):
+    """The dashboard's headline is how many pages fail at least one rule (a pass rate
+    over rules looks near 100% while a login page has a critical failure), and a scan
+    older than 30 days needs attention just like a failed one."""
+    now = datetime.now(timezone.utc)
+    owner = make_user()
+    fresh = make_website(owner)
+    fresh.last_scan_status, fresh.last_scanned = "completed", now
+    bad = add_site(fresh, page="/")
+    clean = add_site(fresh, page="/about")
+    add_report(bad, when=now, violations=[_rule("label", "critical")])
+    add_report(clean, when=now, violations=[])
+    stale = make_website(owner, base="https://stale.example")
+    stale.last_scan_status, stale.last_scanned = "completed", now - timedelta(days=45)
+    add_report(add_site(stale, page="/"), when=now - timedelta(days=45), violations=[])
+
+    overview = build_overview([fresh, stale], top=0)
+
+    assert overview["totals"]["pages_failing"] == 1
+    assert overview["totals"]["stale_scans"] == 1
+    row = {r["url"]: r for r in overview["websites"]}
+    assert row[fresh.url]["pages_failing"] == 1 and row[fresh.url]["stale"] is False
+    assert row[stale.url]["pages_failing"] == 0 and row[stale.url]["stale"] is True

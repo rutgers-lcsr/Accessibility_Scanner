@@ -2,6 +2,8 @@
 import FindingStatusControl from '@/components/FindingStatusControl';
 import { AxeNode } from '@/lib/types/axe';
 import { Finding } from '@/lib/types/finding';
+import { useAlerts } from '@/providers/Alerts';
+import { CopyOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 
 // Fired on window when the user asks to see an element in the page preview; PageIframe listens.
@@ -45,23 +47,64 @@ function ViolationNode({
         window.dispatchEvent(new CustomEvent(PREVIEW_FOCUS_EVENT, { detail: { selector } }));
 
     const summary = plainSummary(node.failureSummary);
+    const text = visibleText(node.html);
+    const { addAlert } = useAlerts();
+    const copy = async (value: string, what: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            addAlert(`${what} copied`, 'success');
+        } catch {
+            addAlert(`Could not copy the ${what.toLowerCase()}`, 'error');
+        }
+    };
 
     return (
         <li className="mb-3 rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800">
-            {/* What is wrong first, in words; the selector and HTML are for finding it. */}
+            {/* What is wrong first, in words; then the words on the page, so a non-coder can
+                find it; the selector and HTML are for finding it in code. */}
             {summary && <div className="mb-2 whitespace-pre-wrap">{summary}</div>}
-            <div className="flex items-start justify-between gap-2 text-xs text-gray-700">
-                <code className="break-all">{selector || '(no selector)'}</code>
-                {previewEnabled && selector && (
-                    <Button size="small" onClick={focusInPreview}>
-                        Show in preview
-                    </Button>
-                )}
+            {text && (
+                <p className="text-gray-900" style={{ margin: '0 0 8px' }}>
+                    On the page it reads: <q className="font-medium">{text}</q>
+                </p>
+            )}
+            <div className="flex flex-wrap items-start gap-2 text-xs text-gray-700">
+                <code className="min-w-0 flex-1 basis-48 break-all">
+                    {selector || '(no selector)'}
+                </code>
+                <span className="flex flex-wrap gap-2">
+                    {selector && (
+                        <Button
+                            size="small"
+                            icon={<CopyOutlined />}
+                            onClick={() => copy(selector, 'Selector')}
+                            aria-label={`Copy selector ${selector}`}
+                        >
+                            Copy
+                        </Button>
+                    )}
+                    {previewEnabled && selector && (
+                        <Button
+                            size="small"
+                            onClick={focusInPreview}
+                            aria-label={`Show ${text ? `“${text}”` : selector} in the preview`}
+                        >
+                            Show in preview
+                        </Button>
+                    )}
+                </span>
             </div>
             {node.html && (
-                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2 text-xs">
-                    <code>{node.html}</code>
-                </pre>
+                // Focusable: a keyboard user can scroll a long snippet.
+                <section
+                    tabIndex={0}
+                    aria-label={`HTML of ${selector || 'the element'}`}
+                    className="mt-2 max-h-40 overflow-auto rounded bg-white p-2"
+                >
+                    <pre className="whitespace-pre-wrap break-all text-xs" style={{ margin: 0 }}>
+                        <code>{node.html}</code>
+                    </pre>
+                </section>
             )}
             {finding && (
                 <div className="mt-2">
@@ -74,6 +117,24 @@ function ViolationNode({
             )}
         </li>
     );
+}
+
+// The words an element shows, from axe's (possibly truncated) HTML: tags dropped,
+// entities for quotes and ampersands decoded, whitespace collapsed. Empty when the
+// snippet holds no text (an image, an empty button, an opening tag only).
+function visibleText(html?: string): string {
+    if (!html) return '';
+    const text = html
+        .replace(/<[^>]*>?/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return text.length > 120 ? `${text.slice(0, 117)}…` : text;
 }
 
 // axe's summary opens each group with "Fix any of the following:" / "Fix all of the

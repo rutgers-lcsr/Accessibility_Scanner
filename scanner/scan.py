@@ -15,7 +15,7 @@ from models.report import Report
 from models.settings import Settings
 from scanner.utils.queue import ListQueue
 from scanner.utils.service import check_url
-from services.findings import refresh_suppressed_counts, sync_report_findings
+from services.findings import record_report_findings
 from services.inventory import collect_page_inventory, sync_media, sync_third_parties, update_page_content
 from utils.urls import get_full_url, get_netloc, get_site_netloc, get_website_url, normalize_url
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -209,8 +209,7 @@ def _attach_findings(report: Report, site: Site) -> None:
     ``suppressed_counts`` NULL, and ``flask findings backfill`` repairs it later.
     """
     try:
-        sync_report_findings(site.id, report.id, report.timestamp, (report.report or {}).get('violations') or [])
-        refresh_suppressed_counts(site.id, report.id)
+        record_report_findings(report)
         commit_with_retry()
     except Exception as e:
         log_message(f"Finding sync failed for {report.url}: {e}", 'error')

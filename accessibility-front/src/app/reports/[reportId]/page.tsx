@@ -1,5 +1,6 @@
 import Console from '@/components/Console';
-import { Report as ReportType } from '@/lib/types/axe';
+import { AxeReportCounts, AxeResult, Report as ReportType } from '@/lib/types/axe';
+import { Finding } from '@/lib/types/finding';
 import { PageLink } from '@/lib/types/link';
 import { CheckCircleFilled, ExclamationCircleOutlined } from '@/lib/icons';
 
@@ -75,6 +76,28 @@ function hostOf(url: string): string {
     }
 }
 
+// Failing elements per impact, and the rules they belong to, without the elements a
+// person marked false positive or accepted (findings key elements as in ViolationNode).
+function countElements(issues: AxeResult[], findings: Finding[] | null) {
+    const suppressed = new Set(
+        (findings ?? [])
+            .filter((f) => f.status === 'false_positive' || f.status === 'accepted')
+            .map((f) => `${f.rule_id}\u0000${f.selector ?? ''}`)
+    );
+    const counts: AxeReportCounts = { total: 0, critical: 0, serious: 0, moderate: 0, minor: 0 };
+    let rules = 0;
+    for (const rule of issues) {
+        const open = (rule.nodes ?? []).filter(
+            (node) => !suppressed.has(`${rule.id}\u0000${(node.target ?? []).flat().join(' >>> ')}`)
+        ).length;
+        if (!open) continue;
+        rules += 1;
+        counts.total += open;
+        if (rule.impact) counts[rule.impact] += open;
+    }
+    return { counts, rules };
+}
+
 // Most severe first. lib/impact has the same order, but it is a client module.
 const IMPACT_RANK: Record<string, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 };
 const impactRank = (impact?: string) => IMPACT_RANK[impact ?? ''] ?? 4;
@@ -87,9 +110,11 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
     if (report === null) return <PageError status={404} />;
     if (!report) return <PageError status={404} />;
 
-    const violations = report.report_counts.violations;
     const links = await getPageLinks(report.site_id);
     const issues = report.report.violations;
+    // Counted in failing elements, the unit the website page and Fix first use, leaving
+    // out elements marked false positive or accepted.
+    const { counts: elementCounts, rules: failingRules } = countElements(issues, report.findings);
     const toCheck = [...(report.report.incomplete ?? [])].sort(
         (a, b) => impactRank(a.impact) - impactRank(b.impact)
     );
@@ -214,36 +239,70 @@ document.body.appendChild(accessScriptElement);`;
             <Content className="mb-8 p-4">
                 <Space orientation="vertical" size="large" style={{ width: '100%' }}>
                     <Card>
+                        {redirected && (
+                            // First: everything below is about another site.
+                            <Alert
+                                style={{ marginBottom: 20 }}
+                                type="warning"
+                                showIcon
+                                title={`When it was scanned, this address redirected to ${scannedHost}`}
+                                description={
+                                    <>
+                                        These results are for the page on {scannedHost}, not this
+                                        website, so they are not counted for it or listed in Fix
+                                        first. If {scannedHost} is not yours, there is nothing to do
+                                        here. The <a href="#the-page">screenshot</a> shows the page
+                                        that was scanned.
+                                    </>
+                                }
+                            />
+                        )}
                         <section aria-labelledby="report-verdict">
                             <h2
                                 id="report-verdict"
-                                className="mb-1 text-2xl font-semibold text-gray-900"
-                                style={{ marginTop: 0 }}
+                                className="text-2xl font-semibold text-gray-900"
+                                style={{ margin: '0 0 4px' }}
                             >
-                                {violations.total > 0
-                                    ? `${plural(violations.total, 'issue')} to fix on this page`
-                                    : 'No issues found by the automated checks'}
+                                {redirected
+                                    ? `The scan found ${plural(elementCounts.total, 'failing element')} on ${scannedHost}`
+                                    : elementCounts.total > 0
+                                      ? `${plural(elementCounts.total, 'issue')} to fix on this page`
+                                      : 'No automated failures on this page'}
                             </h2>
-                            <p className="mb-5 text-gray-700">
-                                {violations.total > 0 ? (
-                                    <a href="#detailed-accessibility-issues">See what to fix</a>
-                                ) : (
-                                    'Nothing here failed a check.'
-                                )}
-                                {toCheck.length > 0 && (
+                            <p className="text-gray-700" style={{ margin: '0 0 20px' }}>
+                                {elementCounts.total > 0 ? (
                                     <>
-                                        {' '}
-                                        {violations.total > 0 ? '·' : 'But'}{' '}
+                                        Each issue is one element failing a check;{' '}
+                                        {plural(failingRules, 'rule')}.{' '}
+                                        <a href="#detailed-accessibility-issues">
+                                            {redirected ? 'See what it found' : 'See what to fix'}
+                                        </a>
+                                        {toCheck.length > 0 && (
+                                            <>
+                                                {' · '}
+                                                <a href="#needs-review">
+                                                    {plural(toCheck.length, 'check')} need
+                                                    {toCheck.length === 1 ? 's' : ''} a person to
+                                                    decide
+                                                </a>
+                                            </>
+                                        )}
+                                    </>
+                                ) : toCheck.length > 0 ? (
+                                    <>
+                                        But{' '}
                                         <a href="#needs-review">
                                             {plural(toCheck.length, 'check')} need
-                                            {toCheck.length === 1 ? 's' : ''} a person to look
-                                        </a>
-                                        .
+                                            {toCheck.length === 1 ? 's' : ''} a person to decide
+                                        </a>{' '}
+                                        before this page can be called clear.
                                     </>
+                                ) : (
+                                    'Automated checks cover only part of WCAG, so a person should still review the page.'
                                 )}
                             </p>
                             <ImpactTiles
-                                counts={violations}
+                                counts={elementCounts}
                                 listId="detailed-accessibility-issues"
                             />
                             {report.videos.length > 0 && (
@@ -262,22 +321,6 @@ document.body.appendChild(accessScriptElement);`;
                                 </p>
                             )}
                         </section>
-                        {redirected && (
-                            <Alert
-                                style={{ marginTop: 20 }}
-                                type="warning"
-                                showIcon
-                                title={`When it was scanned, this address redirected to ${scannedHost}`}
-                                description={
-                                    <>
-                                        The results are for the page on {scannedHost}. The live
-                                        preview loads {hostOf(report.url)} as it is now and may not
-                                        show those issues; the <a href="#the-page">screenshot</a>{' '}
-                                        shows the page that was scanned.
-                                    </>
-                                }
-                            />
-                        )}
                     </Card>
 
                     {/* Problem and place side by side on a wide screen. */}
@@ -290,7 +333,9 @@ document.body.appendChild(accessScriptElement);`;
                                         id="detailed-accessibility-issues"
                                         style={{ marginTop: 0 }}
                                     >
-                                        What to fix
+                                        {redirected
+                                            ? `What it found on ${scannedHost}`
+                                            : 'What to fix'}
                                     </h2>
                                     {issues.length > 0 ? (
                                         <>
@@ -324,15 +369,15 @@ document.body.appendChild(accessScriptElement);`;
                                                     className="font-semibold text-gray-900"
                                                     style={{ margin: 0 }}
                                                 >
-                                                    Nothing to fix
+                                                    No automated failures
                                                 </p>
                                                 <p
                                                     className="text-gray-700"
                                                     style={{ margin: '4px 0 0' }}
                                                 >
                                                     {toCheck.length > 0
-                                                        ? 'No element failed an automated check. Some checks need a person to decide; they are listed below.'
-                                                        : 'No element failed an automated check on this page.'}
+                                                        ? 'No element failed an automated check, but some checks need a person to decide: they are listed below.'
+                                                        : 'No element failed an automated check. Automated checks cover only part of WCAG.'}
                                                 </p>
                                             </div>
                                         </div>

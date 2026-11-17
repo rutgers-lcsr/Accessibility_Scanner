@@ -36,3 +36,22 @@ body {
 .ant-table-content {
     overflow-x: auto;
 }
+
+/* Focus. antd draws its ring in a light tint of the primary scarlet (#f27487, about
+   2.8:1 on white, under the 3:1 WCAG 2.2 asks of focus indicators). Keep each
+   component's ring and darken its colour; scrollable regions made focusable for
+   keyboard users get the same ring. */
+*:focus-visible {
+    outline-color: #b3002d !important;
+}
+section[tabindex]:focus-visible {
+    outline: 3px solid #b3002d;
+    outline-offset: 2px;
+}
+
+/* Links inside running text are underlined, not told apart from it by colour alone
+   (WCAG 1.4.1). Buttons rendered as links and the severity tiles keep their own look. */
+main :is(p, li, dd, label, .ant-alert-description) a:not(.ant-btn):not(.tile-link) {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}

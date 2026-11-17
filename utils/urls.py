@@ -155,3 +155,22 @@ def get_site_netloc(url):
     base_url = get_netloc(url)
     parsed = urlparse(url)
     return f"{base_url}{parsed.path}"
+
+
+def _bare_host(url: str | None) -> str:
+    host = (urlparse(url or '').hostname or '').lower()
+    return host[4:] if host.startswith('www.') else host
+
+
+def scanned_host(url: str, base_url: str | None) -> str | None:
+    """The host a scan of ``url`` ended on when that is another site (a login page
+    redirected to CAS, say), else None. ``www.`` on either side does not count."""
+    landed = _bare_host(base_url)
+    if not landed or landed == _bare_host(url):
+        return None
+    return (urlparse(base_url).hostname or '').lower()
+
+
+def is_offsite(url: str, base_url: str | None) -> bool:
+    """Whether a scan of ``url`` ended on another site; its results are not the owner's."""
+    return scanned_host(url, base_url) is not None
