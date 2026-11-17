@@ -49,7 +49,7 @@ function ViolationNode({
 
     const summary = plainSummary(node.failureSummary);
     // For a contrast failure, the fix in one sentence with a colour that passes.
-    const plainFix = plainContrastFix(node.failureSummary);
+    const plainFix = plainContrastFix(node.failureSummary, { html: node.html, selector });
     const text = visibleText(node.html);
     const { addAlert } = useAlerts();
     const copy = async (value: string, what: string) => {

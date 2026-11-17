@@ -43,6 +43,9 @@ function FixFirstList({
 }: Props) {
     // The rule whose every element is open in the drawer.
     const [elementsOf, setElementsOf] = useState<FixFirstRule | null>(null);
+    // The button that opened the drawer gets focus back when it closes.
+    const opener = useRef<HTMLElement | null>(null);
+    const [drawerOpen, setDrawerOpen] = useState(true);
     const scrolled = useRef(false);
     // A long list starts with the top of the ranking; the rest is one click away. A rule
     // linked from an email (?rule=) is always shown.
@@ -253,10 +256,11 @@ function FixFirstList({
                                         )
                                     )}
                                     <Button
-                                        type="link"
-                                        style={{ padding: 0 }}
                                         aria-haspopup="dialog"
-                                        onClick={() => setElementsOf(rule)}
+                                        onClick={(event) => {
+                                            opener.current = event.currentTarget;
+                                            setElementsOf(rule);
+                                        }}
                                     >
                                         Every element of this rule ({rule.elements})
                                     </Button>
@@ -272,8 +276,13 @@ function FixFirstList({
                     ruleId={elementsOf.rule_id}
                     title={elementsOf.help ?? elementsOf.rule_id}
                     user={user}
-                    open
-                    onClose={() => setElementsOf(null)}
+                    open={drawerOpen}
+                    onClose={() => setDrawerOpen(false)}
+                    afterClose={() => {
+                        setElementsOf(null);
+                        setDrawerOpen(true);
+                        opener.current?.focus();
+                    }}
                 />
             )}
             {hiddenCount > 0 && (

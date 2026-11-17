@@ -58,14 +58,14 @@ def website_elements(site_ids, rule_id: str | None = None) -> dict:
     return {'count': listing['count'], 'groups': ordered}
 
 
-CSV_COLUMNS = ['rule', 'impact', 'group', 'page', 'selector', 'html', 'failure', 'status', 'note', 'report']
+CSV_COLUMNS = ['id', 'rule', 'impact', 'group', 'page', 'selector', 'html', 'failure', 'status', 'note', 'report']
 
 
 def csv_rows(data: dict, base_url: str = ''):
     for group in data['groups']:
         for element in group['elements']:
             yield [
-                group['rule_id'], group['impact'], group['label'], element['url'], element['selector'],
+                element['id'], group['rule_id'], group['impact'], group['label'], element['url'], element['selector'],
                 element['html'], element['failure_summary'], element['status'], element['note'],
                 f"{base_url}/reports/{element['report_id']}" if element['report_id'] else None,
             ]

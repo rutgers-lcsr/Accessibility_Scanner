@@ -30,6 +30,8 @@ type Props = {
     nodeLabel?: string;
     // A line under the description, e.g. that the same rule also failed elsewhere.
     note?: string;
+    // Opens every element of this rule (website page), from the card's actions.
+    onShowAll?: (opener: HTMLElement) => void;
 };
 
 const NODE_PAGE = 10;
@@ -208,7 +210,7 @@ export function RuleFindingsSummary({
                                 <Radio key={status} value={status}>
                                     {STATUS_LABELS[status]}
                                     {/* Read as "Open, still to fix", not run together. */}
-                                    <span className="sr-only">, </span>
+                                    <span className="sr-only">,</span>
                                     <span className="ml-2 text-sm text-gray-600">
                                         {STATUS_HINTS[status]}
                                     </span>
@@ -266,6 +268,7 @@ function AuditAccessibilityItem({
     idPrefix = 'violation',
     nodeLabel,
     note,
+    onShowAll,
 }: Props) {
     const guides = useGuides();
     if (!accessibilityResult) return <div>No accessibility result provided.</div>;
@@ -308,6 +311,11 @@ function AuditAccessibilityItem({
                     rel="noopener noreferrer"
                 >
                     How to fix
+                </Button>
+            )}
+            {onShowAll && (
+                <Button aria-haspopup="dialog" onClick={(e) => onShowAll(e.currentTarget)}>
+                    Every element of this rule
                 </Button>
             )}
             {hasGuide && (

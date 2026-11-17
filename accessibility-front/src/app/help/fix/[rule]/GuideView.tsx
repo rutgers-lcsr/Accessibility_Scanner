@@ -38,7 +38,7 @@ function GuideView({ guide, platform, onPlatformChange }: Props) {
                 {guide.wcag.map((criterion) => (
                     <Tag key={criterion}>WCAG {criterion}</Tag>
                 ))}
-                <span className="text-xs text-gray-500">{guide.rule_id}</span>
+                <span className="text-xs text-gray-700">{guide.rule_id}</span>
             </div>
             {guide.summary && <p className="mt-3 text-gray-700">{guide.summary}</p>}
 

@@ -2,13 +2,14 @@
 import ViolationsList from '@/components/ViolationsList';
 import { useBulkFindingStatus } from '@/hooks/useBulkFindingStatus';
 import { fetcherApi } from '@/lib/api';
-import { WebsiteAxeReport } from '@/lib/types/axe';
+import { WebsiteAxeReport, WebsiteAxeResult } from '@/lib/types/axe';
 import { FindingRuleGroup, WebsiteFindings } from '@/lib/types/finding';
 import { PublicUser } from '@/lib/types/user';
 import { useUser } from '@/providers/User';
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import { Alert } from 'antd';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import RuleElements from './RuleElements';
 import useSWR from 'swr';
 
 type Props = {
@@ -36,6 +37,11 @@ function WebsiteReport({
         `/api/websites/${websiteId}/findings?status=current`,
         user ? handlerUserApiRequest<WebsiteFindings> : fetcherApi<WebsiteFindings>
     );
+
+    // Every element of one rule, in a drawer; focus goes back to the button that opened it.
+    const [elementsOf, setElementsOf] = useState<WebsiteAxeResult | null>(null);
+    const [drawerOpen, setDrawerOpen] = useState(true);
+    const opener = useRef<HTMLElement | null>(null);
 
     // Before any early return: a rescan that clears every violation must not change the
     // number of hooks this component calls.
@@ -107,6 +113,21 @@ function WebsiteReport({
             <h2 id="issues-by-rule" className="sr-only">
                 Issues by rule
             </h2>
+            {elementsOf && (
+                <RuleElements
+                    websiteId={websiteId}
+                    ruleId={elementsOf.id}
+                    title={elementsOf.help || elementsOf.id}
+                    user={user}
+                    open={drawerOpen}
+                    onClose={() => setDrawerOpen(false)}
+                    afterClose={() => {
+                        setElementsOf(null);
+                        setDrawerOpen(true);
+                        opener.current?.focus();
+                    }}
+                />
+            )}
             <ViolationsList
                 violations={report.violations}
                 pages={pages}
@@ -115,6 +136,10 @@ function WebsiteReport({
                 onBulkStatus={onBulkStatus}
                 canScan={canScan}
                 onPageScanned={onPageScanned}
+                onShowAll={(rule, button) => {
+                    opener.current = button;
+                    setElementsOf(rule);
+                }}
             />
             {needsReview}
         </div>

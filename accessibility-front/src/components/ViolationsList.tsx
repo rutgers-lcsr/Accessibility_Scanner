@@ -30,6 +30,8 @@ type Props = {
     // Offer "Rescan this page" on each affected page (website page).
     canScan?: boolean;
     onPageScanned?: () => void;
+    // Website page: open every element of a rule.
+    onShowAll?: (rule: WebsiteAxeResult, opener: HTMLElement) => void;
 };
 
 function isWebsite(v: Violation): v is WebsiteAxeResult {
@@ -60,6 +62,7 @@ function ViolationsList({
     onBulkStatus,
     canScan = false,
     onPageScanned,
+    onShowAll,
 }: Props) {
     const { params, setFilters } = useUrlFilters();
     const impacts = (params.get('impact') ?? '').split(',').filter(Boolean) as Impact[];
@@ -257,6 +260,9 @@ function ViolationsList({
                         onBulkStatus={onBulkStatus}
                         canScan={canScan}
                         onPageScanned={onPageScanned}
+                        onShowAll={
+                            onShowAll && isWebsite(v) ? (opener) => onShowAll(v, opener) : undefined
+                        }
                     />
                 ))
             )}

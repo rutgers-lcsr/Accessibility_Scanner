@@ -60,10 +60,31 @@ export function suggestColour(foreground: string, background: string, expected: 
     return toHex(target);
 }
 
+// Colours set by a code highlighter (Prism, highlight.js, Shiki) on the words of a code
+// sample. They come from the highlighting theme, so the fix is a theme, not a colour per word.
+const HIGHLIGHT = /\b(token|hljs[\w-]*|shiki|prism[\w-]*)\b/;
+
+export function isCodeHighlight(context?: {
+    html?: string | null;
+    selector?: string | null;
+}): boolean {
+    if (!context) return false;
+    const classes = /class\s*=\s*["']([^"']*)["']/.exec(context.html ?? '')?.[1] ?? '';
+    return (
+        HIGHLIGHT.test(classes) || /(^|[\s>])(code|pre)([\s>.:#[]|$)/.test(context.selector ?? '')
+    );
+}
+
 /** One sentence a non-developer can act on, or null when the text is not a contrast failure. */
-export function plainContrastFix(summary: string | null | undefined): string | null {
+export function plainContrastFix(
+    summary: string | null | undefined,
+    context?: { html?: string | null; selector?: string | null }
+): string | null {
     const failure = parseContrast(summary);
     if (!failure) return null;
+    if (isCodeHighlight(context)) {
+        return `This is a code-highlighting colour (${failure.foreground} on ${failure.background}, ${failure.ratio}:1; it needs ${failure.expected}:1). Choose a higher-contrast highlighting theme for the code block rather than recolouring words.`;
+    }
     const suggestion = suggestColour(failure.foreground, failure.background, failure.expected);
     const direction = luminance(failure.background) > 0.18 ? 'darker' : 'lighter';
     return `The text colour ${failure.foreground} on ${failure.background} is ${failure.ratio}:1; it needs ${failure.expected}:1. Use ${suggestion} or ${direction}.`;

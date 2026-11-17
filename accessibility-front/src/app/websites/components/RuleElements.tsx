@@ -1,14 +1,13 @@
 'use client';
+import PageLoading from '@/components/PageLoading';
 import { fetcherApi } from '@/lib/api';
-import { plainContrastFix } from '@/lib/contrast';
-import { reportHref } from '@/lib/guides';
+import { isCodeHighlight, parseContrast, plainContrastFix } from '@/lib/contrast';
 import { PublicUser } from '@/lib/types/user';
 import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
 import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { Button, Collapse, Drawer, Space, Tag } from 'antd';
 import useSWR from 'swr';
-import PageLoading from '@/components/PageLoading';
 
 type Element = {
     id: number;
@@ -39,30 +38,47 @@ type Props = {
     user: PublicUser | null;
     open: boolean;
     onClose: () => void;
+    // Called once the drawer has closed, to put focus back where it was.
+    afterClose?: () => void;
 };
 
 const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 const shortUrl = (url: string) => url.replace(/^https?:\/\//, '');
 
-// An agent prompt with every element, grouped, so one fix per group can be made at its
-// source (a template, a stylesheet) rather than element by element.
+// The words an element shows, from its (possibly truncated) HTML.
+function visibleText(html: string | null): string {
+    const text = (html ?? '')
+        .replace(/<[^>]*>?/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return text.length > 80 ? `${text.slice(0, 77)}…` : text;
+}
+
+// The fix sentence for a whole group, only when it holds for every member: elements of
+// one markup can differ in size (and so in the ratio they need).
+function groupFix(group: Group): string | null {
+    const first = group.elements[0];
+    const failures = group.elements.map((e) => parseContrast(e.failure_summary));
+    if (!failures[0] || failures.some((f) => !f || f.expected !== failures[0]?.expected))
+        return null;
+    return plainContrastFix(first.failure_summary, first);
+}
+
+// An agent prompt with every element, grouped, with the HTML of each group's first element.
 function prompt(title: string, data: Elements): string {
     const lines = [
         `# ${title}`,
         '',
-        `**Failing elements:** ${data.count}, in ${plural(data.groups.length, 'group')} of shared markup.`,
+        `**Failing elements:** ${data.count}, in ${plural(data.groups.length, 'group')}. Elements in one group have the same tag, classes and colours; they often share one source (a template, a stylesheet rule, a code-highlighting theme). Find that source and fix it once where you can, then check each element.`,
         '',
     ];
-    lines.push(
-        'Elements in one group share their markup (and colours), so they usually come from one template or stylesheet rule: fix it there once.',
-        ''
-    );
     data.groups.forEach((group, i) => {
         lines.push(
             `## ${i + 1}. ${group.label} (${plural(group.count, 'element')} on ${plural(group.pages, 'page')})`
         );
-        const fix = plainContrastFix(group.elements[0]?.failure_summary);
+        const fix = groupFix(group);
         if (fix) lines.push(fix);
+        if (group.elements[0]?.html) lines.push('', '```html', group.elements[0].html, '```');
         group.elements.forEach((e) => lines.push(`- ${e.url} \`${e.selector ?? ''}\``));
         lines.push('');
     });
@@ -70,12 +86,21 @@ function prompt(title: string, data: Elements): string {
 }
 
 // Every current failing element of one rule across the website, grouped by the markup
-// it shares, with downloads. A drawer: it takes focus and gives it back when closed.
-export default function RuleElements({ websiteId, ruleId, title, user, open, onClose }: Props) {
+// it shares, with downloads. A drawer: it takes focus, closes on Escape, and the caller
+// puts focus back on the button that opened it.
+export default function RuleElements({
+    websiteId,
+    ruleId,
+    title,
+    user,
+    open,
+    onClose,
+    afterClose,
+}: Props) {
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
     const base = `/api/websites/${websiteId}/elements/?rule=${encodeURIComponent(ruleId)}`;
-    const { data, error } = useSWR(
+    const { data, error, mutate, isValidating } = useSWR(
         open ? base : null,
         user ? handlerUserApiRequest<Elements> : fetcherApi<Elements>
     );
@@ -90,44 +115,57 @@ export default function RuleElements({ websiteId, ruleId, title, user, open, onC
             );
         }
     };
+    const fileBase = `elements-${websiteId}-${ruleId.replace(/[^a-z0-9-]/gi, '')}`;
 
     return (
         <Drawer
             open={open}
             onClose={onClose}
-            title={`Every element: ${title}`}
+            afterOpenChange={(isOpen) => {
+                if (!isOpen) afterClose?.();
+            }}
+            title={
+                <span className="block text-base leading-snug">
+                    Every element <span className="font-normal text-gray-700">· {title}</span>
+                </span>
+            }
             size="large"
-            extra={
-                data && (
-                    <Space wrap>
+        >
+            {error ? (
+                <div>
+                    <p style={{ margin: '0 0 12px' }}>Could not load the elements.</p>
+                    <Button onClick={() => mutate()} loading={isValidating}>
+                        Try again
+                    </Button>
+                </div>
+            ) : !data ? (
+                <PageLoading />
+            ) : (
+                <>
+                    <Space wrap style={{ marginBottom: 16 }}>
                         <Button icon={<DownloadOutlined />} href={`${base}&format=csv`}>
-                            CSV
+                            Download CSV
                         </Button>
-                        <Button icon={<DownloadOutlined />} href={base} target="_blank">
-                            JSON
+                        <Button
+                            icon={<DownloadOutlined />}
+                            href={base}
+                            download={`${fileBase}.json`}
+                        >
+                            Download JSON
                         </Button>
                         <Button
                             icon={<CopyOutlined />}
                             onClick={() => copy(prompt(title, data), 'AI prompt')}
                         >
-                            AI prompt
+                            Copy AI prompt
                         </Button>
                     </Space>
-                )
-            }
-        >
-            {error ? (
-                <p>Could not load the elements.</p>
-            ) : !data ? (
-                <PageLoading />
-            ) : (
-                <>
                     <p style={{ margin: '0 0 16px' }}>
                         {plural(data.count, 'element')} in {plural(data.groups.length, 'group')}.
-                        Elements in one group share their markup
-                        {data.groups.some((g) => g.label.includes(' on #')) && ' and colours'}, so
-                        they usually come from one template or style: one change there fixes the
-                        whole group.
+                        Elements in one group have the same tag, classes
+                        {data.groups.some((g) => g.label.includes(' on #')) && ' and colours'}. They
+                        often share one source, such as a template, a stylesheet rule or a
+                        code-highlighting theme, so look for it before fixing them one by one.
                     </p>
                     <Collapse
                         defaultActiveKey={
@@ -136,67 +174,166 @@ export default function RuleElements({ websiteId, ruleId, title, user, open, onC
                                 : [data.groups[0]?.key]
                         }
                         items={data.groups.map((group) => {
-                            const fix = plainContrastFix(group.elements[0]?.failure_summary);
+                            const fix = groupFix(group);
+                            const code = group.elements.some((e) => isCodeHighlight(e));
+                            const urls = new Set(group.elements.map((e) => e.url));
+                            const onePage = urls.size === 1 ? group.elements[0] : null;
+                            const colours = parseContrast(group.elements[0]?.failure_summary);
+                            const selectors = group.elements
+                                .map((e) => e.selector)
+                                .filter(Boolean)
+                                .join('\n');
                             return {
                                 key: group.key,
                                 label: (
-                                    <span className="flex flex-wrap items-center gap-2">
-                                        <code className="break-all">{group.label}</code>
-                                        <Tag>{plural(group.count, 'element')}</Tag>
+                                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        {colours && (
+                                            // The two colours, seen: hex codes alone mean nothing to most owners.
+                                            <span
+                                                aria-hidden="true"
+                                                className="inline-flex overflow-hidden rounded border border-gray-300"
+                                            >
+                                                <span
+                                                    className="h-4 w-4"
+                                                    style={{ background: colours.foreground }}
+                                                />
+                                                <span
+                                                    className="h-4 w-4"
+                                                    style={{ background: colours.background }}
+                                                />
+                                            </span>
+                                        )}
+                                        {code && (
+                                            <span className="font-medium">
+                                                Code-highlighting colours
+                                            </span>
+                                        )}
+                                        <code className="text-sm">{group.label}</code>
                                         <span className="text-sm text-gray-700">
-                                            on {plural(group.pages, 'page')}
+                                            {plural(group.count, 'element')} on{' '}
+                                            {plural(group.pages, 'page')}
                                         </span>
                                     </span>
                                 ),
                                 children: (
                                     <>
-                                        {fix && (
+                                        {fix ? (
                                             <p
                                                 className="font-medium"
-                                                style={{ margin: '0 0 12px' }}
+                                                style={{ margin: '0 0 8px' }}
                                             >
                                                 {fix}
                                             </p>
+                                        ) : (
+                                            code && (
+                                                <p
+                                                    className="font-medium"
+                                                    style={{ margin: '0 0 8px' }}
+                                                >
+                                                    These are code-highlighting colours: choose a
+                                                    higher-contrast highlighting theme rather than
+                                                    recolouring words.
+                                                </p>
+                                            )
                                         )}
+                                        <Space wrap style={{ marginBottom: 8 }}>
+                                            {onePage && (
+                                                <span className="text-sm">
+                                                    All on{' '}
+                                                    {onePage.report_id ? (
+                                                        <a
+                                                            href={`/reports/${onePage.report_id}?rule=${encodeURIComponent(ruleId)}#violation-${encodeURIComponent(ruleId)}`}
+                                                        >
+                                                            {shortUrl(onePage.url)}
+                                                        </a>
+                                                    ) : (
+                                                        shortUrl(onePage.url)
+                                                    )}
+                                                </span>
+                                            )}
+                                            <Button
+                                                size="small"
+                                                icon={<CopyOutlined />}
+                                                onClick={() => copy(selectors, 'Selectors')}
+                                            >
+                                                Copy all {group.count} selectors
+                                            </Button>
+                                        </Space>
                                         <ul className="m-0 list-none p-0">
                                             {group.elements.map((element) => {
-                                                const href = reportHref(element.report_id, ruleId);
+                                                const text = visibleText(element.html);
+                                                const at = element.report_id
+                                                    ? `/reports/${element.report_id}?rule=${encodeURIComponent(ruleId)}#violation-${encodeURIComponent(ruleId)}`
+                                                    : null;
                                                 return (
                                                     <li
                                                         key={element.id}
-                                                        className="flex flex-wrap items-center gap-2 border-b border-gray-100 py-2 last:border-0"
+                                                        className="border-b border-gray-100 py-2 last:border-0"
                                                     >
-                                                        {href ? (
-                                                            <a href={href} className="break-all">
-                                                                {shortUrl(element.url)}
-                                                            </a>
-                                                        ) : (
-                                                            <span className="break-all">
-                                                                {shortUrl(element.url)}
-                                                            </span>
-                                                        )}
-                                                        <code className="min-w-0 flex-1 basis-48 break-all text-xs">
-                                                            {element.selector}
-                                                        </code>
-                                                        {element.selector && (
-                                                            <Button
-                                                                size="small"
-                                                                icon={<CopyOutlined />}
-                                                                aria-label={`Copy selector ${element.selector}`}
-                                                                onClick={() =>
-                                                                    copy(
-                                                                        element.selector ?? '',
-                                                                        'Selector'
-                                                                    )
-                                                                }
-                                                            >
-                                                                Copy
-                                                            </Button>
-                                                        )}
-                                                        {element.status !== 'open' && (
-                                                            <Tag>
-                                                                {element.status.replace('_', ' ')}
-                                                            </Tag>
+                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                            {text && (
+                                                                <q className="font-medium">
+                                                                    {text}
+                                                                </q>
+                                                            )}
+                                                            {!onePage &&
+                                                                (at ? (
+                                                                    <a
+                                                                        href={at}
+                                                                        className="text-sm"
+                                                                    >
+                                                                        {shortUrl(element.url)}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="text-sm">
+                                                                        {shortUrl(element.url)}
+                                                                    </span>
+                                                                ))}
+                                                            {element.status !== 'open' && (
+                                                                <Tag>
+                                                                    {element.status.replace(
+                                                                        '_',
+                                                                        ' '
+                                                                    )}
+                                                                </Tag>
+                                                            )}
+                                                        </div>
+                                                        <div className="mt-1 flex items-start gap-2">
+                                                            {/* Wraps at the selector's steps, not mid-word. */}
+                                                            <code className="min-w-0 flex-1 text-xs [overflow-wrap:anywhere]">
+                                                                {(element.selector ?? '')
+                                                                    .split(' > ')
+                                                                    .join(' >​ ')}
+                                                            </code>
+                                                            {element.selector && (
+                                                                <Button
+                                                                    size="small"
+                                                                    icon={<CopyOutlined />}
+                                                                    aria-label={`Copy selector ${element.selector}`}
+                                                                    onClick={() =>
+                                                                        copy(
+                                                                            element.selector ?? '',
+                                                                            'Selector'
+                                                                        )
+                                                                    }
+                                                                />
+                                                            )}
+                                                        </div>
+                                                        {element.html && (
+                                                            <details className="mt-1 text-xs">
+                                                                <summary className="cursor-pointer text-gray-700">
+                                                                    HTML
+                                                                </summary>
+                                                                <pre
+                                                                    className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-2"
+                                                                    style={{
+                                                                        margin: 0,
+                                                                        overflowWrap: 'anywhere',
+                                                                    }}
+                                                                >
+                                                                    {element.html}
+                                                                </pre>
+                                                            </details>
                                                         )}
                                                     </li>
                                                 );

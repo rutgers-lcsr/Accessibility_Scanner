@@ -133,6 +133,11 @@ async function Report({ params }: { params: Promise<{ reportId: string }> }) {
         (a, b) => impactRank(a.impact) - impactRank(b.impact)
     );
     const website = report.websites?.[0];
+    // An older report whose page has since scanned clean says so first, not "N to fix".
+    const fixedSince =
+        !!report.latest_report &&
+        report.latest_report.failing_rules === 0 &&
+        elementCounts.total > 0;
 
     // The scanner followed a redirect (a login page sent to CAS, say): the results are for
     // the page it landed on, which the live preview of the requested address may not show.
@@ -317,9 +322,11 @@ document.body.appendChild(accessScriptElement);`;
                             >
                                 {redirected
                                     ? `Nothing to fix on this website: the scan ended on ${scannedHost}`
-                                    : elementCounts.total > 0
-                                      ? `${plural(elementCounts.total, 'issue')} to fix on this page`
-                                      : 'No automated failures on this page'}
+                                    : fixedSince
+                                      ? `This earlier scan found ${plural(elementCounts.total, 'issue')}; the latest scan found none`
+                                      : elementCounts.total > 0
+                                        ? `${plural(elementCounts.total, 'issue')} to fix on this page`
+                                        : 'No automated failures on this page'}
                             </h2>
                             <p className="text-gray-700" style={{ margin: '0 0 20px' }}>
                                 {redirected ? (
@@ -365,6 +372,11 @@ document.body.appendChild(accessScriptElement);`;
                                 listId="detailed-accessibility-issues"
                                 muted={redirected}
                             />
+                            {redirected && (
+                                <p className="text-sm text-gray-700" style={{ margin: '8px 0 0' }}>
+                                    These counts are for {scannedHost}, not this website.
+                                </p>
+                            )}
                             {report.videos.length > 0 && (
                                 <p className="text-sm text-gray-700" style={{ margin: '16px 0 0' }}>
                                     <ExclamationCircleOutlined className="mr-1 inline" />

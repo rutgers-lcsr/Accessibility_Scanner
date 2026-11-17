@@ -85,3 +85,12 @@ summary:focus-visible {
 .ant-empty-description {
     color: #595959;
 }
+
+/* Native buttons and text areas outside antd's own ring (the sidebar's Logout, the reason
+   boxes), and antd dropdowns, whose focus shows only as a faint shadow. */
+nav button:focus-visible,
+textarea:focus-visible,
+.ant-select-focused {
+    outline: 3px solid #b3002d;
+    outline-offset: 1px;
+}

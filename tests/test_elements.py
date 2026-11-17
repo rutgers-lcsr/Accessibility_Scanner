@@ -47,7 +47,7 @@ def test_elements_endpoint_groups_and_downloads(client, make_user, make_website,
     resp = client.get(f"/api/websites/{website.id}/elements/?rule=color-contrast&format=csv", headers=headers)
     assert resp.status_code == 200 and resp.mimetype == "text/csv"
     lines = resp.get_data(as_text=True).strip().splitlines()
-    assert lines[0].startswith("rule,impact,group,page,selector")
+    assert lines[0].startswith("id,rule,impact,group,page,selector")
     assert len(lines) == 6
 
     assert client.get(f"/api/websites/{website.id}/elements/", headers=jwt_header(make_user("carol"))).status_code == 403

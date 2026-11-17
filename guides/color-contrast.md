@@ -8,7 +8,7 @@ deque: https://dequeuniversity.com/rules/axe/4.10/color-contrast
 
 ## What this means
 
-The text colour and the colour behind it are too close. The failure summary on the report page gives the exact numbers: the two colours, the ratio measured, and the ratio needed. Normal text needs 4.5:1; large text (24px and up, or 19px bold) needs 3:1.
+The text colour and the colour behind it are too close. The failure summary on the report page gives the exact numbers: the two colours, the ratio measured, and the ratio needed. Normal text needs 4.5:1; large text (24px and up, or 18.66px (14pt) and up in bold) needs 3:1.
 
 Light grey "secondary" text, placeholder text, and coloured text on coloured backgrounds are the usual causes. They tend to come from the theme's palette, so one colour change clears many pages.
 
@@ -43,7 +43,7 @@ Use a contrast checker (WebAIM's is free) while picking colours. Darkening the t
 
 ## Canvas
 
-- Select the text in the Rich Content Editor and use the **text colour** button to choose a darker colour, or remove the custom colour to go back to the default, which passes.
+- Select the text in the Rich Content Editor and use the **text colour** button to choose a darker colour, or remove the custom colour to go back to the default, which usually passes (check it with a contrast checker).
 - Avoid text over coloured table cells and highlighted backgrounds unless the pair passes.
 - The editor's **Accessibility Checker** flags contrast and suggests a passing colour.
 

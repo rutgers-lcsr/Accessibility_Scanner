@@ -123,7 +123,7 @@ function Websites({ user }: Props) {
         },
         {
             // Rules, page by page: a website's page counts failing elements instead.
-            title: 'Passing rules',
+            title: 'Rule checks passed',
             dataIndex: 'passes',
             key: 'passes',
             render: (text: string, record: WebsiteType) => (

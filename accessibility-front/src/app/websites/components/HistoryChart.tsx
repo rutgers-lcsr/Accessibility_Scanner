@@ -93,7 +93,7 @@ function HistoryChart({ data, x, compact = false, series = 'categories' }: Props
     const last = data[data.length - 1];
     const firstX = (x === 'date' ? first.date : first.timestamp) ?? '';
     const lastX = (x === 'date' ? last.date : last.timestamp) ?? '';
-    const summary = `Open violations went from ${first.report_counts?.violations?.total ?? 0} on ${
+    const summary = `Rule failures (a rule failing on one page counts once) went from ${first.report_counts?.violations?.total ?? 0} on ${
         firstX ? labelFor(firstX) : 'the first scan'
     } to ${last.report_counts?.violations?.total ?? 0} on ${firstX ? labelFor(lastX) : 'the last scan'}, over ${data.length} points.`;
 
