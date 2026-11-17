@@ -1,6 +1,6 @@
 """Flask CLI commands for maintenance work: ``flask findings backfill``,
-``flask maintenance retention``, ``flask maintenance slim-reports`` and
-``flask mail owner-digests``."""
+``flask maintenance retention``, ``flask maintenance slim-reports``,
+``flask maintenance merge-departments`` and ``flask mail owner-digests``."""
 import click
 from flask.cli import AppGroup
 
@@ -60,6 +60,27 @@ def slim_reports(dry_run, batch):
         f"Checked {result['checked']} reports; {result['rewritten']} "
         f"{'would be' if dry_run else 'were'} rewritten."
     )
+
+
+@maintenance_cli.command('merge-departments')
+@click.option('--dry-run', is_flag=True, help='Print the renames without changing anything.')
+@click.option('--map', 'mappings', multiple=True, metavar='VARIANT=DEPARTMENT',
+              help='Also rename VARIANT (ignoring case and spacing), e.g. --map "CS=Computer Science". Repeatable.')
+def merge_departments_command(dry_run, mappings):
+    """Give each department one spelling: case and spacing variants join the most used
+    spelling, and --map renames abbreviations."""
+    from services.departments import merge_departments
+
+    mapping = {}
+    for item in mappings:
+        if '=' not in item:
+            raise click.BadParameter(f"'{item}' is not VARIANT=DEPARTMENT", param_hint='--map')
+        old, new = item.split('=', 1)
+        mapping[old] = new
+    result = merge_departments(mapping, dry_run=dry_run)
+    for old, new in sorted(result['plan'].items()):
+        click.echo(f"  {old!r} -> {new!r}")
+    click.echo(f"{result['websites']} websites {'would change' if dry_run else 'changed'}.")
 
 
 mail_cli = AppGroup('mail', help='Owner digests and reminders.')

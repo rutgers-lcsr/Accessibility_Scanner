@@ -8,6 +8,27 @@ from utils.jwt import decode_jwt_token
 
 user_bp = Blueprint('user', __name__)
 
+@user_bp.route('/search/', methods=['GET'])
+@jwt_required()
+def search_users():
+    """
+    Usernames starting with ``q`` (case-insensitive), for pickers such as a website's
+    business owner. At most 20, only usernames.
+    ---
+    tags:
+        - Users
+    parameters:
+        - in: query
+          name: q
+          type: string
+    """
+    q = (request.args.get('q') or '').strip()
+    query = db.session.query(User.username).filter(User.is_active == True)
+    if q:
+        query = query.filter(User.username.ilike(q.replace('%', r'\%').replace('_', r'\_') + '%', escape='\\'))
+    return jsonify([row[0] for row in query.order_by(User.username).limit(20).all()]), 200
+
+
 @user_bp.route('/me/', methods=['GET'])
 @jwt_required()
 def get_user():

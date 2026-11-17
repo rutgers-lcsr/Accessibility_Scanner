@@ -3,7 +3,7 @@ import { Website } from '@/lib/types/website';
 import { useUser } from '@/providers/User';
 import { useAlerts } from '@/providers/Alerts';
 import { useWebsites } from '@/providers/Websites';
-import { Button, Input, InputNumber, Modal, Select, Switch } from 'antd';
+import { Button, InputNumber, Modal, Select, Switch } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -11,6 +11,8 @@ import useSWR from 'swr';
 import ExtraStartUrls from './ExtraStartUrls';
 import InventoryFields from './InventoryFields';
 import { Field, Legend } from './PanelFields';
+import PickOrAdd from './PickOrAdd';
+import { useUsernameSearch } from '@/hooks/useUsernameSearch';
 
 type Props = {
     website: Website;
@@ -28,6 +30,7 @@ function AdminItems({ website, mutate }: Props) {
     const [loadingPublic, setLoadingPublic] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const { handlerUserApiRequest } = useUser();
+    const people = useUsernameSearch();
     const { categories } = useWebsites();
 
     const handleActivate = async () => {
@@ -368,14 +371,21 @@ function AdminItems({ website, mutate }: Props) {
                 <fieldset className="min-w-0">
                     <Legend>Access & notifications</Legend>
                     <div className="space-y-3">
-                        <Field id="admin" label="Admin user" help="Press Enter to save.">
-                            <Input
+                        <Field
+                            id="admin"
+                            label="Admin user"
+                            help="Pick an account, or type a NetID to add one."
+                        >
+                            <PickOrAdd
                                 id="admin"
-                                placeholder="Username"
-                                defaultValue={website.admin}
+                                value={website.admin}
+                                options={people.options}
+                                placeholder="Search by NetID"
                                 disabled={loadingEmail}
-                                onPressEnter={async (e) => {
-                                    handleAdminChange((e.target as HTMLInputElement).value);
+                                addLabel={(typed) => `Use NetID "${typed}"`}
+                                onSearch={people.onSearch}
+                                onChange={(value) => {
+                                    if (value && value !== website.admin) handleAdminChange(value);
                                 }}
                             />
                         </Field>
@@ -390,6 +400,8 @@ function AdminItems({ website, mutate }: Props) {
                                 id="users"
                                 placeholder="Add usernames"
                                 value={website.users.length > 0 ? website.users : undefined}
+                                options={people.options}
+                                onSearch={people.onSearch}
                                 disabled={loadingEmail}
                                 onChange={(value) => {
                                     handleUsersChange(value.filter((v) => v.trim() !== ''));

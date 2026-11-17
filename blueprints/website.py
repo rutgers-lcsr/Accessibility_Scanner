@@ -88,9 +88,17 @@ def apply_inventory_fields(website: Website, data: dict, is_admin: bool) -> None
     criticality are a site admin's call and are ignored for anyone else. Raises
     ValueError for an invalid value (nothing is committed here)."""
     if 'department' in data:
-        website.department = _optional_text(data, 'department', 200)
+        # One spelling per department: "computer  science" joins "Computer Science".
+        from services.departments import canonical_department  # local import: services import models
+        website.department = canonical_department(_optional_text(data, 'department', 200))
     if 'business_owner' in data:
-        website.business_owner = _optional_text(data, 'business_owner', 200)
+        owner = _optional_text(data, 'business_owner', 200)
+        if owner:
+            owner = ' '.join(owner.split())
+            # A NetID that names an existing user takes that user's spelling.
+            user = db.session.query(User).filter(func.lower(User.username) == owner.lower()).first()
+            owner = user.username if user else owner
+        website.business_owner = owner
     if 'audience' in data:
         website.audience = _optional_choice(data, 'audience', AUDIENCES)
     if not is_admin:
@@ -1625,14 +1633,20 @@ def get_website_departments():
     ---
     tags:
         - Websites
+    parameters:
+        - in: query
+          name: counts
+          type: boolean
+          description: Return [{name, count}] (most used first) instead of sorted names.
     responses:
         200:
-            description: Sorted list of department names.
+            description: Sorted list of department names, or names with website counts.
     """
-    rows = (db.session.query(Website.department).distinct()
-            .filter(Website.department.isnot(None), Website.department != '')
-            .filter(Website.visible_to(current_user)).all())
-    return jsonify(sorted({row[0] for row in rows})), 200
+    from services.departments import department_counts  # local import: services import models
+    rows = department_counts(db.session.query(Website).filter(Website.visible_to(current_user)))
+    if (request.args.get('counts') or '').lower() in ('1', 'true', 'yes'):
+        return jsonify(rows), 200
+    return jsonify(sorted(row['name'] for row in rows)), 200
 
 @website_bp.route('/<int:website_id>/', methods=['GET'])
 @jwt_required(optional=True)

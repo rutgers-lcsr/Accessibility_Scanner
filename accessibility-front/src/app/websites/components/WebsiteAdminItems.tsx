@@ -14,6 +14,7 @@ import { useState } from 'react';
 import ExtraStartUrls from './ExtraStartUrls';
 import InventoryFields from './InventoryFields';
 import { Field, Legend } from './PanelFields';
+import { useUsernameSearch } from '@/hooks/useUsernameSearch';
 
 type Props = {
     website: Website;
@@ -24,6 +25,7 @@ function WebsiteAdminItems({ website, mutate }: Props) {
     const { addAlert } = useAlerts();
     const [loading, setLoading] = useState(false);
     const { handlerUserApiRequest } = useUser();
+    const people = useUsernameSearch();
 
     const handleUsersChange = async (value: string[] | null) => {
         if (value !== null) {
@@ -85,6 +87,8 @@ function WebsiteAdminItems({ website, mutate }: Props) {
                                 id="users"
                                 placeholder="Add usernames"
                                 value={website.users.length > 0 ? website.users : undefined}
+                                options={people.options}
+                                onSearch={people.onSearch}
                                 disabled={loading}
                                 onChange={(value) => {
                                     // filter out any empty values

@@ -10,10 +10,12 @@ import {
 } from '@/lib/types/website';
 import { useAlerts } from '@/providers/Alerts';
 import { useUser } from '@/providers/User';
-import { AutoComplete, Input, Select } from 'antd';
+import { Input, Select } from 'antd';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { Field, Legend } from './PanelFields';
+import PickOrAdd from './PickOrAdd';
+import { useUsernameSearch } from '@/hooks/useUsernameSearch';
 
 type Props = {
     website: Website;
@@ -31,11 +33,10 @@ function InventoryFields({ website, mutate, isAdmin }: Props) {
     const { handlerUserApiRequest } = useUser();
     const { addAlert } = useAlerts();
     const [saving, setSaving] = useState(false);
-    const [department, setDepartment] = useState(website.department ?? '');
-    const [businessOwner, setBusinessOwner] = useState(website.business_owner ?? '');
+    const owners = useUsernameSearch();
     const { data: departments } = useSWR(
-        '/api/websites/departments/',
-        handlerUserApiRequest<string[]>
+        '/api/websites/departments/?counts=true',
+        handlerUserApiRequest<{ name: string; count: number }[]>
     );
 
     const save = async (body: Partial<Website>) => {
@@ -54,9 +55,10 @@ function InventoryFields({ website, mutate, isAdmin }: Props) {
         setSaving(false);
     };
 
-    const departmentOptions = (departments ?? [])
-        .filter((name) => name.toLowerCase().includes(department.toLowerCase()))
-        .map((name) => ({ value: name }));
+    const departmentOptions = (departments ?? []).map(({ name, count }) => ({
+        value: name,
+        label: `${name} (${count} website${count === 1 ? '' : 's'})`,
+    }));
 
     return (
         <fieldset className="min-w-0">
@@ -110,38 +112,35 @@ function InventoryFields({ website, mutate, isAdmin }: Props) {
                         </div>
                     )}
                 </Field>
-                <Field id="department" label="Department or unit">
-                    <AutoComplete
+                <Field
+                    id="department"
+                    label="Department or unit"
+                    help="Pick an existing one so the scorecards group websites together; add a new one only if it is not listed."
+                >
+                    <PickOrAdd
                         id="department"
-                        style={{ width: '100%' }}
-                        value={department}
+                        value={website.department}
                         options={departmentOptions}
-                        placeholder="e.g. Computer Science"
+                        placeholder="Search departments"
                         disabled={saving}
-                        onChange={setDepartment}
-                        onBlur={() => {
-                            if ((department.trim() || null) !== website.department)
-                                save({ department: department.trim() || null });
-                        }}
-                        onSelect={(value: string) => save({ department: value })}
+                        addLabel={(typed) => `Add department "${typed}"`}
+                        onChange={(value) => save({ department: value })}
                     />
                 </Field>
                 <Field
                     id="business-owner"
                     label="Business owner"
-                    help="Who is accountable for the content; the admin above is who gets the emails."
+                    help="Who is accountable for the content, by NetID; the admin above is who gets the emails."
                 >
-                    <Input
+                    <PickOrAdd
                         id="business-owner"
-                        value={businessOwner}
-                        maxLength={200}
-                        placeholder="Name or email"
+                        value={website.business_owner}
+                        options={owners.options}
+                        placeholder="Search by NetID"
                         disabled={saving}
-                        onChange={(e) => setBusinessOwner(e.target.value)}
-                        onBlur={() => {
-                            if ((businessOwner.trim() || null) !== website.business_owner)
-                                save({ business_owner: businessOwner.trim() || null });
-                        }}
+                        addLabel={(typed) => `Use NetID "${typed}"`}
+                        onSearch={owners.onSearch}
+                        onChange={(value) => save({ business_owner: value })}
                     />
                 </Field>
                 <Field id="audience" label="Audience">
