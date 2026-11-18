@@ -89,8 +89,13 @@ function ComplianceReport() {
                                         { key: 'p', label: 'Pages audited', children: s.pages },
                                         {
                                             key: 'i',
-                                            label: 'Open issues by impact',
+                                            label: 'Rule failures by impact',
                                             children: `${s.critical} critical, ${s.serious} serious, ${s.moderate} moderate, ${s.minor} minor`,
+                                        },
+                                        {
+                                            key: 's',
+                                            label: 'Elements marked false positive or accepted (not counted)',
+                                            children: s.suppressed,
                                         },
                                         {
                                             key: 'o',
@@ -189,9 +194,14 @@ function ComplianceReport() {
                                         render: day,
                                     },
                                     {
-                                        title: 'Critical / serious',
+                                        title: 'Critical / serious rule failures',
                                         key: 'cs',
                                         render: (_, r) => `${r.critical} / ${r.serious}`,
+                                    },
+                                    {
+                                        title: 'Marked false positive or accepted',
+                                        dataIndex: 'suppressed',
+                                        key: 'suppressed',
                                     },
                                     {
                                         title: 'Overdue',

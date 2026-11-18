@@ -113,3 +113,15 @@ def test_compliance_report_json_and_csv(client, jwt_header, make_user, make_webs
     table = list(csv.reader(io.StringIO(resp.get_data(as_text=True))))
     assert table[0] == list(REPORT_COLUMNS)
     assert len(table) == 4  # header + three websites that are not retired
+
+
+def test_suppressed_elements_are_counted_beside_the_issues(app, make_user, make_website, add_site, add_report):
+    _, cs, math, nobody, retired = _setup(make_user, make_website, add_site, add_report)
+    finding = db.session.query(Finding).filter_by(rule_id="image-alt").one()
+    finding.status = "accepted"
+    db.session.commit()
+    rows = {row["url"]: row for row in compliance_rows([cs, math, nobody, retired])}
+    assert rows[cs.url]["suppressed"] == 1 and rows[math.url]["suppressed"] == 0
+    assert "suppressed" in REPORT_COLUMNS
+    cards = {card["department"]: card for card in department_scorecards(list(rows.values()))}
+    assert cards["CS"]["suppressed"] == 1

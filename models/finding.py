@@ -77,3 +77,35 @@ class Finding(db.Model):
             'status_at': iso(self.status_at),
             'note': self.note,
         }
+
+
+class FindingStatusChange(db.Model):
+    """Append-only: every status a person gave a finding, with the reason. The finding
+    keeps only the latest verdict, so without this a later change erased who hid an
+    element and why."""
+    __tablename__ = 'finding_status_change'
+
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    finding_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('finding.id', ondelete='CASCADE'), nullable=False, index=True)
+    old_status: Mapped[str] = db.Column(db.String(20), nullable=True)
+    new_status: Mapped[str] = db.Column(db.String(20), nullable=False)
+    note: Mapped[str] = db.Column(db.Text, nullable=True)
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    # How the change was made: one element, a group of shared markup, or a whole rule;
+    # batch_size is how many findings that one action changed.
+    scope: Mapped[str] = db.Column(db.String(20), nullable=False, default='element')
+    batch_size: Mapped[int] = db.Column(db.Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = db.Column(db.DateTime, nullable=False)
+
+    user = db.relationship('User', foreign_keys=[user_id], lazy=True)
+
+    def to_dict(self) -> dict:
+        return {
+            'old_status': self.old_status,
+            'new_status': self.new_status,
+            'note': self.note,
+            'by': self.user.username if self.user else None,
+            'scope': self.scope,
+            'batch_size': self.batch_size,
+            'at': self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.created_at else None,
+        }

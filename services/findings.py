@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from sqlalchemy import and_, case, func, or_, true
 
 from models import db
-from models.finding import FINDING_STATUSES, Finding, SUPPRESSED_STATUSES
+from models.finding import FINDING_STATUSES, Finding, FindingStatusChange, SUPPRESSED_STATUSES
 from models.report import Report
 from models.website import Site, Site_Website_Assoc
 from services.history import effective_counts, sum_counts
@@ -317,15 +317,23 @@ def missing_reason(status: str, note: str | None, current_note: str | None = Non
     return f'Marking findings false positive or accepted needs a reason (at least {REASON_MIN_LENGTH} characters)'
 
 
-def set_finding_status(finding: Finding, status: str, note: str | None, user_id: int | None) -> None:
-    """Record a person's verdict on a finding and refresh its report's snapshot. No commit."""
+def set_finding_status(finding: Finding, status: str, note: str | None, user_id: int | None,
+                       scope: str = 'element', batch_size: int = 1) -> None:
+    """Record a person's verdict on a finding (and in its status history) and refresh its
+    report's snapshot. No commit."""
     if status not in FINDING_STATUSES:
         raise ValueError(f"status must be one of {', '.join(FINDING_STATUSES)}")
+    old_status, now = finding.status, _utcnow()
     finding.status = status
     finding.status_by = user_id
-    finding.status_at = _utcnow()
+    finding.status_at = now
     if note is not None:
         finding.note = note.strip()[:2000] or None
+    db.session.add(FindingStatusChange(
+        finding_id=finding.id, old_status=old_status, new_status=status,
+        # The reason this change was given under: the note sent, else the one it kept.
+        note=finding.note, user_id=user_id, scope=scope, batch_size=batch_size, created_at=now,
+    ))
     if finding.last_report_id is not None:
         db.session.flush()
         refresh_suppressed_counts(finding.site_id, finding.last_report_id)
@@ -341,12 +349,10 @@ def bulk_set_status(site_ids, rule_id: str, status: str, note: str | None, user_
         .filter(Finding.rule_id == rule_id, Finding.site_id.in_(list(latest)))
         .all()
     )
-    updated = 0
-    for finding in findings:
-        if finding.last_report_id == latest.get(finding.site_id):
-            set_finding_status(finding, status, note, user_id)
-            updated += 1
-    return updated
+    current = [f for f in findings if f.last_report_id == latest.get(f.site_id)]
+    for finding in current:
+        set_finding_status(finding, status, note, user_id, scope='rule', batch_size=len(current))
+    return len(current)
 
 
 def current_finding_ids(site_ids) -> set:
@@ -367,7 +373,7 @@ def bulk_set_status_ids(ids, status: str, note: str | None, user_id: int | None)
     checked they are current findings of a website the user may edit."""
     findings = db.session.query(Finding).filter(Finding.id.in_(list(ids))).all()
     for finding in findings:
-        set_finding_status(finding, status, note, user_id)
+        set_finding_status(finding, status, note, user_id, scope='group', batch_size=len(findings))
     return len(findings)
 
 

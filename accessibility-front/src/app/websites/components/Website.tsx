@@ -13,7 +13,7 @@ import { useUrlFilters } from '@/lib/urlFilters';
 import { useUser } from '@/providers/User';
 import { Alert, Segmented, Tabs, TabsProps } from 'antd';
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import PageError from '../../../components/PageError';
 import PageLoading from '../../../components/PageLoading';
@@ -21,6 +21,7 @@ import AdminItems from './AdminItems';
 import FixFirst from './FixFirst';
 import NotificationToggle from './NotificationToggle';
 import ScanWebsiteButton from './ScanWebsiteButton';
+import SuppressedElements from './SuppressedElements';
 import WebsiteAdminItems from './WebsiteAdminItems';
 import WebsiteChanges from './WebsiteChanges';
 import WebsiteDocumentsTable from './WebsiteDocumentsTable';
@@ -74,6 +75,8 @@ type Props = {
 
 const Website = ({ websiteId, user }: Props) => {
     const { handlerUserApiRequest } = useUser();
+    // The list of elements left out of the counts, with who marked them and why.
+    const [showSuppressed, setShowSuppressed] = useState(false);
     const { mutate: mutateAll } = useSWRConfig();
     // The open tab lives in the URL (?tab=) so links from emails and cards land on it.
     const { params, setFilters } = useUrlFilters();
@@ -353,6 +356,12 @@ const Website = ({ websiteId, user }: Props) => {
 
     return (
         <>
+            <SuppressedElements
+                websiteId={websiteId}
+                user={user}
+                open={showSuppressed}
+                onClose={() => setShowSuppressed(false)}
+            />
             <PageHeading
                 title={
                     <>
@@ -429,11 +438,18 @@ const Website = ({ websiteId, user }: Props) => {
                             ? `${plural(openCounts.total, 'open issue')} across the website, by severity. Each issue is one element on a page that fails a check.`
                             : "Failing checks across the website's pages, by severity."}
                         {(fixFirst?.suppressed_elements ?? 0) > 0 && (
-                            // Nothing leaves the counts unannounced.
+                            // Nothing leaves the counts unannounced, and each one can be checked.
                             <>
                                 {' '}
-                                {plural(fixFirst?.suppressed_elements ?? 0, 'more element')} marked
-                                false positive or accepted{' '}
+                                <button
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    className="cursor-pointer border-0 bg-transparent p-0 text-[length:inherit] text-[#006a8f] underline hover:text-[#005f80]"
+                                    onClick={() => setShowSuppressed(true)}
+                                >
+                                    {plural(fixFirst?.suppressed_elements ?? 0, 'more element')}{' '}
+                                    marked false positive or accepted
+                                </button>{' '}
                                 {fixFirst?.suppressed_elements === 1 ? 'is' : 'are'} not counted.
                             </>
                         )}

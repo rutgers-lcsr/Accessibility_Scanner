@@ -50,6 +50,7 @@ def website_elements(site_ids, rule_id: str | None = None) -> dict:
                     'selector': finding.get('selector'), 'html': finding.get('html'),
                     'failure_summary': finding.get('failure_summary'),
                     'status': finding.get('status'), 'note': finding.get('note'),
+                    'status_by': finding.get('status_by'), 'status_at': finding.get('status_at'),
                 })
     ordered = sorted(groups.values(), key=lambda g: (-len(g['elements']), g['label']))
     for group in ordered:
@@ -58,7 +59,8 @@ def website_elements(site_ids, rule_id: str | None = None) -> dict:
     return {'count': listing['count'], 'groups': ordered}
 
 
-CSV_COLUMNS = ['id', 'rule', 'impact', 'group', 'page', 'selector', 'html', 'failure', 'status', 'note', 'report']
+CSV_COLUMNS = ['id', 'rule', 'impact', 'group', 'page', 'selector', 'html', 'failure', 'status', 'note',
+               'status_by', 'status_at', 'report']
 
 
 def csv_rows(data: dict, base_url: str = ''):
@@ -67,5 +69,6 @@ def csv_rows(data: dict, base_url: str = ''):
             yield [
                 element['id'], group['rule_id'], group['impact'], group['label'], element['url'], element['selector'],
                 element['html'], element['failure_summary'], element['status'], element['note'],
+                element['status_by'], element['status_at'],
                 f"{base_url}/reports/{element['report_id']}" if element['report_id'] else None,
             ]

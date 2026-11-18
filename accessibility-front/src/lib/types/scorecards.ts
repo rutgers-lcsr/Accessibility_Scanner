@@ -7,6 +7,8 @@ export type Scorecard = {
     serious: number;
     moderate: number;
     minor: number;
+    // Elements marked false positive or accepted: left out of the counts above.
+    suppressed: number;
     overdue: number;
     due_soon: number;
     active_exceptions: number;
@@ -43,6 +45,8 @@ export type ComplianceRow = {
     serious: number;
     moderate: number;
     minor: number;
+    // Elements marked false positive or accepted: left out of the counts above.
+    suppressed: number;
     overdue: number;
     due_soon: number;
     excepted: number;

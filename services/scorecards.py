@@ -12,11 +12,12 @@ from statistics import median
 from sqlalchemy import func
 
 from models import db
-from models.finding import Finding
+from models.finding import SUPPRESSED_STATUSES, Finding
 from models.health import HealthCheck, WebsiteHealth
 from models.inventory import ThirdPartyHost, Vendor, match_vendor
 from models.website import Site_Website_Assoc, Website
 from services.compliance import compliance_counts, review_interval_days
+from services.findings import latest_report_ids
 from services.health import SECURITY_HEADERS
 from services.inventory import media_counts, page_content_counts
 from services.overview import build_overview, iso
@@ -27,7 +28,7 @@ FIX_WINDOW_DAYS = 365
 # CSV columns of the compliance report, in order.
 REPORT_COLUMNS = (
     'url', 'department', 'business_owner', 'admin', 'lifecycle_status', 'criticality', 'audience',
-    'last_scanned', 'pages', 'critical', 'serious', 'moderate', 'minor', 'overdue', 'due_soon',
+    'last_scanned', 'pages', 'critical', 'serious', 'moderate', 'minor', 'suppressed', 'overdue', 'due_soon',
     'excepted', 'active_exceptions', 'pending_exceptions', 'last_review', 'review_due',
     'median_days_to_fix', 'uptime_30d', 'up', 'tls_valid', 'tls_expires_at', 'https_redirect',
     'security_headers', 'platform', 'stale_pages', 'mixed_content_pages', 'media_missing_captions',
@@ -53,6 +54,24 @@ def fix_days_by_website(website_ids, now: datetime) -> dict:
     for website_id, first_seen, fixed_at in rows:
         if first_seen and fixed_at and fixed_at >= first_seen:
             out[website_id].append((fixed_at - first_seen).total_seconds() / 86400)
+    return out
+
+
+def suppressed_by_website(website_ids) -> dict:
+    """``{website_id: elements in each page's latest report marked false positive or
+    accepted}``: what the website's counts leave out, shown beside them."""
+    if not website_ids:
+        return {}
+    rows = (db.session.query(Site_Website_Assoc.c.website_id, Finding.site_id, Finding.last_report_id)
+            .join(Finding, Finding.site_id == Site_Website_Assoc.c.site_id)
+            .filter(Site_Website_Assoc.c.website_id.in_(list(website_ids)),
+                    Finding.status.in_(SUPPRESSED_STATUSES))
+            .all())
+    latest = latest_report_ids({site_id for _, site_id, _ in rows})
+    out = defaultdict(int)
+    for website_id, site_id, report_id in rows:
+        if report_id is not None and report_id == latest.get(site_id):
+            out[website_id] += 1
     return out
 
 
@@ -87,6 +106,7 @@ def compliance_rows(websites, now: datetime | None = None) -> list:
     overview = {row['id']: row for row in build_overview(websites, top=0)['websites']}
     compliance = compliance_counts(ids, now)
     fix_days = fix_days_by_website(ids, now)
+    suppressed = suppressed_by_website(ids)
     uptime = uptime_by_website(ids, now)
     health = {row.website_id: row for row in db.session.query(WebsiteHealth).filter(WebsiteHealth.website_id.in_(ids)).all()}
     media = media_counts(ids)
@@ -116,6 +136,7 @@ def compliance_rows(websites, now: datetime | None = None) -> list:
             'serious': violations['serious'],
             'moderate': violations['moderate'],
             'minor': violations['minor'],
+            'suppressed': suppressed.get(website.id, 0),
             'overdue': c['overdue'],
             'due_soon': c['due_soon'],
             'excepted': c['excepted'],
@@ -168,6 +189,7 @@ def department_scorecards(rows: list) -> list:
             'serious': sum(row['serious'] for row in members),
             'moderate': sum(row['moderate'] for row in members),
             'minor': sum(row['minor'] for row in members),
+            'suppressed': sum(row['suppressed'] for row in members),
             'overdue': sum(row['overdue'] for row in members),
             'due_soon': sum(row['due_soon'] for row in members),
             'active_exceptions': sum(row['active_exceptions'] for row in members),

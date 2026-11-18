@@ -95,7 +95,8 @@ export default function StatusDialog({ open, count, title, scope, onCancel, onCo
                 <div style={{ marginTop: 16 }}>
                     <p id={`${id}-why`} style={{ margin: '0 0 8px' }}>
                         They will no longer count in this website&apos;s totals, Fix first or the
-                        dashboard. Reviewers see who marked them and why.
+                        dashboard. Who marked them, when and why is recorded and listed on the
+                        website page, and every later change is kept.
                     </p>
                     <label htmlFor={`${id}-reason`} className="text-sm font-medium">
                         Reason (required, at least {REASON_MIN_LENGTH} characters)

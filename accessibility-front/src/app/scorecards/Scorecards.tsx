@@ -49,9 +49,18 @@ function Scorecards() {
             ),
         },
         {
-            title: 'Critical + serious',
+            // Rule failures (a rule failing on one page counts once), as on the dashboard;
+            // a website's own page counts elements.
+            title: 'Critical + serious rule failures',
             key: 'cs',
             render: (_: unknown, c: Scorecard) => c.critical + c.serious,
+        },
+        {
+            // What the counts leave out, beside them: owners can hide elements.
+            title: 'Elements marked false positive or accepted',
+            dataIndex: 'suppressed',
+            key: 'suppressed',
+            render: (v: number) => (v ? <Tag color="gold">{v}</Tag> : 0),
         },
         {
             title: 'Overdue',
