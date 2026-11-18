@@ -9,9 +9,12 @@ import { useGuides } from '@/hooks/useGuides';
 import { guideHref } from '@/lib/guides';
 import RescanPageButton from './RescanPageButton';
 import StatusDialog from './StatusDialog';
-import { parseContrast, plainContrastFix } from '@/lib/contrast';
+import { isCodeHighlight, parseContrast, plainContrastFix } from '@/lib/contrast';
 import { signature } from '@/lib/signature';
 import ViolationNode, { findingKey, findingSelector } from './ViolationNode';
+
+// Set the status of a group of findings at once (the page report's groups).
+type GroupStatus = (ids: number[], status: FindingStatus, note?: string) => void;
 
 type Props = {
     accessibilityResult: WebsiteAxeResult | AxeResult;
@@ -24,6 +27,7 @@ type Props = {
     canEdit?: boolean;
     onFindingChanged?: (finding: Finding) => void;
     onBulkStatus?: (ruleId: string, status: FindingStatus, note?: string) => Promise<void>;
+    onGroupStatus?: GroupStatus;
     canScan?: boolean;
     onPageScanned?: () => void;
     // Anchor prefix of the card: "violation" (#violation-<rule>), or "review" for the
@@ -84,7 +88,7 @@ function GroupNodes({
     );
 }
 
-// A rule's failing elements, ten at a time so a rule with hundreds stays cheap to open.
+// A rule's failing elements in groups of shared markup, ten per group at a time.
 function NodeList({
     ruleId,
     nodes,
@@ -94,6 +98,7 @@ function NodeList({
     findingsBySelector,
     canEdit,
     onFindingChanged,
+    onGroupStatus,
 }: {
     ruleId: string;
     nodes: AxeNode[];
@@ -103,126 +108,148 @@ function NodeList({
     findingsBySelector?: Map<string, Finding>;
     canEdit?: boolean;
     onFindingChanged?: (finding: Finding) => void;
+    onGroupStatus?: GroupStatus;
 }) {
-    const [shown, setShown] = useState(NODE_PAGE);
-    // Group by shared markup when it repeats (lib/signature, as the website drawer does).
+    // The group whose status is being set: its label and its findings.
+    const [statusFor, setStatusFor] = useState<{ label: string; findings: Finding[] } | null>(null);
+    // Grouped by shared markup (lib/signature, as the website drawer does), always: the
+    // same rule looks the same however many elements fail.
     const byMarkup = new Map<string, AxeNode[]>();
     for (const node of nodes) {
         const key = signature(node.html, node.failureSummary);
         byMarkup.set(key, [...(byMarkup.get(key) ?? []), node]);
     }
     const groups = [...byMarkup.entries()].sort((x, y) => y[1].length - x[1].length);
-    const grouped = nodes.length >= 4 && groups.length < nodes.length;
     return (
-        <Collapse
-            defaultActiveKey={open ? ['nodes'] : []}
-            items={[
-                {
-                    key: 'nodes',
-                    label: (
-                        <span className="font-medium">
-                            {label}
-                            <Tag color="blue" style={{ marginLeft: 8 }}>
-                                {nodes.length}
-                            </Tag>
-                        </span>
-                    ),
-                    children: grouped ? (
-                        // Repeated markup on one page (a code theme's 36 tokens): one group,
-                        // one fix sentence, instead of 36 identical cards.
-                        <div className="flex flex-col gap-4">
-                            {groups.map(([label, members]) => {
-                                const first = members[0];
-                                const colours = parseContrast(first.failureSummary);
-                                const fix = plainContrastFix(first.failureSummary, {
-                                    html: first.html,
-                                    selector: findingSelector(first),
-                                });
-                                return (
-                                    <section
-                                        key={label}
-                                        aria-label={`${members.length} element${members.length === 1 ? '' : 's'}: ${label}`}
-                                    >
-                                        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                            {colours && (
-                                                <span
-                                                    aria-hidden="true"
-                                                    className="inline-flex overflow-hidden rounded border border-gray-300"
+        <>
+            <Collapse
+                defaultActiveKey={open ? ['nodes'] : []}
+                items={[
+                    {
+                        key: 'nodes',
+                        label: (
+                            <span className="font-medium">
+                                {label}
+                                <Tag color="blue" style={{ marginLeft: 8 }}>
+                                    {nodes.length}
+                                </Tag>
+                            </span>
+                        ),
+                        children: (
+                            // Repeated markup on one page (a code theme's 36 tokens): one group,
+                            // one fix sentence, instead of 36 identical cards.
+                            <div className="flex flex-col gap-4">
+                                {groups.map(([label, members]) => {
+                                    const first = members[0];
+                                    const colours = parseContrast(first.failureSummary);
+                                    const context = {
+                                        html: first.html,
+                                        selector: findingSelector(first),
+                                    };
+                                    const fix = plainContrastFix(first.failureSummary, context);
+                                    // Named in words where we can, as the website drawer does.
+                                    const name =
+                                        colours && isCodeHighlight(context)
+                                            ? 'Code-highlighting colours'
+                                            : null;
+                                    const tracked = members
+                                        .map((node) =>
+                                            findingsBySelector?.get(
+                                                findingKey(ruleId, findingSelector(node))
+                                            )
+                                        )
+                                        .filter((f): f is Finding => !!f);
+                                    return (
+                                        <section
+                                            key={label}
+                                            aria-label={`${members.length} element${members.length === 1 ? '' : 's'}: ${label}`}
+                                        >
+                                            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                {colours && (
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className="inline-flex overflow-hidden rounded border border-gray-300"
+                                                    >
+                                                        <span
+                                                            className="h-4 w-4"
+                                                            style={{
+                                                                background: colours.foreground,
+                                                            }}
+                                                        />
+                                                        <span
+                                                            className="h-4 w-4"
+                                                            style={{
+                                                                background: colours.background,
+                                                            }}
+                                                        />
+                                                    </span>
+                                                )}
+                                                {name && (
+                                                    <span className="font-medium">{name}</span>
+                                                )}
+                                                <code className="text-sm">{label}</code>
+                                                <Tag>
+                                                    {members.length} element
+                                                    {members.length === 1 ? '' : 's'}
+                                                </Tag>
+                                                {canEdit && onGroupStatus && tracked.length > 1 && (
+                                                    <Button
+                                                        size="small"
+                                                        aria-haspopup="dialog"
+                                                        onClick={() =>
+                                                            setStatusFor({
+                                                                label,
+                                                                findings: tracked,
+                                                            })
+                                                        }
+                                                    >
+                                                        Set status for these {tracked.length}…
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            {fix && (
+                                                <p
+                                                    className="font-medium text-gray-900"
+                                                    style={{ margin: '0 0 8px' }}
                                                 >
-                                                    <span
-                                                        className="h-4 w-4"
-                                                        style={{ background: colours.foreground }}
-                                                    />
-                                                    <span
-                                                        className="h-4 w-4"
-                                                        style={{ background: colours.background }}
-                                                    />
-                                                </span>
+                                                    {fix}
+                                                </p>
                                             )}
-                                            <code className="text-sm">{label}</code>
-                                            <Tag>
-                                                {members.length} element
-                                                {members.length === 1 ? '' : 's'}
-                                            </Tag>
-                                        </div>
-                                        {fix && (
-                                            <p
-                                                className="font-medium text-gray-900"
-                                                style={{ margin: '0 0 8px' }}
-                                            >
-                                                {fix}
-                                            </p>
-                                        )}
-                                        <GroupNodes
-                                            ruleId={ruleId}
-                                            nodes={members}
-                                            previewEnabled={previewEnabled}
-                                            findingsBySelector={findingsBySelector}
-                                            canEdit={canEdit}
-                                            onFindingChanged={onFindingChanged}
-                                        />
-                                    </section>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <>
-                            <ul style={{ paddingLeft: 0, margin: 0, listStyle: 'none' }}>
-                                {nodes.slice(0, shown).map((node, idx) => (
-                                    <ViolationNode
-                                        key={idx}
-                                        node={node}
-                                        previewEnabled={previewEnabled}
-                                        finding={findingsBySelector?.get(
-                                            findingKey(ruleId, findingSelector(node))
-                                        )}
-                                        canEdit={canEdit}
-                                        onFindingChanged={onFindingChanged}
-                                    />
-                                ))}
-                            </ul>
-                            {shown < nodes.length && (
-                                <div className="flex gap-2">
-                                    <Button
-                                        size="small"
-                                        onClick={() => setShown(shown + NODE_PAGE)}
-                                    >
-                                        Show {Math.min(NODE_PAGE, nodes.length - shown)} more
-                                    </Button>
-                                    <Button
-                                        size="small"
-                                        type="link"
-                                        onClick={() => setShown(nodes.length)}
-                                    >
-                                        Show all {nodes.length}
-                                    </Button>
-                                </div>
-                            )}
-                        </>
-                    ),
-                },
-            ]}
-        />
+                                            <GroupNodes
+                                                ruleId={ruleId}
+                                                nodes={members}
+                                                previewEnabled={previewEnabled}
+                                                findingsBySelector={findingsBySelector}
+                                                canEdit={canEdit}
+                                                onFindingChanged={onFindingChanged}
+                                            />
+                                        </section>
+                                    );
+                                })}
+                            </div>
+                        ),
+                    },
+                ]}
+            />
+            {statusFor && onGroupStatus && (
+                <StatusDialog
+                    open
+                    count={statusFor.findings.length}
+                    title={`Status for these ${statusFor.findings.length} elements`}
+                    scope={`${statusFor.label}, on this page.`}
+                    onCancel={() => setStatusFor(null)}
+                    onConfirm={(status, note) => {
+                        const group = statusFor;
+                        setStatusFor(null);
+                        onGroupStatus(
+                            group.findings.map((f) => f.id),
+                            status,
+                            note
+                        );
+                    }}
+                />
+            )}
+        </>
     );
 }
 
@@ -294,6 +321,7 @@ function AuditAccessibilityItem({
     canEdit = false,
     onFindingChanged,
     onBulkStatus,
+    onGroupStatus,
     canScan = false,
     onPageScanned,
     idPrefix = 'violation',
@@ -491,6 +519,7 @@ function AuditAccessibilityItem({
                         findingsBySelector={findingsBySelector}
                         canEdit={canEdit}
                         onFindingChanged={onFindingChanged}
+                        onGroupStatus={onGroupStatus}
                     />
                 </div>
             )}

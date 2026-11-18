@@ -422,6 +422,7 @@ document.body.appendChild(accessScriptElement);`;
                                                 previewEnabled
                                                 findings={report.findings}
                                                 canEdit={report.can_edit}
+                                                websiteId={website?.id}
                                             />
                                         </>
                                     ) : (

@@ -2,7 +2,9 @@
 import AuditAccessibilityItem from '@/components/AuditAccessibilityItem';
 import GenerateAIPromptButton from '@/components/GenerateAIPromptButton';
 import { findingKey, findingSelector } from '@/components/ViolationNode';
-import { isSuppressed } from '@/lib/findings';
+import { isSuppressed, STATUS_LABELS } from '@/lib/findings';
+import { useAlerts } from '@/providers/Alerts';
+import { useUser } from '@/providers/User';
 import { IMPACTS, impactRank } from '@/lib/impact';
 import { AxeResult, WebsiteAxeResult } from '@/lib/types/axe';
 import { Impact } from '@/lib/types/dashboard';
@@ -27,6 +29,8 @@ type Props = {
     ruleFindings?: Record<string, FindingRuleGroup>;
     canEdit?: boolean;
     onBulkStatus?: (ruleId: string, status: FindingStatus, note?: string) => Promise<void>;
+    // The page's website (report page): its groups of elements can be marked at once.
+    websiteId?: number;
     // Offer "Rescan this page" on each affected page (website page).
     canScan?: boolean;
     onPageScanned?: () => void;
@@ -60,10 +64,13 @@ function ViolationsList({
     ruleFindings,
     canEdit = false,
     onBulkStatus,
+    websiteId,
     canScan = false,
     onPageScanned,
     onShowAll,
 }: Props) {
+    const { handlerUserApiRequest } = useUser();
+    const { addAlert } = useAlerts();
     const { params, setFilters } = useUrlFilters();
     const impacts = (params.get('impact') ?? '').split(',').filter(Boolean) as Impact[];
     const ruleQuery = params.get('rule') ?? '';
@@ -96,6 +103,40 @@ function ViolationsList({
         setFindingState((current) =>
             (current ?? []).map((f) => (f.id === updated.id ? updated : f))
         );
+    // A group's verdict (the same endpoint as the website's element drawer), then the
+    // elements on this page show it without a reload.
+    const onGroupStatus =
+        websiteId !== undefined && canEdit
+            ? async (ids: number[], status: FindingStatus, note?: string) => {
+                  try {
+                      await handlerUserApiRequest<{ updated: number }>(
+                          `/api/websites/${websiteId}/findings/bulk-ids/`,
+                          {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ids, status, ...(note ? { note } : {}) }),
+                          }
+                      );
+                      const at = new Date().toISOString();
+                      setFindingState((current) =>
+                          (current ?? []).map((f) =>
+                              ids.includes(f.id)
+                                  ? { ...f, status, note: note ?? f.note, status_at: at }
+                                  : f
+                          )
+                      );
+                      addAlert(
+                          `${ids.length} elements marked ${STATUS_LABELS[status].toLowerCase()}`,
+                          'success'
+                      );
+                  } catch (error) {
+                      addAlert(
+                          'Could not update the elements: ' + (error as Error).message,
+                          'error'
+                      );
+                  }
+              }
+            : undefined;
 
     // A rule is suppressed when every element tracked for it carries a suppressing verdict.
     const ruleSuppressed = (v: Violation): boolean => {
@@ -258,6 +299,7 @@ function ViolationsList({
                         canEdit={canEdit}
                         onFindingChanged={onFindingChanged}
                         onBulkStatus={onBulkStatus}
+                        onGroupStatus={onGroupStatus}
                         canScan={canScan}
                         onPageScanned={onPageScanned}
                         onShowAll={

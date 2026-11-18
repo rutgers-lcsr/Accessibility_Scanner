@@ -85,7 +85,7 @@ function ViolationNode({
                     )}
                 </>
             ) : (
-                summary && <div className="mb-2 whitespace-pre-wrap">{summary}</div>
+                summary && <SummaryText text={summary} />
             )}
             {text && (
                 <p className="text-gray-900" style={{ margin: '0 0 8px' }}>
@@ -123,13 +123,14 @@ function ViolationNode({
             {(node.html || finding) && (
                 <details className="mt-2">
                     <summary className="cursor-pointer text-xs text-gray-700">
-                        More: {grouped && summary ? 'what the check measured, ' : ''}HTML
+                        More: {grouped && plainFix && summary ? 'what the check measured, ' : ''}
+                        HTML
                         {finding ? ', status and note' : ''}
                         {finding && finding.status !== 'open' && (
                             <Tag style={{ marginLeft: 8 }}>{STATUS_LABELS[finding.status]}</Tag>
                         )}
                     </summary>
-                    {grouped && summary && (
+                    {grouped && plainFix && summary && (
                         <div className="mt-2 whitespace-pre-wrap text-xs text-gray-700">
                             {summary}
                         </div>
@@ -185,6 +186,33 @@ function visibleText(html?: string): string {
 
 // axe's summary opens each group with "Fix any of the following:" / "Fix all of the
 // following:"; say what that means.
+// axe's summary, laid out: "Any one of these fixes it:" and the like as a line, the
+// indented remedies under it as a list, instead of one unindented block.
+function SummaryText({ text }: { text: string }) {
+    const blocks: { heading: string; items: string[] }[] = [];
+    for (const line of text.split('\n')) {
+        if (!line.trim()) continue;
+        if (/^\s/.test(line) && blocks.length) blocks[blocks.length - 1].items.push(line.trim());
+        else blocks.push({ heading: line.trim(), items: [] });
+    }
+    return (
+        <div className="mb-2">
+            {blocks.map((block, index) => (
+                <div key={index}>
+                    <p className="m-0">{block.heading}</p>
+                    {block.items.length > 0 && (
+                        <ul className="mt-1 mb-1 list-disc pl-5">
+                            {block.items.map((item, i) => (
+                                <li key={i}>{item}</li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function plainSummary(summary?: string): string {
     if (!summary) return '';
     // One line under a heading is a diagnosis, not a list of choices: say "What failed".
