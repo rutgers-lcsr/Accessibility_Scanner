@@ -5,7 +5,7 @@ import re
 from datetime import date
 
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import current_user, jwt_required
 
 from authentication.login import admin_required
 from models import db
@@ -72,15 +72,18 @@ def _apply(vendor: Vendor, data: dict) -> None:
 @jwt_required()
 def list_vendors():
     """
-    Every vendor with how many websites use it.
+    Every vendor with how many websites use it, and which of those the caller may see
+    (``sites``: url, the vendor's hosts it uses, pages, kinds).
     ---
     tags:
         - Vendors
     """
-    from services.inventory import vendor_usage  # local import: services import models
+    from services.inventory import vendor_sites, vendor_usage  # local import: services import models
     usage = vendor_usage()
+    sites = vendor_sites(lambda website: website.can_view(current_user))
     vendors = db.session.query(Vendor).order_by(Vendor.name).all()
-    return jsonify([{**vendor.to_dict(), 'websites': usage.get(vendor.id, 0)} for vendor in vendors]), 200
+    return jsonify([{**vendor.to_dict(), 'websites': usage.get(vendor.id, 0), 'sites': sites.get(vendor.id, [])}
+                    for vendor in vendors]), 200
 
 
 @vendors_bp.route('/unassigned-hosts/', methods=['GET'])

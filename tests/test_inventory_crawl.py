@@ -258,6 +258,11 @@ def test_vendor_api_and_unassigned_hosts(client, jwt_header, make_user, make_web
 
     listed = client.get("/api/vendors/", headers=jwt_header(owner)).get_json()
     assert listed[0]["websites"] == 1
+    assert listed[0]["sites"] == [{"website_id": website.id, "url": website.url, "hosts": ["cdn.kaltura.com"],
+                                   "pages": 3, "kinds": ["script"]}]
+    # Someone who cannot see the website gets the count, not its name.
+    hidden = client.get("/api/vendors/", headers=jwt_header(make_user("stranger"))).get_json()
+    assert hidden[0]["websites"] == 1 and hidden[0]["sites"] == []
     assert [h["host"] for h in client.get("/api/vendors/unassigned-hosts/", headers=jwt_header(admin)).get_json()] == [
         "www.googletagmanager.com"]
 

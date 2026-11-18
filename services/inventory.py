@@ -255,6 +255,36 @@ def unassigned_hosts() -> list:
     return out
 
 
+def vendor_sites(can_view=None) -> dict:
+    """``{vendor_id: [{'website_id', 'url', 'hosts', 'pages', 'kinds'}]}``: the websites
+    using each vendor (through any of its hosts), most pages first. ``can_view(website)``
+    limits the list to websites the caller may see; the counts (vendor_usage) stay whole."""
+    vendors = db.session.query(Vendor).all()
+    out: dict = {vendor.id: {} for vendor in vendors}
+    visible: dict = {}
+    rows = (db.session.query(ThirdPartyHost, Website)
+            .join(Website, Website.id == ThirdPartyHost.website_id).all())
+    for row, website in rows:
+        vendor = match_vendor(row.host, vendors)
+        if not vendor:
+            continue
+        if can_view is not None:
+            if website.id not in visible:
+                visible[website.id] = bool(can_view(website))
+            if not visible[website.id]:
+                continue
+        site = out[vendor.id].setdefault(website.id, {
+            'website_id': website.id, 'url': website.url, 'hosts': set(), 'pages': 0, 'kinds': set()})
+        site['hosts'].add(row.host)
+        site['pages'] += row.page_count
+        site['kinds'].update(k for k in (row.kinds or '').split(',') if k)
+    return {
+        vendor_id: sorted(({**s, 'hosts': sorted(s['hosts']), 'kinds': sorted(s['kinds'])} for s in sites.values()),
+                          key=lambda s: (-s['pages'], s['url']))
+        for vendor_id, sites in out.items()
+    }
+
+
 def vendor_usage() -> dict:
     """``{vendor_id: number of websites using it}``."""
     vendors = db.session.query(Vendor).all()

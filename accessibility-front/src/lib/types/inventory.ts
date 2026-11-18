@@ -57,6 +57,17 @@ export type Vendor = {
     contact: string | null;
     notes: string | null;
     websites?: number;
+    // The websites using it that the viewer may see, most pages first.
+    sites?: VendorSite[];
+};
+
+export type VendorSite = {
+    website_id: number;
+    url: string;
+    // The vendor's hosts this website uses.
+    hosts: string[];
+    pages: number;
+    kinds: string[];
 };
 
 export type UnassignedHostSite = {

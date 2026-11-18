@@ -10,6 +10,66 @@ import { useState } from 'react';
 import useSWR from 'swr';
 
 // Which websites use the host, before deciding whether it is a vendor.
+const VendorExpandIcon = namedExpandIcon<Vendor>((vendor) => `Websites using ${vendor.name}`);
+
+type UsageSite = {
+    website_id: number;
+    url: string;
+    pages: number;
+    kinds: string[];
+    hosts?: string[];
+    example_pages?: string[];
+};
+
+// The websites using a vendor or a host: each links to its third-party list, with how many
+// pages use it, for what, and (for a vendor) through which of its hosts.
+function SiteUsage({ sites, hidden = 0 }: { sites: UsageSite[]; hidden?: number }) {
+    return (
+        <>
+            <ul className="m-0 list-none space-y-2 p-0">
+                {sites.map((site) => (
+                    <li key={site.website_id}>
+                        <a
+                            className="underline"
+                            href={`/websites/${site.website_id}?tab=third-parties`}
+                        >
+                            {site.url}
+                        </a>
+                        <span className="ml-2 text-sm text-gray-700">
+                            {site.pages} page{site.pages === 1 ? '' : 's'}
+                            {site.hosts?.length ? ` · via ${site.hosts.join(', ')}` : ''}
+                        </span>
+                        {site.kinds.map((kind) => (
+                            <Tag key={kind} style={{ marginLeft: 8 }}>
+                                {kind}
+                            </Tag>
+                        ))}
+                        {!!site.example_pages?.length && (
+                            <details className="mt-1 text-sm">
+                                <summary className="cursor-pointer text-gray-700">
+                                    Example pages
+                                </summary>
+                                <ul className="mt-1 mb-0 pl-5">
+                                    {site.example_pages.map((page) => (
+                                        <li key={page} className="break-all">
+                                            {page}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </details>
+                        )}
+                    </li>
+                ))}
+            </ul>
+            {hidden > 0 && (
+                <p className="mt-2 mb-0 text-sm text-gray-700">
+                    And {hidden} more website{hidden === 1 ? '' : 's'} you do not have access to.
+                </p>
+            )}
+        </>
+    );
+}
+
 const UnassignedHostExpandIcon = namedExpandIcon<UnassignedHost>(
     (host) => `Websites using ${host.host}`
 );
@@ -104,6 +164,16 @@ function Vendors() {
                     rowKey="id"
                     dataSource={vendors}
                     pagination={false}
+                    components={{ ExpandIcon: VendorExpandIcon }}
+                    expandable={{
+                        rowExpandable: (vendor) => (vendor.websites ?? 0) > 0,
+                        expandedRowRender: (vendor) => (
+                            <SiteUsage
+                                sites={vendor.sites ?? []}
+                                hidden={(vendor.websites ?? 0) - (vendor.sites?.length ?? 0)}
+                            />
+                        ),
+                    }}
                     locale={{ emptyText: 'No vendors registered yet.' }}
                     columns={[
                         {
@@ -212,42 +282,7 @@ function Vendors() {
                     locale={{ emptyText: 'Every host is matched to a vendor.' }}
                     components={{ ExpandIcon: UnassignedHostExpandIcon }}
                     expandable={{
-                        expandedRowRender: (row) => (
-                            <ul className="m-0 list-none space-y-2 p-0">
-                                {row.sites.map((site) => (
-                                    <li key={site.website_id}>
-                                        <a
-                                            className="underline"
-                                            href={`/websites/${site.website_id}?tab=third-parties`}
-                                        >
-                                            {site.url}
-                                        </a>
-                                        <span className="ml-2 text-sm text-gray-700">
-                                            {site.pages} page{site.pages === 1 ? '' : 's'}
-                                        </span>
-                                        {site.kinds.map((kind) => (
-                                            <Tag key={kind} style={{ marginLeft: 8 }}>
-                                                {kind}
-                                            </Tag>
-                                        ))}
-                                        {site.example_pages.length > 0 && (
-                                            <details className="mt-1 text-sm">
-                                                <summary className="cursor-pointer text-gray-700">
-                                                    Example pages
-                                                </summary>
-                                                <ul className="mt-1 mb-0 pl-5">
-                                                    {site.example_pages.map((page) => (
-                                                        <li key={page} className="break-all">
-                                                            {page}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </details>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        ),
+                        expandedRowRender: (row) => <SiteUsage sites={row.sites} />,
                     }}
                     columns={[
                         { title: 'Host', dataIndex: 'host', key: 'host' },
