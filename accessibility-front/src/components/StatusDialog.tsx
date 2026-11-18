@@ -2,7 +2,7 @@
 import { isSuppressed, REASON_MIN_LENGTH, STATUS_LABELS } from '@/lib/findings';
 import { FindingStatus } from '@/lib/types/finding';
 import { Input, Modal, Radio } from 'antd';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 // What each status means, said where the choice is made.
 const STATUS_HINTS: Record<FindingStatus, string> = {
@@ -38,6 +38,17 @@ export default function StatusDialog({ open, count, title, scope, onCancel, onCo
               : needsReason && reason.trim().length < REASON_MIN_LENGTH
                 ? `The reason needs at least ${REASON_MIN_LENGTH} characters.`
                 : null;
+    // Focus goes back to the button that opened the dialog, also when the caller unmounts
+    // the dialog on close (antd's own restore never runs then, and focus fell to <body>).
+    useEffect(() => {
+        if (!open) return;
+        const opener = document.activeElement as HTMLElement | null;
+        return () => {
+            requestAnimationFrame(() => {
+                if (opener?.isConnected) opener.focus();
+            });
+        };
+    }, [open]);
     const reset = () => {
         setChoice(null);
         setReason('');

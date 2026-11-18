@@ -45,5 +45,8 @@ test('code-highlight colours get theme advice, not a colour per word', () => {
     assert.ok(isCodeHighlight({ html }));
     assert.ok(isCodeHighlight({ selector: 'code > span:nth-child(1) > span:nth-child(3)' }));
     assert.ok(!isCodeHighlight({ html: '<div class="note">x</div>', selector: '#annotate > div' }));
+    // Inline code with an ordinary colour is the site's own styling, not a highlighting theme.
+    assert.ok(!isCodeHighlight({ html: '<code>npm</code>', selector: 'p > code' }));
+    assert.ok(isCodeHighlight({ selector: 'pre code > span' }));
     assert.match(plainContrastFix(SUMMARY, { html }), /highlighting theme/);
 });

@@ -14,6 +14,8 @@ export type Website = {
     updated_at: string;
     public: boolean;
     last_scanned: string;
+    // Pages scanned on their own since the last full scan (only with the full report).
+    page_rescans?: { count: number; latest: string | null } | null;
     last_scan_status: 'completed' | 'failed' | 'unreachable' | null;
     last_scan_error: string | null;
     // when the admin and users were last emailed about this website

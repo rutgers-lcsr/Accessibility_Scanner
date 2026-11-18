@@ -19,18 +19,18 @@ Low contrast is unreadable for many people with low vision or colour deficiencie
 ## Before
 
 ```css
-.note { color: #999999; background: #ffffff; }   /* 2.8:1 */
-.banner { color: #ffffff; background: #ff6666; } /* 2.7:1 */
+.note { color: #999999; background: #ffffff; }   /* 2.85:1 */
+.banner { color: #ffffff; background: #ff6666; } /* 2.86:1 */
 ```
 
 ## After
 
 ```css
-.note { color: #595959; background: #ffffff; }   /* 7.0:1 */
-.banner { color: #ffffff; background: #cc0033; } /* 5.9:1 */
+.note { color: #595959; background: #ffffff; }   /* 7.00:1 */
+.banner { color: #ffffff; background: #cc0033; } /* 5.81:1 */
 ```
 
-**Coloured words in code samples** (keywords, `@decorators`, strings in a different colour) come from the code-highlighting theme of the code block or plugin, not from text you typed. Pick a higher-contrast highlighting theme in that block's or plugin's settings: one change fixes every sample on the site.
+**Coloured words in code samples** (keywords, `@decorators`, strings in a different colour) come from the code-highlighting theme of the code block or plugin, not from text you typed. Pick a higher-contrast highlighting theme in that block's or plugin's settings: when one plugin or theme colours all the code blocks, that one change fixes every sample on the site.
 
 Use a contrast checker (WebAIM's is free) while picking colours. Darkening the text is usually easier than changing the background. The Rutgers red `#cc0033` on white passes for text of any size.
 

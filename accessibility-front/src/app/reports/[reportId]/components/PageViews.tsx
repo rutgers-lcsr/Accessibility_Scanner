@@ -45,6 +45,9 @@ export default function PageViews({
                 return;
             }
             setView('live');
+            // Said at once, then replaced when the frame finds the element (or not): a frame
+            // that never answers otherwise left the button silent.
+            setStatus('Looking for the element in the live preview…');
         };
         // Found by its selector: say what is certain (the preview scrolled to it), not that
         // it still fails, which only a new scan can tell.

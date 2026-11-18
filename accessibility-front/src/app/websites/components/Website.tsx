@@ -362,6 +362,19 @@ const Website = ({ websiteId, user }: Props) => {
                 subtitle={
                     <>
                         Last full scan {scanAge(websiteReport.last_scanned)}
+                        {!!websiteReport.page_rescans?.count && (
+                            <>
+                                {' '}
+                                · {plural(websiteReport.page_rescans.count, 'page')} rescanned
+                                since, latest{' '}
+                                {new Date(websiteReport.page_rescans.latest!).toLocaleDateString(
+                                    undefined,
+                                    {
+                                        dateStyle: 'medium',
+                                    }
+                                )}
+                            </>
+                        )}
                         {isStale(websiteReport.last_scanned) && (
                             <span className="font-medium text-orange-800">
                                 {' '}

@@ -1,6 +1,6 @@
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List, TypedDict
 from sqlalchemy import and_, case, func, or_, select
 from models import db
@@ -634,6 +634,20 @@ class Website(db.Model):
 
         return report
 
+    def page_rescans(self) -> dict:
+        """Pages scanned on their own after the last full scan: the website's date alone made
+        a mix of ages read as one ("50 days ago" beside pages rescanned yesterday)."""
+        if not self.last_scanned:
+            return {'count': 0, 'latest': None}
+        # A day's margin: a long crawl's own pages finish after it started.
+        after = self.last_scanned + timedelta(days=1)
+        newer = [scanned for (scanned,) in self.sites.with_entities(Site.last_scanned).all()
+                 if scanned and scanned > after]
+        return {
+            'count': len(newer),
+            'latest': max(newer).strftime("%Y-%m-%dT%H:%M:%SZ") if newer else None,
+        }
+
     def to_dict(self, with_report: bool = False) -> WebsiteDict:
 
 
@@ -658,6 +672,7 @@ class Website(db.Model):
             'users': [user.username for user in self.users],
             'should_email': self.should_email,
             'last_scanned': self.last_scanned.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_scanned else None,
+            'page_rescans': self.page_rescans() if with_report else None,
             'last_scan_status': self.last_scan_status,
             'last_scan_error': self.last_scan_error,
             'last_notified': self.last_notified.strftime("%Y-%m-%dT%H:%M:%SZ") if self.last_notified else None,

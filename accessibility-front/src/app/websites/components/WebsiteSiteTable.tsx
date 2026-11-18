@@ -155,14 +155,25 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
                 className="min-h-[400px]"
                 style={{ width: '100%', minHeight: 400, maxWidth: '100%' }}
                 // x: the sum of the column widths. Narrower screens scroll the table sideways
-                // instead of crushing dates to one letter per line.
-                scroll={{ x: 1060, y: '45em' }}
+                // instead of crushing dates to one letter per line. No y: a fixed header split
+                // the table in two, so the rows had no column headers for screen readers.
+                scroll={{ x: 1060 }}
                 pagination={false}
                 columns={sites_columns}
                 dataSource={sites?.items}
                 loading={isLoadingSites}
                 rowKey="id"
                 expandable={{
+                    // Named per row: 43 buttons all called "Expand row" said nothing.
+                    expandIcon: ({ expanded, onExpand, record }) => (
+                        <button
+                            type="button"
+                            className={`ant-table-row-expand-icon ant-table-row-expand-icon-${expanded ? 'expanded' : 'collapsed'}`}
+                            aria-expanded={expanded}
+                            aria-label={`History of ${record.url}`}
+                            onClick={(e) => onExpand(record, e)}
+                        />
+                    ),
                     // SiteHistoryChart is only rendered for expanded rows, so each
                     // URL's history is fetched lazily on expand.
                     expandedRowRender: (record) => (

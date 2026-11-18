@@ -99,3 +99,16 @@ textarea:focus-visible,
     outline: 3px solid #b3002d;
     outline-offset: 1px;
 }
+
+/* antd Tabs, app-wide (unlayered, so it beats antd's layer).
+   - rc-tabs puts a hidden "Tab 2 of 8" live region inside the focused tab: it became part of
+     the tab's and its panel's name, and screen readers already say the position.
+   - The overflow "…" button sits inside role=tablist, which may only hold tabs (axe
+     aria-required-children). Narrow screens scroll the tabs instead; arrow keys still move
+     between all of them. */
+.ant-tabs-tab-btn > div[aria-live] {
+    display: none;
+}
+.ant-tabs-nav-operations {
+    display: none !important;
+}

@@ -70,9 +70,14 @@ export function isCodeHighlight(context?: {
 }): boolean {
     if (!context) return false;
     const classes = /class\s*=\s*["']([^"']*)["']/.exec(context.html ?? '')?.[1] ?? '';
-    return (
-        HIGHLIGHT.test(classes) || /(^|[\s>])(code|pre)([\s>.:#[]|$)/.test(context.selector ?? '')
-    );
+    // Inside a code or pre block (a token the highlighter coloured), not inline <code> text
+    // itself: that colour is the site's own and the per-colour advice applies.
+    const compounds = (context.selector ?? '')
+        .trim()
+        .split(/\s*>\s*|\s+/)
+        .filter(Boolean);
+    const insideBlock = compounds.slice(0, -1).some((part) => /^(code|pre)([.:#[]|$)/.test(part));
+    return HIGHLIGHT.test(classes) || insideBlock;
 }
 
 /** One sentence a non-developer can act on, or null when the text is not a contrast failure. */

@@ -45,19 +45,18 @@ function WebsiteChanges({ websiteId, user }: Props) {
     return (
         <Card style={{ marginTop: 8 }} title="What changed">
             <p className="mb-4">
-                {/* Two units, each named: rule failures for the before/after totals (a
-                    rule failing on one page counts once), elements for what changed. */}
+                {/* Elements first: the unit of the tiles and Fix first. Rule failures (a rule
+                    failing on one page counts once) second, named as such. */}
                 Each page&apos;s two most recent scans, the latest on {when(data.until)}:{' '}
-                <strong>{data.previous.total}</strong> → <strong>{data.current.total}</strong> rule
-                failures on the pages scanned both times. Elements:{' '}
+                <strong>{data.fixed_count}</strong> elements fixed,{' '}
                 <strong>{data.new_count}</strong> new
                 {data.reopened_count > 0 && <> ({data.reopened_count} reopened)</>},{' '}
-                <strong>{data.fixed_count}</strong> fixed, <strong>{data.open_count}</strong> still
-                open
+                <strong>{data.open_count}</strong> still open
                 {data.suppressed_count > 0 && (
                     <>, {data.suppressed_count} marked false positive or accepted</>
                 )}
-                .
+                . Rule failures on the pages scanned both times: {data.previous.total} →{' '}
+                {data.current.total}.
             </p>
             {data.regression && (
                 <Alert
@@ -70,9 +69,13 @@ function WebsiteChanges({ websiteId, user }: Props) {
             {nothing && (
                 <Alert
                     style={{ marginBottom: 16 }}
-                    type="success"
+                    type="info"
                     showIcon
-                    title="Nothing changed between each page's two most recent scans"
+                    title={
+                        data.open_count > 0
+                            ? "No progress yet: nothing was fixed or newly broken between each page's two most recent scans"
+                            : "Nothing changed between each page's two most recent scans"
+                    }
                 />
             )}
             <Collapse
