@@ -2,16 +2,18 @@
 import csv
 import io
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 import pytest
 
 import models.website as website_models
+import services.scorecards as scorecards
 from models import db
 from models.compliance import ManualReview
 from models.finding import Finding
 from models.health import HealthCheck, WebsiteHealth
 from services.findings import sync_report_findings
-from services.scorecards import REPORT_COLUMNS, UNASSIGNED, compliance_rows, department_scorecards
+from services.scorecards import REPORT_COLUMNS, UNASSIGNED, compliance_rows, department_scorecards, uptime_by_website
 
 
 @pytest.fixture(autouse=True)
@@ -125,3 +127,22 @@ def test_suppressed_elements_are_counted_beside_the_issues(app, make_user, make_
     assert "suppressed" in REPORT_COLUMNS
     cards = {card["department"]: card for card in department_scorecards(list(rows.values()))}
     assert cards["CS"]["suppressed"] == 1
+
+
+def test_uptime_from_mariadb_decimal_sums_rolls_up(app, monkeypatch):
+    """MariaDB returns SUM as Decimal (sqlite returns int). A website with no up checks
+    used to come out as float beside Decimals, so the scorecard roll-up raised TypeError."""
+    class Rows:
+        def filter(self, *args):
+            return self
+
+        def group_by(self, *args):
+            return self
+
+        def all(self):
+            return [(1, 4, Decimal(3)), (2, 2, Decimal(0))]
+
+    monkeypatch.setattr(scorecards.db.session, "query", lambda *args: Rows())
+    uptime = uptime_by_website([1, 2], datetime.utcnow())
+    assert uptime == {1: 75.0, 2: 0.0}
+    assert sum(uptime.values()) == 75.0

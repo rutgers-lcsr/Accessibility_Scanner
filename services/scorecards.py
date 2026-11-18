@@ -82,7 +82,8 @@ def uptime_by_website(website_ids, now: datetime, days: int = 30) -> dict:
     rows = (db.session.query(HealthCheck.website_id, func.count(), func.sum(func.cast(HealthCheck.up, db.Integer)))
             .filter(HealthCheck.website_id.in_(list(website_ids)), HealthCheck.checked_at >= now - timedelta(days=days))
             .group_by(HealthCheck.website_id).all())
-    return {website_id: round(100 * (up or 0) / total, 2) for website_id, total, up in rows if total}
+    # MariaDB returns SUM as Decimal; float() keeps every value one type so roll-ups can add them.
+    return {website_id: round(100 * float(up or 0) / total, 2) for website_id, total, up in rows if total}
 
 
 def unregistered_third_parties(website_ids) -> dict:
