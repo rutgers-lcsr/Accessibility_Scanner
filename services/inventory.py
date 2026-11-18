@@ -229,17 +229,28 @@ def third_party_rows(website_id: int) -> list:
 
 def unassigned_hosts() -> list:
     """Third-party hosts seen on any website that match no vendor, most used first:
-    ``[{'host', 'websites', 'pages', 'kinds'}]``."""
+    ``[{'host', 'websites', 'pages', 'kinds', 'sites'}]``. ``sites`` names the websites
+    using the host (most pages first), with what each loads and a few of its pages."""
     vendors = db.session.query(Vendor).all()
     by_host: dict = {}
-    for row in db.session.query(ThirdPartyHost).all():
+    rows = (db.session.query(ThirdPartyHost, Website.url)
+            .join(Website, Website.id == ThirdPartyHost.website_id).all())
+    for row, website_url in rows:
         if match_vendor(row.host, vendors):
             continue
-        entry = by_host.setdefault(row.host, {'host': row.host, 'websites': 0, 'pages': 0, 'kinds': set()})
+        entry = by_host.setdefault(row.host, {'host': row.host, 'websites': 0, 'pages': 0, 'kinds': set(), 'sites': []})
+        kinds = [k for k in (row.kinds or '').split(',') if k]
         entry['websites'] += 1
         entry['pages'] += row.page_count
-        entry['kinds'].update(k for k in (row.kinds or '').split(',') if k)
-    out = [{**entry, 'kinds': sorted(entry['kinds'])} for entry in by_host.values()]
+        entry['kinds'].update(kinds)
+        entry['sites'].append({
+            'website_id': row.website_id, 'url': website_url, 'pages': row.page_count,
+            'kinds': sorted(kinds), 'example_pages': (row.pages or [])[:5],
+        })
+    out = []
+    for entry in by_host.values():
+        entry['sites'].sort(key=lambda s: (-s['pages'], s['url']))
+        out.append({**entry, 'kinds': sorted(entry['kinds'])})
     out.sort(key=lambda e: (-e['websites'], -e['pages'], e['host']))
     return out
 

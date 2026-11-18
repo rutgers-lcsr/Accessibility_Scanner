@@ -59,7 +59,22 @@ export type Vendor = {
     websites?: number;
 };
 
-export type UnassignedHost = { host: string; websites: number; pages: number; kinds: string[] };
+export type UnassignedHostSite = {
+    website_id: number;
+    url: string;
+    pages: number;
+    kinds: string[];
+    // A few of the website's pages that use the host.
+    example_pages: string[];
+};
+export type UnassignedHost = {
+    host: string;
+    websites: number;
+    pages: number;
+    kinds: string[];
+    // The websites using it, most pages first.
+    sites: UnassignedHostSite[];
+};
 
 export type PageContent = {
     site_id: number;

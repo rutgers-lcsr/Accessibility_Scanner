@@ -241,6 +241,8 @@ def test_vendor_api_and_unassigned_hosts(client, jwt_header, make_user, make_web
                                       first_seen=now, last_seen=now))
     db.session.commit()
     assert [h["host"] for h in unassigned_hosts()] == ["cdn.kaltura.com", "www.googletagmanager.com"]
+    sites = unassigned_hosts()[0]["sites"]
+    assert sites == [{"website_id": website.id, "url": website.url, "pages": 3, "kinds": ["script"], "example_pages": []}]
 
     body = {"name": "Kaltura", "hosts": ["kaltura.com"], "status": "approved",
             "vpat_url": "https://example.com/kaltura-acr.pdf", "vpat_date": "2026-03-01", "review_due": "2020-01-01"}

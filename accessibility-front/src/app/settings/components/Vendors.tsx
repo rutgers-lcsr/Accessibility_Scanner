@@ -1,5 +1,6 @@
 'use client';
 import PageLoading from '@/components/PageLoading';
+import { namedExpandIcon } from '@/components/namedExpandIcon';
 import { Field } from '@/app/websites/components/PanelFields';
 import { UnassignedHost, Vendor, VENDOR_STATUS_LABELS, VendorStatus } from '@/lib/types/inventory';
 import { useAlerts } from '@/providers/Alerts';
@@ -7,6 +8,11 @@ import { useUser } from '@/providers/User';
 import { Button, Input, Modal, Popconfirm, Select, Table, Tag } from 'antd';
 import { useState } from 'react';
 import useSWR from 'swr';
+
+// Which websites use the host, before deciding whether it is a vendor.
+const UnassignedHostExpandIcon = namedExpandIcon<UnassignedHost>(
+    (host) => `Websites using ${host.host}`
+);
 
 type Draft = Omit<Vendor, 'id' | 'review_overdue' | 'websites' | 'hosts'> & {
     id?: number;
@@ -204,6 +210,45 @@ function Vendors() {
                     loading={!unassigned}
                     pagination={{ pageSize: 20, hideOnSinglePage: true }}
                     locale={{ emptyText: 'Every host is matched to a vendor.' }}
+                    components={{ ExpandIcon: UnassignedHostExpandIcon }}
+                    expandable={{
+                        expandedRowRender: (row) => (
+                            <ul className="m-0 list-none space-y-2 p-0">
+                                {row.sites.map((site) => (
+                                    <li key={site.website_id}>
+                                        <a
+                                            className="underline"
+                                            href={`/websites/${site.website_id}?tab=third-parties`}
+                                        >
+                                            {site.url}
+                                        </a>
+                                        <span className="ml-2 text-sm text-gray-700">
+                                            {site.pages} page{site.pages === 1 ? '' : 's'}
+                                        </span>
+                                        {site.kinds.map((kind) => (
+                                            <Tag key={kind} style={{ marginLeft: 8 }}>
+                                                {kind}
+                                            </Tag>
+                                        ))}
+                                        {site.example_pages.length > 0 && (
+                                            <details className="mt-1 text-sm">
+                                                <summary className="cursor-pointer text-gray-700">
+                                                    Example pages
+                                                </summary>
+                                                <ul className="mt-1 mb-0 pl-5">
+                                                    {site.example_pages.map((page) => (
+                                                        <li key={page} className="break-all">
+                                                            {page}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </details>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        ),
+                    }}
                     columns={[
                         { title: 'Host', dataIndex: 'host', key: 'host' },
                         {

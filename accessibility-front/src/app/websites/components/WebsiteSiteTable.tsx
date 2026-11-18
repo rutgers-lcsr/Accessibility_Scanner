@@ -1,6 +1,7 @@
 import PageError from '@/components/PageError';
 import PageLoading from '@/components/PageLoading';
 import RescanPageButton from '@/components/RescanPageButton';
+import { namedExpandIcon } from '@/components/namedExpandIcon';
 import { fetcherApi } from '@/lib/api';
 import { Paged } from '@/lib/types/Paged';
 import { PublicUser } from '@/lib/types/user';
@@ -11,6 +12,9 @@ import { format } from 'date-fns';
 import React from 'react';
 import useSWR from 'swr';
 import SiteHistoryChart from './SiteHistoryChart';
+
+// Named per row: 43 buttons all called "Expand row" said nothing.
+const SiteExpandIcon = namedExpandIcon<Site>((site) => `History of ${site.url}`);
 
 type Props = {
     websiteId: number;
@@ -163,17 +167,8 @@ function WebsiteSiteTable({ websiteId, user, canScan = false, onPageScanned }: P
                 dataSource={sites?.items}
                 loading={isLoadingSites}
                 rowKey="id"
+                components={{ ExpandIcon: SiteExpandIcon }}
                 expandable={{
-                    // Named per row: 43 buttons all called "Expand row" said nothing.
-                    expandIcon: ({ expanded, onExpand, record }) => (
-                        <button
-                            type="button"
-                            className={`ant-table-row-expand-icon ant-table-row-expand-icon-${expanded ? 'expanded' : 'collapsed'}`}
-                            aria-expanded={expanded}
-                            aria-label={`History of ${record.url}`}
-                            onClick={(e) => onExpand(record, e)}
-                        />
-                    ),
                     // SiteHistoryChart is only rendered for expanded rows, so each
                     // URL's history is fetched lazily on expand.
                     expandedRowRender: (record) => (
