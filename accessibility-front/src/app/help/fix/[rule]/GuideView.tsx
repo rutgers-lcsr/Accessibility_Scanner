@@ -12,11 +12,17 @@ type Props = {
 };
 
 const CHECK_SECTION = 'check-your-fix';
+const CODE_SECTIONS = ['before', 'after'];
 
-// A guide's sections in order, with the platform steps as tabs before "Check your fix".
+// What it means and why, then the steps on the owner's platform, then the example code
+// folded for developers (CSS first lost owners who edit pages, not stylesheets), then
+// "Check your fix".
 function GuideView({ guide, platform, onPlatformChange }: Props) {
     const check = guide.sections.find((section) => section.id === CHECK_SECTION);
-    const common = guide.sections.filter((section) => section.id !== CHECK_SECTION);
+    const code = guide.sections.filter((section) => CODE_SECTIONS.includes(section.id));
+    const common = guide.sections.filter(
+        (section) => section.id !== CHECK_SECTION && !CODE_SECTIONS.includes(section.id)
+    );
     const activePlatform = guide.platforms.some((p) => p.id === platform)
         ? platform
         : guide.platforms[0]?.id;
@@ -59,6 +65,16 @@ function GuideView({ guide, platform, onPlatformChange }: Props) {
                         }))}
                     />
                 </section>
+            )}
+
+            {code.length > 0 && (
+                <details className="mt-6">
+                    <summary className="cursor-pointer font-semibold">
+                        Example code, before and after (for whoever edits the site&apos;s HTML or
+                        CSS)
+                    </summary>
+                    {code.map((s) => section(s.id, s.heading, s.markdown))}
+                </details>
             )}
 
             {check && section(check.id, check.heading, check.markdown)}

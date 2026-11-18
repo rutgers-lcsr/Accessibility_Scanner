@@ -12,6 +12,8 @@ The text colour and the colour behind it are too close. The failure summary on t
 
 Light grey "secondary" text, placeholder text, and coloured text on coloured backgrounds are the usual causes. They tend to come from the theme's palette, so one colour change clears many pages.
 
+**Coloured words in code samples** (keywords, `@decorators`, strings in a different colour) come from the code-highlighting theme of the code block or plugin, not from text you typed. Pick a higher-contrast highlighting theme in that block's or plugin's settings: when one plugin or theme colours all the code blocks, that one change fixes every sample on the site.
+
 ## Why it matters
 
 Low contrast is unreadable for many people with low vision or colour deficiencies, and hard for everyone in sunlight or on a cheap projector. WCAG 1.4.3 (Contrast, Minimum).
@@ -29,8 +31,6 @@ Low contrast is unreadable for many people with low vision or colour deficiencie
 .note { color: #595959; background: #ffffff; }   /* 7.00:1 */
 .banner { color: #ffffff; background: #cc0033; } /* 5.81:1 */
 ```
-
-**Coloured words in code samples** (keywords, `@decorators`, strings in a different colour) come from the code-highlighting theme of the code block or plugin, not from text you typed. Pick a higher-contrast highlighting theme in that block's or plugin's settings: when one plugin or theme colours all the code blocks, that one change fixes every sample on the site.
 
 Use a contrast checker (WebAIM's is free) while picking colours. Darkening the text is usually easier than changing the background. The Rutgers red `#cc0033` on white passes for text of any size.
 

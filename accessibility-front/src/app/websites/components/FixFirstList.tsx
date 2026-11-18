@@ -1,6 +1,7 @@
 'use client';
 import { RuleFindingsSummary } from '@/components/AuditAccessibilityItem';
 import ViolationNode from '@/components/ViolationNode';
+import { useGuides } from '@/hooks/useGuides';
 import { guideHref, reportHref } from '@/lib/guides';
 import { PublicUser } from '@/lib/types/user';
 import RuleElements from './RuleElements';
@@ -45,6 +46,12 @@ function FixFirstList({
     onElementsChanged,
 }: Props) {
     // The rule whose every element is open in the drawer.
+    // The fix guide's plain title ("Make text contrast with its background") where there is
+    // one; axe's wording ("Elements must meet minimum color contrast ratio thresholds")
+    // otherwise.
+    const guides = useGuides();
+    const guideTitle = (ruleId: string) =>
+        guides.items.find((item) => item.rule_id === ruleId)?.title;
     const [elementsOf, setElementsOf] = useState<FixFirstRule | null>(null);
     // The button that opened the drawer gets focus back when it closes.
     const opener = useRef<HTMLElement | null>(null);
@@ -116,7 +123,10 @@ function FixFirstList({
                                                 className="text-base font-semibold whitespace-normal md:text-lg"
                                                 style={{ margin: 0 }}
                                             >
-                                                {index + 1}. {rule.help ?? rule.rule_id}
+                                                {index + 1}.{' '}
+                                                {guideTitle(rule.rule_id) ??
+                                                    rule.help ??
+                                                    rule.rule_id}
                                             </h3>
                                             <span className="text-xs font-normal text-gray-600">
                                                 {rule.rule_id}
@@ -151,12 +161,6 @@ function FixFirstList({
                                     size="small"
                                     showInfo={false}
                                     aria-hidden
-                                />
-                                <RuleFindingsSummary
-                                    ruleId={rule.rule_id}
-                                    group={rule}
-                                    canEdit={canEdit}
-                                    onBulkStatus={onBulkStatus}
                                 />
                                 <Collapse
                                     style={{ marginTop: 12 }}
@@ -268,6 +272,16 @@ function FixFirstList({
                                         Every element of this rule ({rule.elements})
                                     </Button>
                                 </Space>
+                                {/* The verdict after the fix: an owner reads how to fix it
+                                    before being offered to mark it. */}
+                                <div className="mt-4 border-t border-gray-100 pt-3">
+                                    <RuleFindingsSummary
+                                        ruleId={rule.rule_id}
+                                        group={rule}
+                                        canEdit={canEdit}
+                                        onBulkStatus={onBulkStatus}
+                                    />
+                                </div>
                             </Card>
                         </li>
                     );

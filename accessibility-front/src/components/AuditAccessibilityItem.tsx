@@ -339,7 +339,9 @@ function AuditAccessibilityItem({
     // Deque's page), and the rule id and standards out of the way.
     const title = (
         <h3 className="text-base font-semibold whitespace-normal md:text-lg" style={{ margin: 0 }}>
-            {accessibilityResult.help || ruleId}
+            {guides.items.find((item) => item.rule_id === ruleId)?.title ||
+                accessibilityResult.help ||
+                ruleId}
         </h3>
     );
     // A rule to check by hand has not failed, so it does not wear a severity colour.
@@ -386,6 +388,7 @@ function AuditAccessibilityItem({
                 <summary className="cursor-pointer">Technical details</summary>
                 <p className="mt-2 mb-1">
                     Rule <code>{ruleId}</code>
+                    {accessibilityResult.help && <>: {accessibilityResult.help}</>}
                 </p>
                 {!!accessibilityResult.tags?.length && (
                     <div className="flex flex-wrap gap-1">
@@ -471,14 +474,6 @@ function AuditAccessibilityItem({
         return (
             <Card id={cardId} style={{ marginBottom: '16px' }} title={title} extra={badge}>
                 {header}
-                {ruleFindings && (
-                    <RuleFindingsSummary
-                        ruleId={ruleId}
-                        group={ruleFindings}
-                        canEdit={canEdit}
-                        onBulkStatus={onBulkStatus}
-                    />
-                )}
                 {!!accessibilityResult.reports?.length && (
                     <div className="mt-4">
                         <Collapse items={reportItems}></Collapse>
@@ -500,6 +495,17 @@ function AuditAccessibilityItem({
                     </div>
                 )}
                 {footer}
+                {/* The verdict after the fix: how to fix it comes first. */}
+                {ruleFindings && (
+                    <div className="mt-4 border-t border-gray-100 pt-3">
+                        <RuleFindingsSummary
+                            ruleId={ruleId}
+                            group={ruleFindings}
+                            canEdit={canEdit}
+                            onBulkStatus={onBulkStatus}
+                        />
+                    </div>
+                )}
             </Card>
         );
     }
