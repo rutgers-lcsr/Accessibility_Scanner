@@ -130,7 +130,7 @@ const Website = ({ websiteId, user }: Props) => {
 
     const violations = websiteReport.report_counts.violations;
     const openCounts = fixFirst ? elementCounts(fixFirst) : null;
-    const toCheck = websiteReport.report.incomplete?.length ?? 0;
+    const toCheck = websiteReport.report?.incomplete?.length ?? 0;
     // Site admins, the website's admin and its members triage (Website.can_edit).
     const canEdit =
         !!user &&
@@ -143,10 +143,24 @@ const Website = ({ websiteId, user }: Props) => {
     const onPageScanned = () =>
         mutateAll((key) => typeof key === 'string' && key.startsWith(`/api/websites/${websiteId}`));
 
-    // Mutate both the website report and the sites data when it become stale,
-    // this is needed for a full page reload when the website is scanned
+    // After a save, show the saved website at once, then refetch. The save's response is
+    // the website without its report (report and page_rescans null): it is merged over the
+    // cached one, not put in its place, or the page lost its report and crashed.
     const mutate = async (website?: WebsiteType) => {
-        mutateWebsiteReport(website);
+        if (!website) {
+            await mutateWebsiteReport();
+            return;
+        }
+        await mutateWebsiteReport((current) =>
+            current
+                ? {
+                      ...current,
+                      ...website,
+                      report: website.report ?? current.report,
+                      page_rescans: website.page_rescans ?? current.page_rescans,
+                  }
+                : website
+        );
     };
 
     // A heading per tab panel, for screen-reader users moving by headings.
@@ -212,7 +226,7 @@ const Website = ({ websiteId, user }: Props) => {
         {
             key: 'violations',
             // Distinct failing rules: the tiles count elements, so this count names its unit.
-            label: `By rule (${websiteReport.report.violations?.length ?? 0})`,
+            label: `By rule (${websiteReport.report?.violations?.length ?? 0})`,
             children: (
                 <WebsiteReport
                     websiteId={websiteId}
