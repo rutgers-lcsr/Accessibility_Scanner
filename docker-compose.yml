@@ -1,7 +1,9 @@
 services:
     a11y-nginx:
         container_name: a11y_nginx
-        image: nginx:latest
+        # Pinned: the deploy never pulls, so :latest stayed whatever the server first
+        # downloaded. A new tag here makes `docker compose up` fetch it. Mainline line.
+        image: nginx:1.31.9
         ports:
             - "443:443"
         volumes:
